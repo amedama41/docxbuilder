@@ -1,2 +1,2 @@
-from docx import *
+from docxbuilder.docx.docx import *
 

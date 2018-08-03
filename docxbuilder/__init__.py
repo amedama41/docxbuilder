@@ -1,4 +1,4 @@
-from builder import DocxBuilder
+from docxbuilder.builder import DocxBuilder
 
 
 def setup(app):

@@ -15,7 +15,7 @@
 '''
 
 from lxml import etree
-import Image
+from PIL import Image
 import zipfile
 import shutil
 import re

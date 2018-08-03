@@ -20,7 +20,7 @@ from sphinx.builders import Builder
 from sphinx.util.osutil import ensuredir, os_path
 from sphinx.util.nodes import inline_all_toctrees
 from sphinx.util.console import bold, darkgreen, brown
-from writer import DocxWriter
+from docxbuilder.writer import DocxWriter
 
 
 class DocxBuilder(Builder):

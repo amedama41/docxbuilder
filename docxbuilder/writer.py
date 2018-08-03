@@ -31,19 +31,19 @@ from sphinx.locale import admonitionlabels, versionlabels, _
 
 from sphinx.ext import graphviz
 
-import docx
+import docxbuilder.docx as docx
 import sys
 import os
 import zipfile
 import tempfile
 from lxml import etree
-from highlight import *
+from docxbuilder.highlight import *
 
 
 #
 # Is the PIL imaging library installed?
 try:
-    import Image
+    from PIL import Image
 except ImportError, exp:
     Image = None
 
