@@ -1,14 +1,14 @@
 ===============================================================
   sphinx-docxbuilder
 
-  An extension for a docx file generation with Sphinx-1.1.2
+  An extension for a docx file generation with Sphinx-1.3.3
 
   Copyright(c) 2011, haraisao at gmail dot com
 ===============================================================
 
 About this
 ==========
-This programs is an extension to generate a docx file with Sphinx-1.1.2.
+This programs is an extension to generate a docx file with Sphinx-1.3.3.
 This extension is developed by hacking both 'sphinxcontrib-docxbuilder' and 'python-docx'.
 
 Special thanks to Mike MacCana and Takayuki SHIMIZUKAWA.
@@ -25,10 +25,10 @@ Files
 This program is consist of following files.
 
 * builder.py
-  This file defined a builder class for Sphinx-1.1.2. This file is copyed from sphinx-docxbuilder's one.
+  This file defined a builder class for Sphinx-1.3.3. This file is copyed from sphinx-docxbuilder's one.
 
 * writer.py
-  This file defined a writer class for Sphinx-1.1.2. This file is modified sphinx-docxbuilder's.
+  This file defined a writer class for Sphinx-1.3.3. This file is modified sphinx-docxbuilder's.
 
 * highlight.py
   This file defined DocxFormatter and DocxPygmentsBridge to support highlighting in the literal block.
