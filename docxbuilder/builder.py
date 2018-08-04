@@ -10,7 +10,6 @@
     :license: BSD, see LICENSE for details.
 """
 
-import codecs
 from os import path
 
 from docutils import nodes
@@ -19,7 +18,7 @@ from docutils.io import StringOutput
 from sphinx.builders import Builder
 from sphinx.util.osutil import ensuredir, os_path
 from sphinx.util.nodes import inline_all_toctrees
-from sphinx.util.console import bold, darkgreen, brown
+from sphinx.util.console import bold, darkgreen
 from docxbuilder.writer import DocxWriter
 
 

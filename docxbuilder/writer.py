@@ -21,8 +21,6 @@
     :license: BSD, see LICENSE for details.
 """
 
-import re
-
 from docutils import nodes, writers
 
 from sphinx import addnodes
@@ -34,11 +32,9 @@ from sphinx.ext import graphviz
 import docxbuilder.docx as docx
 import sys
 import os
-import zipfile
-import tempfile
 import six
 from lxml import etree
-from docxbuilder.highlight import *
+from docxbuilder.highlight import DocxPygmentsBridge
 
 
 #

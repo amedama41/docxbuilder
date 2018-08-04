@@ -1,9 +1,7 @@
 
-from sphinx import highlighting
 from sphinx.highlighting import PygmentsBridge
 
-from pygments.formatter import Formatter
-from pygments.formatters import *
+from pygments.formatters import RtfFormatter
 
 #--- Formatter
 
