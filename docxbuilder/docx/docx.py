@@ -265,25 +265,14 @@ class DocxDocument:
         '''
           Constructor
         '''
-        self.title = ""
-        self.subject = ""
-        self.creator = "Python:DocDocument"
-        self.company = ""
-        self.category = ""
-        self.descriptions = ""
-        self.keywords = []
-        self.stylenames = {}
-
         if docxfile:
             self.set_document(docxfile)
-            self.docxfile = docxfile
 
     def set_document(self, fname):
         '''
           set docx document 
         '''
         if fname:
-            self.docxfile = fname
             self.docx = zipfile.ZipFile(fname)
 
             self.document = self.get_xmltree('word/document.xml')
@@ -291,9 +280,9 @@ class DocxDocument:
 
             self.numbering = self.get_xmltree('word/numbering.xml')
             self.styles = self.get_xmltree('word/styles.xml')
-            self.extract_stylenames()
-            self.paragraph_style_id = self.stylenames['Normal']
-            self.character_style_id = self.stylenames['Default Paragraph Font']
+            stylenames = self.extract_stylenames()
+            self.paragraph_style_id = stylenames['Normal']
+            self.character_style_id = stylenames['Default Paragraph Font']
 
         return self.document
 
@@ -310,6 +299,7 @@ class DocxDocument:
         '''
           Extract a stylenames from the docx file
         '''
+        stylenames = {}
         style_elems = get_elements(self.styles, 'w:style')
 
         for style_elem in style_elems:
@@ -320,37 +310,37 @@ class DocxDocument:
                 name_elem = get_elements(style_elem, 'w:name')[0]
                 name = name_elem.attrib[norm_name('w:val')]
             value = style_elem.attrib[norm_name('w:styleId')]
-            self.stylenames[name] = value
-        return self.stylenames
+            stylenames[name] = value
+        return stylenames
 
     def get_paper_info(self):
-        self.paper_info = get_elements(
+        paper_info = get_elements(
             self.document, '/w:document/w:body/w:sectPr')[0]
-        self.paper_size = get_elements(
+        paper_size = get_elements(
             self.document, '/w:document/w:body/w:sectPr/w:pgSz')[0]
-        self.paper_margin = get_elements(
+        paper_margin = get_elements(
             self.document, '/w:document/w:body/w:sectPr/w:pgMar')[0]
-        width = int(self.paper_size.get(norm_name('w:w'))) - int(self.paper_margin.get(
-            norm_name('w:right'))) - int(self.paper_margin.get(norm_name('w:left')))
-        height = int(self.paper_size.get(norm_name('w:h'))) - int(self.paper_margin.get(
-            norm_name('w:top'))) - int(self.paper_margin.get(norm_name('w:bottom')))
+        width = int(paper_size.get(norm_name('w:w'))) - int(paper_margin.get(
+            norm_name('w:right'))) - int(paper_margin.get(norm_name('w:left')))
+        height = int(paper_size.get(norm_name('w:h'))) - int(paper_margin.get(
+            norm_name('w:top'))) - int(paper_margin.get(norm_name('w:bottom')))
 
         # paper info: unit ---> 2099 mm = 11900 paper_unit
         self.document_width = int(width * 2099 / 11900)  # mm
         self.document_height = int(height * 2970 / 16840)  # mm
 
         print(self.document_width, self.document_height)
-        return self.paper_info
+        return paper_info
 
     def get_coverpage(self):
         coverInfo = get_attribute(
             self.docbody, 'w:sdt/w:sdtPr/w:docPartObj/w:docPartGallery', 'w:val')
         if coverInfo == "Cover Pages":
-            self.coverpage = get_elements(self.docbody, 'w:sdt')[0]
+            coverpage = get_elements(self.docbody, 'w:sdt')[0]
         else:
-            self.coverpage = None
+            coverpage = None
 
-        return self.coverpage
+        return coverpage
 
     def extract_file(self, fname, outname=None, pprint=True):
         '''
