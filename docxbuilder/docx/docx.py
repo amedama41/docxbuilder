@@ -1,4 +1,5 @@
  # -*- coding: utf-8 -*-
+from __future__ import print_function
 '''
   Microsoft Word 2007 Document Composer
 
@@ -19,6 +20,7 @@ from PIL import Image
 import zipfile
 import shutil
 import re
+import six
 import time
 import os
 from os.path import join
@@ -102,7 +104,7 @@ def append_element(elem, xml, path=None, index=0, ns=nsprefixes):
         dist[index].append(elem)
         return True
     except:
-        print "Error  in append_element"
+        print("Error  in append_element")
 
     return False
 
@@ -147,17 +149,17 @@ def parse_tag_list(tag):
         tagname=tag[0]
         taglen = len(tag)
         if taglen > 1 :
-            if isinstance(tag[1],basestring) :
+            if isinstance(tag[1], six.string_types) :
                 tagtext = tag[1]
             else:
                 attributes = tag[1]
         if taglen > 2:
-            if isinstance(tag[2],basestring) :
+            if isinstance(tag[2], six.string_types) :
                 tagtext = tag[2]
             else:
                 attributes = tag[2]
     else:
-        print "Invalid tag:",tag
+        print("Invalid tag:", tag)
 
     return tagname,attributes,tagtext
 
@@ -319,7 +321,7 @@ class DocxDocument:
         self.document_width = int(width * 2099 / 11900)  # mm
         self.document_height = int(height * 2970 / 16840)  # mm
 
-        print self.document_width, self.document_height
+        print(self.document_width, self.document_height)
         return self.paper_info
 
     def get_coverpage(self):
@@ -348,7 +350,7 @@ class DocxDocument:
                 f.write(xmlcontent)
                 f.close()
         except:
-            print "Error in extract_document: %s" % fname
+            print("Error in extract_document: %s" % fname)
             #print filelist
         return
 
@@ -371,11 +373,11 @@ class DocxDocument:
                 file_name = join(to_dir,fname)
                 if not os.path.exists(os.path.dirname(file_name)) :
                     os.makedirs(os.path.dirname(file_name)) 
-                f = open(file_name, 'w')
+                f = open(file_name, 'wb')
                 f.write(xmlcontent)
                 f.close()
-        except:
-            print "Error in extract_files ..."
+        except Exception as ex:
+            print("Error in extract_files ...", ex)
             return False
         return True
 
@@ -385,7 +387,7 @@ class DocxDocument:
           Restruct docx file from files in 'doxc_dir'
         '''
         if not os.access( docx_dir ,os.F_OK):
-            print "Can't found docx directory: %s" % docx_dir
+            print("Can't found docx directory: %s" % docx_dir)
             return
 
         docxfile = zipfile.ZipFile(docx_filename, mode='w', compression=zipfile.ZIP_DEFLATED)
@@ -608,7 +610,7 @@ class DocxComposer:
         fname = find_file(stylefile, 'sphinx-docxbuilder/docx')
 
         if fname == None:
-            print "Error: style file( %s ) not found" % stylefile
+            print("Error: style file( %s ) not found" % stylefile)
             return None
 
         self.styleDocx = DocxDocument(fname)
@@ -617,7 +619,7 @@ class DocxComposer:
         result = self.styleDocx.extract_files(self.template_dir)
 
         if not result :
-            print "Unexpected error in copy_docx_to_tempfile"
+            print("Unexpected error in copy_docx_to_tempfile")
             shutil.rmtree(temp_dir, True)
             self.template_dir = None
             return 
@@ -709,7 +711,7 @@ class DocxComposer:
         coverpage = self.styleDocx.get_coverpage()
 
         if not self.nocoverpage and coverpage is not None :
-            print "output Coverpage"
+            print("output Coverpage")
             self.docbody.insert(0,coverpage)
 
         self.docbody.append(self.paper_info)
@@ -733,7 +735,7 @@ class DocxComposer:
                 treestring =  etree.tostring(tree, xml_declaration=True, encoding='UTF-8', standalone='yes')
                 docxfile.writestr(treesandfiles[tree],treestring)
 
-        print 'Saved new file to: '+docxfilename
+        print('Saved new file to: '+docxfilename)
         shutil.rmtree(self.template_dir)
         return
 
@@ -782,7 +784,7 @@ class DocxComposer:
                                 [['w:rPr'], [['w:b',{'w:val':'0'}]], [['w:noProof']] ]
                         ],
                         [['w:r'],[['w:fldChar', {'w:fldCharType':'begin'}]]],
-                        [['w:r'],[['w:instrText', ' TOC \o "1-%d" \h \z \u ' % maxlevel , {'xml:space':'preserve'}]]],
+                        [['w:r'],[['w:instrText', ' TOC \\o "1-%d" \\h \\z \\u ' % maxlevel , {'xml:space':'preserve'}]]],
                         [['w:r'],[['w:fldChar', {'w:fldCharType':'separare'}]]],
                         [['w:r'],[['w:fldChar', {'w:fldCharType':'end'}]]]
                 ]
@@ -1293,9 +1295,9 @@ class DocxComposer:
             if len(rows) > pos[1] :
                 return get_elements(rows[pos[1]], 'w:tc')[pos[0]]
             else :
-                print  "Invalid position", pos
+                print("Invalid position", pos)
         except:
-            print  "Error in get_table_cell", pos
+            print("Error in get_table_cell", pos)
         return None
 
     def append_paragrap_to_table_cell(self, table, paragraph, pos):
@@ -1386,7 +1388,7 @@ class DocxComposer:
             for x in contents: 
                 cell.append(self.paragraph(x, create_only=True))
         else :
-            print "Invalid parameter:", contents
+            print("Invalid parameter:", contents)
 
     def insert_field_list_item(self, table, contents, n=0):
         '''
@@ -1423,7 +1425,7 @@ class DocxComposer:
                     self.set_indent(paragraph, self.number_list_indent)
                 cell.append(paragraph)
         else :
-            print "Invalid parameter:", contents
+            print("Invalid parameter:", contents)
 
     def insert_option_list_table(self):
         '''
@@ -1581,7 +1583,7 @@ class DocxComposer:
 
         parts = dict([
             (x.attrib['PartName'], x.attrib['ContentType'])
-            for x in etree.fromstring(open(filename).read()).xpath('*')
+            for x in etree.fromstring(open(filename, 'rb').read()).xpath('*')
             if 'PartName' in x.attrib
         ])
 
@@ -1684,7 +1686,7 @@ class DocxComposer:
         if not os.path.exists(filename):
             raise RuntimeError('You need %r file in template' % filename)
 
-        relationships = etree.fromstring(open(filename).read())
+        relationships = etree.fromstring(open(filename, 'rb').read())
         relationshiplist = [
                 [x.attrib['Type'], x.attrib['Target']]
                 for x in relationships.xpath('*')

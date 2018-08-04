@@ -36,6 +36,7 @@ import sys
 import os
 import zipfile
 import tempfile
+import six
 from lxml import etree
 from docxbuilder.highlight import *
 
@@ -44,7 +45,7 @@ from docxbuilder.highlight import *
 # Is the PIL imaging library installed?
 try:
     from PIL import Image
-except ImportError, exp:
+except ImportError as exp:
     Image = None
 
 #
@@ -64,7 +65,7 @@ def dprint(_func=None, **kw):
         try:
             text = dict((k, repr(v)) for k, v in f.f_locals.items()
                         if k != 'self')
-            text = unicode(text)
+            text = six.text_type(text)
         except:
             text = ''
 
@@ -937,7 +938,7 @@ class DocxTranslator(nodes.NodeVisitor):
                     unit = 'px'
                 try:
                     size = float(size)
-                except ValueError, e:
+                except ValueError as e:
                     self.document.reporter.warning(
                             'Invalid %s for image: "%s"' % (
                                 attr, node.attributes[attr]))
@@ -953,7 +954,7 @@ class DocxTranslator(nodes.NodeVisitor):
                         'scale out of range (%s), using 1.' % (scale, ))
                     scale = 1
                 scale = scale * 0.01
-            except ValueError, e:
+            except ValueError as e:
                 self.document.reporter.warning(
                     'Invalid scale for image: "%s"' % (
                         node.attributes['scale'], ))
@@ -1541,6 +1542,6 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def unknown_visit(self, node):
         dprint()
-        print node
+        print(node)
         raise nodes.SkipNode
         #raise NotImplementedError('Unknown node: ' + node.__class__.__name__)

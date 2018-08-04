@@ -86,7 +86,7 @@ class DocxBuilder(Builder):
         ensuredir(path.dirname(outfilename))
         try:
             self.writer.save(outfilename)
-        except (IOError, OSError), err:
+        except (IOError, OSError) as err:
             self.warn("error writing file %s: %s" % (outfilename, err))
 
     def finish(self):
