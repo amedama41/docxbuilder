@@ -1030,9 +1030,9 @@ class DocxTranslator(nodes.NodeVisitor):
         width[0] *= scale
         height[0] *= scale
         if width[1] == 'in':
-            width = [width[0] * dip[0], 'px']
+            width = [width[0] * dpi[0], 'px']
         if height[1] == 'in':
-            height = [height[0] * dip[1], 'px']
+            height = [height[0] * dpi[1], 'px']
 
         #  We shoule shulink image (multiply 72/96)
         width[0] *= 0.75

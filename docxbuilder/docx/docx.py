@@ -566,8 +566,8 @@ class DocxDocument:
           This function copied from 'python-docx' library
           Return the raw text of a document, as a list of paragraphs.
         '''
-        paragraph_tag == norm_nama('w:p')
-        text_tag == norm_nama('w:text')
+        paragraph_tag = norm_name('w:p')
+        text_tag = norm_name('w:text')
         paratextlist = []
         # Compile a list of all paragraph (p) elements
         paralist = []
@@ -646,7 +646,7 @@ class DocxComposer:
 
         if not result:
             print("Unexpected error in copy_docx_to_tempfile")
-            shutil.rmtree(temp_dir, True)
+            shutil.rmtree(self.template_dir, True)
             self.template_dir = None
             return
 
@@ -966,10 +966,10 @@ class DocxComposer:
 
     def trim_paragraph(self):
         paras = get_elements(self.current_docbody, 'w:p')
-        if len(para) > 2:
+        if len(paras) > 2:
             self.last_paragraph = paras[-2]
             self.current_docbody.remove(paras[-1])
-        elif len(para) > 1:
+        elif len(paras) > 1:
             self.last_paragraph = None
             self.current_docbody.remove(paras[-1])
         return
@@ -1472,7 +1472,7 @@ class DocxComposer:
             paragraph = self.paragraph(contents, create_only=True)
             if nrow == 0:
                 self.set_indent(paragraph, self.number_list_indent)
-            cell.append(paragraph0r)
+            cell.append(paragraph)
         elif isinstance(contents, list):
             for x in contents:
                 paragraph = self.paragraph(x, create_only=True)
