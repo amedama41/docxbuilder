@@ -261,30 +261,21 @@ def get_attribute(xml, path, name):
 
 
 class DocxDocument:
-    def __init__(self, docxfile=None):
+    def __init__(self, docxfile):
         '''
           Constructor
         '''
-        if docxfile:
-            self.set_document(docxfile)
+        self.docx = zipfile.ZipFile(docxfile)
 
-    def set_document(self, fname):
-        '''
-          set docx document 
-        '''
-        if fname:
-            self.docx = zipfile.ZipFile(fname)
-
-            self.document = self.get_xmltree('word/document.xml')
-            self.docbody = get_elements(self.document, '/w:document/w:body')[0]
-
-            self.numbering = self.get_xmltree('word/numbering.xml')
-            self.styles = self.get_xmltree('word/styles.xml')
-            stylenames = self.extract_stylenames()
-            self.paragraph_style_id = stylenames['Normal']
-            self.character_style_id = stylenames['Default Paragraph Font']
-
-        return self.document
+        self.document = self.get_xmltree('word/document.xml')
+        self.docbody = get_elements(self.document, '/w:document/w:body')[0]
+        self.numbering = self.get_xmltree('word/numbering.xml')
+        self.styles = self.get_xmltree('word/styles.xml')
+        stylenames = self.extract_stylenames()
+        self.paragraph_style_id = stylenames['Normal']
+        self.character_style_id = stylenames['Default Paragraph Font']
+        self.document_width = None
+        self.document_height = None
 
     def get_xmltree(self, fname):
         '''
