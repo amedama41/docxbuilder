@@ -1339,7 +1339,7 @@ class DocxComposer:
 
             # Properties
             cellprops = get_elements(cell,'w:tcPr')[0]
-            if cellsize > 0:
+            if cellsize:
                 cellwidth = make_element_tree([['w:tcW',{'w:w':str(cellsize[i]),'w:type':'dxa'}]])
                 cellprops.append(cellwidth)
 
