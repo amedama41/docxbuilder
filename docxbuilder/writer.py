@@ -53,7 +53,7 @@ except ImportError as exp:
 #
 import logging
 logging.basicConfig(filename='docx.log', filemode='w', level=logging.INFO,
-        format="%(asctime)-15s  %(message)s")
+                    format="%(asctime)-15s  %(message)s")
 logger = logging.getLogger('docx')
 
 
@@ -74,24 +74,28 @@ def dprint(_func=None, **kw):
 
     logger.info(' '.join([_func, text]))
 
-###### Utility functions
+# Utility functions
+
+
 def remove_items(src, target):
     for x in target:
         src.remove(x)
 
+
 def get_items_list(src):
-    result=[]
+    result = []
     for x in src:
-        if x  and x != [[]]:
+        if x and x != [[]]:
             result.append(x)
     return result
 
+
 def findElement(elem, tag):
     res = None
-    if not elem :
+    if not elem:
         return res
 
-    for x in elem :
+    for x in elem:
         try:
             if x.tagname == tag:
                 return x
@@ -101,12 +105,13 @@ def findElement(elem, tag):
             res = None
     return res
 
+
 def get_toc_maxdepth(builder, docname):
     toc_maxdepth = 0
     try:
         toc = findElement(builder.env.tocs[docname], 'toctree')
 
-        if toc :
+        if toc:
             toc_maxdepth = toc['maxdepth']
     except:
         toc_maxdepth = 0
@@ -115,6 +120,8 @@ def get_toc_maxdepth(builder, docname):
 #
 #  DocxWriter class for sphinx
 #
+
+
 class DocxWriter(writers.Writer):
     supported = ('docx',)
     settings_spec = ('No options here.', '', ())
@@ -140,7 +147,7 @@ class DocxWriter(writers.Writer):
             self.coverpage = True
 
         stylefile = self.builder.config['docx_style']
-        if stylefile :
+        if stylefile:
             self.docx.new_document(stylefile)
         else:
             self.docx.new_document('style.docx')
@@ -149,12 +156,12 @@ class DocxWriter(writers.Writer):
         self.docx.set_coverpage(self.coverpage)
 
         self.docx.set_props(title=self.title,
-                subject=self.subject,
-                creator=self.creator,
-                company=self.company,
-                category=self.category,
-                descriptions=self.descriptions,
-                keywords=self.keywords)
+                            subject=self.subject,
+                            creator=self.creator,
+                            company=self.company,
+                            category=self.category,
+                            descriptions=self.descriptions,
+                            keywords=self.keywords)
 
         self.docx.save(filename)
 
@@ -166,6 +173,8 @@ class DocxWriter(writers.Writer):
 #
 #  DocxTranslator class for sphinx
 #
+
+
 class DocxTranslator(nodes.NodeVisitor):
 
     def __init__(self, document, builder, docx):
@@ -185,7 +194,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self.current_block = []
         self.list_level = 0
         self.block_level = 0
-        self.num_list_id = docx.get_max_numbering_id()  + 1
+        self.num_list_id = docx.get_max_numbering_id() + 1
         self.max_num_list_id = self.num_list_id
 
         self.enum_prefix_style = []
@@ -197,7 +206,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self.current_option_list = None
         self.literal_block_lang = None
 
-        self.highlighter = DocxPygmentsBridge('html', builder.config.pygments_style, builder.config.trim_doctest_flags)
+        self.highlighter = DocxPygmentsBridge(
+            'html', builder.config.pygments_style, builder.config.trim_doctest_flags)
 
         self.option = []
 
@@ -206,8 +216,8 @@ class DocxTranslator(nodes.NodeVisitor):
            Add text in states
         '''
         dprint()
-        if not self.states :
-            if self.states[-1] is not [] :
+        if not self.states:
+            if self.states[-1] is not []:
                 self.states.append([])
 
         self.states[-1].append(text)
@@ -225,9 +235,9 @@ class DocxTranslator(nodes.NodeVisitor):
         '''
         dprint()
 
-        if len(self.current_block) == 0 :
+        if len(self.current_block) == 0:
             self.ensure_state()
-        if self.states[-1] is not [] :
+        if self.states[-1] is not []:
             self.states.append([])
 
     def ensure_state(self):
@@ -237,20 +247,20 @@ class DocxTranslator(nodes.NodeVisitor):
         dprint()
         self.flush_state()
 
-    def flush_state(self, _sty=None, typ = -1, enumprefix=None, enumprefixtype=None, start_num=1):
+    def flush_state(self, _sty=None, typ=-1, enumprefix=None, enumprefixtype=None, start_num=1):
         '''
            flush all states
         '''
         dprint()
-        result=False
+        result = False
 
-        if _sty is 'List_item' :
+        if _sty is 'List_item':
             self.flush_enum_list_item()
         else:
-            if _sty is None :
-                if len(self.current_block) > 0 and self.current_block[-1] == 'List_item' :
+            if _sty is None:
+                if len(self.current_block) > 0 and self.current_block[-1] == 'List_item':
                     self.flush_enum_list_item()
-                    result=True
+                    result = True
 
         self.flush_state_all(_sty)
 
@@ -261,19 +271,21 @@ class DocxTranslator(nodes.NodeVisitor):
            flush all states
         '''
         dprint()
-        p=[]
+        p = []
 
         b_level = self.block_level + self.list_level
 
-        for texts in  self.states:
-            if texts :
-                if _sty :
-#                if _sty == 'LiteralBlock':
-#                    print texts
-#                    pass
-                    p.append( self.docx.paragraph(texts, style=_sty, block_level=b_level, create_only=_create_only))
+        for texts in self.states:
+            if texts:
+                if _sty:
+                    #                if _sty == 'LiteralBlock':
+                    #                    print texts
+                    #                    pass
+                    p.append(self.docx.paragraph(texts, style=_sty,
+                                                 block_level=b_level, create_only=_create_only))
                 else:
-                    p.append( self.docx.paragraph(texts, block_level=b_level, create_only=_create_only))
+                    p.append(self.docx.paragraph(
+                        texts, block_level=b_level, create_only=_create_only))
         self.states = [[]]
         return p
 
@@ -289,30 +301,30 @@ class DocxTranslator(nodes.NodeVisitor):
                 if item:
                     result.insert(0, [first + item[0]])
                     result[1] = item[1:]
-            if not self.states :
-                if self.states[-1] is not [] :
+            if not self.states:
+                if self.states[-1] is not []:
                     self.states.append([])
             self.states[-1].extend(result)
         except:
-            self.states=[[]]
+            self.states = [[]]
             pass
 
     def flush_enum_list_item(self):
         '''
            flush an enum list item
         '''
-        if len(self.current_block) > 1 and self.current_block[-2] == 'Number_list' :
+        if len(self.current_block) > 1 and self.current_block[-2] == 'Number_list':
             num_style = self.enum_prefix_style[-1]
             # change numbering
-            if num_style[0] <  self.max_num_list_id :
+            if num_style[0] < self.max_num_list_id:
                 self.max_num_list_id += 1
                 paras = self.docx.find_numbering_paragraph(num_style[0])
                 num_style[1][0] = len(paras)+1
                 num_style[0] = self.max_num_list_id
 
-            self.flush_list_item(num_style[0], start_num=num_style[1][0], 
+            self.flush_list_item(num_style[0], start_num=num_style[1][0],
                                  enumprefix=num_style[1][1],
-                                 enumprefixtype=num_style[1][2] )
+                                 enumprefixtype=num_style[1][2])
         else:
             self.flush_list_item()
 
@@ -325,14 +337,14 @@ class DocxTranslator(nodes.NodeVisitor):
 
         b_level = self.list_level+self.block_level
 
-        for i,x in enumerate(text_list) :
+        for i, x in enumerate(text_list):
             sty = self.list_style[-1]
 
-            if i == 0 and not self.list_item_flushed :
+            if i == 0 and not self.list_item_flushed:
                 self.docx.list_item(x, sty, b_level, typ,
-                        enum_prefix=enumprefix, 
-                        enum_prefix_type=enumprefixtype, start=start_num)
-                self.list_item_flushed=True
+                                    enum_prefix=enumprefix,
+                                    enum_prefix_type=enumprefixtype, start=start_num)
+                self.list_item_flushed = True
             else:
                 self.docx.list_item(x, sty, b_level, 0)
 
@@ -348,7 +360,6 @@ class DocxTranslator(nodes.NodeVisitor):
         txt = txt_list.pop()
         txt_list.append([txt, style])
         self.states.append(txt_list)
-
 
     def visit_start_of_file(self, node):
         '''
@@ -372,7 +383,7 @@ class DocxTranslator(nodes.NodeVisitor):
            start of a document
         '''
         dprint()
-        self.toc_out=False
+        self.toc_out = False
         self.new_state()
 
     def depart_document(self, node):
@@ -411,7 +422,7 @@ class DocxTranslator(nodes.NodeVisitor):
         '''
         dprint()
         #raise nodes.SkipNode
-        #self.new_state()
+        # self.new_state()
 
     def depart_topic(self, node):
         '''
@@ -419,7 +430,7 @@ class DocxTranslator(nodes.NodeVisitor):
         '''
         dprint()
         #raise nodes.SkipNode
-        #self.end_state()
+        # self.end_state()
 
     visit_sidebar = visit_topic
     depart_sidebar = depart_topic
@@ -430,7 +441,7 @@ class DocxTranslator(nodes.NodeVisitor):
         '''
         dprint()
         #raise nodes.SkipNode
-        #self.new_state()
+        # self.new_state()
         #self.add_text('-[ ')
 
     def depart_rubric(self, node):
@@ -440,21 +451,21 @@ class DocxTranslator(nodes.NodeVisitor):
         dprint()
         raise nodes.SkipNode
         #self.add_text(' ]-')
-        #self.end_state()
+        # self.end_state()
 
     def visit_compound(self, node):
         '''
            start of a compound (pass a text)
         '''
-        if self.states[-1] and self.states[-1][0]  == 'Contents:' :
+        if self.states[-1] and self.states[-1][0] == 'Contents:':
             self.states.pop()
             self.states.append(['  '])
 
-        if not self.toc_out :
+        if not self.toc_out:
             self.toc_out = True
             self.ensure_state()
             maxdepth = get_toc_maxdepth(self.builder, 'index')
-            self.docx.table_of_contents(toc_text='Contents', maxlevel=maxdepth )
+            self.docx.table_of_contents(toc_text='Contents', maxlevel=maxdepth)
             self.docx.pagebreak(type='page', orient='portrait')
         dprint()
         pass
@@ -495,9 +506,9 @@ class DocxTranslator(nodes.NodeVisitor):
         text = self.states.pop()
         dprint(_func='* heading', text=repr(text), level=self.sectionlevel)
 
-        if self.table is not None :
+        if self.table is not None:
             self.docx.paragraph(text, style='TableHeading')
-        else :
+        else:
             self.docx.heading(text, self.sectionlevel)
 
     def visit_subtitle(self, node):
@@ -549,8 +560,8 @@ class DocxTranslator(nodes.NodeVisitor):
         '''
         dprint()
         #raise nodes.SkipNode
-        #self.new_state()
-        #if node.parent['objtype'] in ('class', 'exception'):
+        # self.new_state()
+        # if node.parent['objtype'] in ('class', 'exception'):
         #    self.add_text('%s ' % node.parent['objtype'])
 
     def depart_desc_signature(self, node):
@@ -559,8 +570,8 @@ class DocxTranslator(nodes.NodeVisitor):
         '''
         dprint()
         #raise nodes.SkipNode
-        ## XXX: wrap signatures in a way that makes sense
-        #self.end_state()
+        # XXX: wrap signatures in a way that makes sense
+        # self.end_state()
 
     def visit_desc_name(self, node):
         '''
@@ -622,33 +633,33 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_desc_parameterlist(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.add_text('(')
+        # self.add_text('(')
         #self.first_param = 1
 
     def depart_desc_parameterlist(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.add_text(')')
+        # self.add_text(')')
 
     def visit_desc_parameter(self, node):
         dprint()
         #raise nodes.SkipNode
-        #if not self.first_param:
+        # if not self.first_param:
         #    self.add_text(', ')
-        #else:
+        # else:
         #    self.first_param = 0
-        #self.add_text(node.astext())
+        # self.add_text(node.astext())
         ##raise nodes.SkipNode
 
     def visit_desc_optional(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.add_text('[')
+        # self.add_text('[')
 
     def depart_desc_optional(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.add_text(']')
+        # self.add_text(']')
 
     def visit_desc_annotation(self, node):
         dprint()
@@ -669,13 +680,13 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_desc_content(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.new_state()
-        #self.add_text('\n')
+        # self.new_state()
+        # self.add_text('\n')
 
     def depart_desc_content(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.end_state()
+        # self.end_state()
 
     def visit_figure(self, node):
         # FIXME: figure text become normal paragraph instead of caption.
@@ -698,19 +709,19 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_productionlist(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.new_state()
+        # self.new_state()
         #names = []
-        #for production in node:
+        # for production in node:
         #    names.append(production['tokenname'])
         #maxlen = max(len(name) for name in names)
-        #for production in node:
+        # for production in node:
         #    if production['tokenname']:
         #        self.add_text(production['tokenname'].ljust(maxlen) + ' ::=')
         #        lastname = production['tokenname']
         #    else:
         #        self.add_text('%s    ' % (' '*len(lastname)))
         #    self.add_text(production.astext() + '\n')
-        #self.end_state()
+        # self.end_state()
         ##raise nodes.SkipNode
 
     def visit_seealso(self, node):
@@ -725,7 +736,7 @@ class DocxTranslator(nodes.NodeVisitor):
         dprint()
         #raise nodes.SkipNode
         #self._footnote = node.children[0].astext().strip()
-        #self.new_state()
+        # self.new_state()
 
     def depart_footnote(self, node):
         dprint()
@@ -735,11 +746,11 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_citation(self, node):
         dprint()
         #raise nodes.SkipNode
-        #if len(node) and isinstance(node[0], nodes.label):
+        # if len(node) and isinstance(node[0], nodes.label):
         #    self._citlabel = node[0].astext()
-        #else:
+        # else:
         #    self._citlabel = ''
-        #self.new_state()
+        # self.new_state()
 
     def depart_citation(self, node):
         dprint()
@@ -768,18 +779,20 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_option_list_item(self, node):
         dprint()
-        self.docx.insert_option_list_item(self.current_option_list, get_items_list(self.states), 0)
-        self.states=[[]]
+        self.docx.insert_option_list_item(
+            self.current_option_list, get_items_list(self.states), 0)
+        self.states = [[]]
 
     def visit_option_group(self, node):
         dprint()
 
     def depart_option_group(self, node):
         dprint()
-        if self.states[-1][-1] == ', ' :
+        if self.states[-1][-1] == ', ':
             self.states[-1].pop()
-        self.docx.insert_option_list_item(self.current_option_list, get_items_list(self.states), 1)
-        self.states=[[]]
+        self.docx.insert_option_list_item(
+            self.current_option_list, get_items_list(self.states), 1)
+        self.states = [[]]
 
     def visit_option(self, node):
         dprint()
@@ -799,9 +812,9 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_option_argument(self, node):
         dprint()
-        if self.states[-1][-1][:2] == '--' :
+        if self.states[-1][-1][:2] == '--':
             self.add_text('=')
-        else :
+        else:
             self.add_text(' ')
 
     def depart_option_argument(self, node):
@@ -883,8 +896,8 @@ class DocxTranslator(nodes.NodeVisitor):
         dprint()
         colsize_chars = self.table[0]
         colsize = []
-        for i,x in enumerate(colsize_chars):
-            colsize.append( int(x)*110 )
+        for i, x in enumerate(colsize_chars):
+            colsize.append(int(x)*110)
 
         lines = self.table[1:]
         fmted_rows = []
@@ -904,10 +917,10 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_acks(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.new_state()
-        #self.add_text(', '.join(n.astext() for n in node.children[0].children)
+        # self.new_state()
+        # self.add_text(', '.join(n.astext() for n in node.children[0].children)
         #              + '.')
-        #self.end_state()
+        # self.end_state()
         #raise nodes.SkipNode
 
     def visit_image(self, node):
@@ -918,7 +931,7 @@ class DocxTranslator(nodes.NodeVisitor):
         file_path = os.path.join(self.builder.env.srcdir, uri)
         width, height = self.get_image_scaled_width_height(node, file_path)
 
-        self.docx.picture(file_path, '',width, height)
+        self.docx.picture(file_path, '', width, height)
 
     def depart_image(self, node):
         dprint()
@@ -927,7 +940,7 @@ class DocxTranslator(nodes.NodeVisitor):
         size = None
         if attr in node.attributes:
             size = node.attributes[attr]
-            if size[-1] == '%' :
+            if size[-1] == '%':
                 size = float(size[:-1])
                 size = [size, '%']
             else:
@@ -940,8 +953,8 @@ class DocxTranslator(nodes.NodeVisitor):
                     size = float(size)
                 except ValueError as e:
                     self.document.reporter.warning(
-                            'Invalid %s for image: "%s"' % (
-                                attr, node.attributes[attr]))
+                        'Invalid %s for image: "%s"' % (
+                            attr, node.attributes[attr]))
                 size = [size, unit]
         return size
 
@@ -949,7 +962,7 @@ class DocxTranslator(nodes.NodeVisitor):
         if 'scale' in node.attributes:
             try:
                 scale = int(node.attributes['scale'])
-                if scale < 1: # or scale > 100:
+                if scale < 1:  # or scale > 100:
                     self.document.reporter.warning(
                         'scale out of range (%s), using 1.' % (scale, ))
                     scale = 1
@@ -965,7 +978,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def get_image_scaled_width_height(self, node, filename):
         dpi = (72, 72)
 
-        if Image is not None :
+        if Image is not None:
             try:
                 imageobj = Image.open(filename, 'r')
             except:
@@ -973,21 +986,26 @@ class DocxTranslator(nodes.NodeVisitor):
 
             dpi = imageobj.info.get('dpi', dpi)
             # dpi information can be (xdpi, ydpi) or xydpi
-            try: iter(dpi)
-            except: dpi = (dpi, dpi)
+            try:
+                iter(dpi)
+            except:
+                dpi = (dpi, dpi)
         else:
             imageobj = None
-            raise RuntimeError('image size not fully specified and PIL not installed')
+            raise RuntimeError(
+                'image size not fully specified and PIL not installed')
 
         scale = self.get_image_scale(node)
         width = self.get_image_width_height(node, 'width')
         height = self.get_image_width_height(node, 'height')
 
         if width is not None and width[1] == '%':
-            width = [int(self.docx.styleDocx.document_width * width[0] * 0.00284 ), 'px']
+            width = [int(self.docx.styleDocx.document_width *
+                         width[0] * 0.00284), 'px']
 
         if height is not None and height[1] == '%':
-            height = [int(self.docx.styleDocx.document_height * height[0] * 0.00284 ), 'px']
+            height = [int(self.docx.styleDocx.document_height *
+                          height[0] * 0.00284), 'px']
 
         if width is None or height is None:
             if imageobj is None:
@@ -995,37 +1013,41 @@ class DocxTranslator(nodes.NodeVisitor):
                     'image size not fully specified and PIL not installed')
             if width is None:
                 if height is None:
-                     width = [imageobj.size[0], 'px']
-                     height = [imageobj.size[1], 'px']
+                    width = [imageobj.size[0], 'px']
+                    height = [imageobj.size[1], 'px']
                 else:
-                     scaled_width = imageobj.size[0] * height[0] /imageobj.size[1]
-                     width = [scaled_width, 'px']
+                    scaled_width = imageobj.size[0] * \
+                        height[0] / imageobj.size[1]
+                    width = [scaled_width, 'px']
             else:
                 if height is None:
-                     scaled_height = imageobj.size[1] * width[0] / imageobj.size[0]
-                     height = [scaled_height, 'px']
+                    scaled_height = imageobj.size[1] * \
+                        width[0] / imageobj.size[0]
+                    height = [scaled_height, 'px']
                 else:
-                     height = [imageobj.size[1], 'px']
+                    height = [imageobj.size[1], 'px']
 
         width[0] *= scale
         height[0] *= scale
-        if width[1] == 'in': width = [width[0] * dip[0], 'px']
-        if height[1] == 'in': height = [height[0] *dip[1], 'px']
+        if width[1] == 'in':
+            width = [width[0] * dip[0], 'px']
+        if height[1] == 'in':
+            height = [height[0] * dip[1], 'px']
 
         #  We shoule shulink image (multiply 72/96)
         width[0] *= 0.75
         height[0] *= 0.75
 
-        # 
-        maxwidth = int(self.docx.styleDocx.document_width  * 0.284 ) * 0.9
+        #
+        maxwidth = int(self.docx.styleDocx.document_width * 0.284) * 0.9
 
-        if width[0] > maxwidth :
+        if width[0] > maxwidth:
             ratio = height[0] / width[0]
             width[0] = maxwidth
             height[0] = width[0] * ratio
 
-        maxheight = int(self.docx.styleDocx.document_width  * 0.284 ) * 0.9
-        if height[0] > maxheight :
+        maxheight = int(self.docx.styleDocx.document_width * 0.284) * 0.9
+        if height[0] > maxheight:
             ratio = width[0] / height[0]
             height[0] = maxheight
             width[0] = height[0] * ratio
@@ -1035,9 +1057,9 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_transition(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.new_state()
+        # self.new_state()
         #self.add_text('=' * 70)
-        #self.end_state()
+        # self.end_state()
 
     def visit_bullet_list(self, node):
         dprint()
@@ -1057,32 +1079,33 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_enumerated_list(self, node):
         dprint()
 
-        if self.flush_state() : 
+        if self.flush_state():
             self.num_list_id += 1
 
         self.new_state()
-        suffix=""
-        prefix=""
-        enumtype="arabic"
-        start=1
+        suffix = ""
+        prefix = ""
+        enumtype = "arabic"
+        start = 1
         try:
-            enumtype=node['enumtype']
-            suffix=node['suffix']
-            prefix=node['prefix']
+            enumtype = node['enumtype']
+            suffix = node['suffix']
+            prefix = node['prefix']
         except:
             pass
         try:
-            start=node['start']
+            start = node['start']
         except:
             pass
-        enumprefix =  "%s%%1%s" % (prefix,suffix)
+        enumprefix = "%s%%1%s" % (prefix, suffix)
         enumprefix_type = enumtype
         start_num = start
 
-        if self.current_block.count('Number_list') == 0 :
+        if self.current_block.count('Number_list') == 0:
             self.num_list_id = self.max_num_list_id+1
 
-        self.enum_prefix_style.append([self.num_list_id, [start_num, enumprefix, enumprefix_type]])
+        self.enum_prefix_style.append(
+            [self.num_list_id, [start_num, enumprefix, enumprefix_type]])
         self.current_block.append('Number_list')
         self.list_style.append('ListNumber')
         self.list_level += 1
@@ -1090,42 +1113,41 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_enumerated_list(self, node):
         dprint()
-        if self.current_block :
+        if self.current_block:
             self.current_block.pop()
         self.enum_prefix_style.pop()
         self.list_style.pop()
         self.list_level -= 1
         self.num_list_id -= 1
-        #print "depart_enum", self.list_level
+        # print "depart_enum", self.list_level
 
     def visit_definition_list(self, node):
         self.flush_state()
         dprint()
         ##raise nodes.SkipNode
-        #self.list_style.append(-2)
+        # self.list_style.append(-2)
 
     def depart_definition_list(self, node):
         dprint()
         ##raise nodes.SkipNode
-        #self.list_style.pop()
+        # self.list_style.pop()
 
     def visit_list_item(self, node):
         dprint()
-        self.list_item_flushed=False
+        self.list_item_flushed = False
         self.current_block.append('List_item')
         self.new_state()
 
     def depart_list_item(self, node):
         dprint()
         self.flush_state(_sty='List_item')
-        if self.current_block :
+        if self.current_block:
             self.current_block.pop()
 
     def visit_definition_list_item(self, node):
         dprint()
         self.flush_state()
         pass
-
 
     def depart_definition_list_item(self, node):
         dprint()
@@ -1138,7 +1160,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_term(self, node):
         dprint()
-        if len(self.current_block) > 0 and self.current_block[-1] != 'List_item' :
+        if len(self.current_block) > 0 and self.current_block[-1] != 'List_item':
             self.flush_state('DefinitionTerm')
 
     def visit_classifier(self, node):
@@ -1149,7 +1171,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_classifier(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.end_state()
+        # self.end_state()
 
     def visit_definition(self, node):
         dprint()
@@ -1186,16 +1208,17 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_field_name(self, node):
         dprint()
         self.add_text(':')
-        self.docx.insert_field_list_item(self.current_field_list,self.states)
-        self.states=[[]]
+        self.docx.insert_field_list_item(self.current_field_list, self.states)
+        self.states = [[]]
 
     def visit_field_body(self, node):
         dprint()
 
     def depart_field_body(self, node):
         dprint()
-        lbody = self.docx.set_field_list_item(self.current_field_list, get_items_list(self.states), 1)
-        self.states=[[]]
+        lbody = self.docx.set_field_list_item(
+            self.current_field_list, get_items_list(self.states), 1)
+        self.states = [[]]
 
     def visit_centered(self, node):
         dprint()
@@ -1227,7 +1250,8 @@ class DocxTranslator(nodes.NodeVisitor):
             self.flush_state()
 
             atitle = admonitionlabels[name.lower()] + ': '
-            self.admonition_body = self.docx.insert_admonition_table('', title=atitle,tstyle=name+'Admonition')
+            self.admonition_body = self.docx.insert_admonition_table(
+                '', title=atitle, tstyle=name+'Admonition')
             self.docx.set_docbody(self.admonition_body)
         return visit_admonition
 
@@ -1260,18 +1284,18 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_versionmodified(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.new_state()
-        #if node.children:
+        # self.new_state()
+        # if node.children:
         #    self.add_text(
         #            versionlabels[node['type']] % node['version'] + ': ')
-        #else:
+        # else:
         #    self.add_text(
         #            versionlabels[node['type']] % node['version'] + '.')
 
     def depart_versionmodified(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.end_state()
+        # self.end_state()
 
     def visit_literal_block(self, node):
         # FIXME: working but broken.
@@ -1285,23 +1309,24 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_literal_block(self, node):
         dprint()
-        if self.docx.get_last_paragraph_style() == 'LiteralBlock' :
+        if self.docx.get_last_paragraph_style() == 'LiteralBlock':
             self.docx.insert_linespace()
         # We should insert highlighter for docx....
 
         highlight_args = node.get('highlight_args', {})
+
         def warner(msg):
             self.builder.warn(msg, (self.builder.current_docname, node.line))
         result = []
-        for  x in self.states:
+        for x in self.states:
             linenos = 1
-            if x :
+            if x:
                 highlighted = self.highlighter.highlight_block(
-                        x[0], self.literal_block_lang, # warn=warner,
-                        linenos=linenos, **highlight_args)
+                    x[0], self.literal_block_lang,  # warn=warner,
+                    linenos=linenos, **highlight_args)
                 result.append([highlighted])
 
-        self.states=result
+        self.states = result
         self.flush_state(_sty='LiteralBlock')
         self.end_state()
 
@@ -1321,7 +1346,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_line(self, node):
         dprint()
-        if self.line_block_level > 0 :
+        if self.line_block_level > 0:
             for n in range(0, self.line_block_level):
                 self.add_text(' ')
         pass
@@ -1354,15 +1379,15 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_paragraph(self, node):
         dprint()
         self.new_state()
-        #self.ensure_state()
-        #if not isinstance(node.parent, nodes.Admonition) or \
+        # self.ensure_state()
+        # if not isinstance(node.parent, nodes.Admonition) or \
         #       isinstance(node.parent, addnodes.seealso):
         #    self.new_state()
 
     def depart_paragraph(self, node):
         dprint()
-        #self.ensure_state()
-        #if not isinstance(node.parent, nodes.Admonition) or \
+        # self.ensure_state()
+        # if not isinstance(node.parent, nodes.Admonition) or \
         #       isinstance(node.parent, addnodes.seealso):
         #    self.end_state()
 
@@ -1432,26 +1457,26 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_title_reference(self, node):
         dprint()
-        #self.add_text('*')
+        # self.add_text('*')
 
     def depart_title_reference(self, node):
         dprint()
         self.append_style('TitleReference')
-        #self.add_text('*')
+        # self.add_text('*')
 
     def visit_literal(self, node):
         dprint()
-        #self.add_text('``')
+        # self.add_text('``')
 
     def depart_literal(self, node):
         dprint()
         self.append_style('Literal')
-        #self.add_text('``')
+        # self.add_text('``')
 
     def visit_subscript(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.add_text('_')
+        # self.add_text('_')
 
     def depart_subscript(self, node):
         dprint()
@@ -1461,7 +1486,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_superscript(self, node):
         dprint()
         #raise nodes.SkipNode
-        #self.add_text('^')
+        # self.add_text('^')
 
     def depart_superscript(self, node):
         dprint()
@@ -1513,9 +1538,9 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_system_message(self, node):
         dprint()
         raise nodes.SkipNode
-        #self.new_state()
+        # self.new_state()
         #self.add_text('<SYSTEM MESSAGE: %s>' % node.astext())
-        #self.end_state()
+        # self.end_state()
 
     def visit_comment(self, node):
         dprint()
@@ -1529,15 +1554,16 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_raw(self, node):
         dprint()
         raise nodes.SkipNode
-        #if 'text' in node.get('format', '').split():
+        # if 'text' in node.get('format', '').split():
         #    self.body.append(node.astext())
 
     def visit_graphviz(self, node):
         dprint()
-        fname, filename = graphviz.render_dot(self, node['code'], node['options'],'png')
+        fname, filename = graphviz.render_dot(
+            self, node['code'], node['options'], 'png')
         self.flush_state()
         width, height = self.get_image_scaled_width_height(node, filename)
-        self.docx.picture(filename, '',width, height)
+        self.docx.picture(filename, '', width, height)
         raise nodes.SkipNode
 
     def unknown_visit(self, node):

@@ -82,7 +82,7 @@ class DocxBuilder(Builder):
         destination = StringOutput(encoding='utf-8')
         self.writer.write(doctree, destination)
         outfilename = path.join(
-                self.outdir, os_path(docname) + self.out_suffix)
+            self.outdir, os_path(docname) + self.out_suffix)
         ensuredir(path.dirname(outfilename))
         try:
             self.writer.save(outfilename)
