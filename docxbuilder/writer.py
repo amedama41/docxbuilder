@@ -446,7 +446,7 @@ class DocxTranslator(nodes.NodeVisitor):
         '''
            start of a compound (pass a text)
         '''
-        if self.states[-1][0]  == 'Contents:' :
+        if self.states[-1] and self.states[-1][0]  == 'Contents:' :
             self.states.pop()
             self.states.append(['  '])
 
