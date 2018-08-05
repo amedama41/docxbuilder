@@ -333,29 +333,6 @@ class DocxDocument:
 
         return coverpage
 
-    def extract_file(self, fname, outname=None, pprint=True):
-        '''
-          Extract file from docx 
-        '''
-        try:
-            filelist = self.docx.namelist()
-
-            if filelist.index(fname) >= 0:
-                xmlcontent = self.docx.read(fname)
-                document = etree.fromstring(xmlcontent)
-                xmlcontent = etree.tostring(
-                    document, encoding='UTF-8', pretty_print=pprint)
-                if outname == None:
-                    outname = os.path.basename(fname)
-
-                f = open(outname, 'w')
-                f.write(xmlcontent)
-                f.close()
-        except:
-            print("Error in extract_document: %s" % fname)
-            # print filelist
-        return
-
     def extract_files(self, to_dir, pprint=False):
         '''
           Extract all files from docx 
@@ -415,43 +392,6 @@ class DocxDocument:
         os.chdir(prev_dir)  # restore previous working dir
         return docxfile
 
-    def get_filelist(self):
-        '''
-           Extract file names from docx file
-        '''
-        filelist = self.docx.namelist()
-        return filelist
-
-    def search(self, search):
-        '''
-          This function is copied from 'python-docx' library
-          Search a document for a regex, return success / fail result
-        '''
-        result = False
-        text_tag = norm_name('w:t')
-        searchre = re.compile(search)
-        for element in self.docbody.iter():
-            if element.tag == text_tag:
-                if element.text:
-                    if searchre.search(element.text):
-                        result = True
-        return result
-
-    def replace(self, search, replace):
-        '''
-          This function copied from 'python-docx' library
-          Replace all occurences of string with a different string, return updated document
-        '''
-        text_tag = norm_name('w:t')
-        newdocument = self.docbody
-        searchre = re.compile(search)
-        for element in newdocument.iter():
-            if element.tag == text_tag:
-                if element.text:
-                    if searchre.search(element.text):
-                        element.text = re.sub(search, replace, element.text)
-        return newdocument
-
 ############
 # Numbering
     def get_numbering_style_id(self, style):
@@ -471,52 +411,6 @@ class DocxDocument:
         except:
             pass
         return '0'
-
-    def get_numbering_ids(self):
-        '''
-
-        '''
-        num_elems = get_elements(self.numbering, '/w:numbering/w:num')
-        result = []
-        for num_elem in num_elems:
-            nid = num_elem.attrib[norm_name('w:numId')]
-            result.append(nid)
-        return result
-
-    def get_numbering_ids2(self):
-        '''
-
-        '''
-        num_elems = get_elements(self.numbering, '/w:numbering/w:num')
-        result = []
-        for num_elem in num_elems:
-            nid = num_elem.attrib[norm_name('w:numId')]
-            elem = get_elements(num_elem, 'w:abstractNumId')[0]
-            abstId = elem.attrib[norm_name('w:val')]
-            result.append([nid, abstId])
-        return result
-
-    def get_abstractNum_ids(self):
-        '''
-
-        '''
-        num_elems = get_elements(self.numbering, '/w:numbering/w:abstractNum')
-        result = []
-        for num_elem in num_elems:
-            nid = num_elem.attrib[norm_name('w:abstractNumId')]
-            result.append(nid)
-        return result
-
-    def get_max_numbering_id(self):
-        '''
-
-        '''
-        max_id = 0
-        num_ids = self.get_numbering_ids()
-        for x in num_ids:
-            if int(x) > max_id:
-                max_id = int(x)
-        return max_id
 
     def get_numbering_left(self, style):
         '''
@@ -541,35 +435,6 @@ class DocxDocument:
 
 
 ##########
-
-    def getdocumenttext(self):
-        '''
-          This function copied from 'python-docx' library
-          Return the raw text of a document, as a list of paragraphs.
-        '''
-        paragraph_tag = norm_name('w:p')
-        text_tag = norm_name('w:text')
-        paratextlist = []
-        # Compile a list of all paragraph (p) elements
-        paralist = []
-        for element in self.document.iter():
-            # Find p (paragraph) elements
-            if element.tag == paragraph_tag:
-                paralist.append(element)
-        # Since a single sentence might be spread over multiple text elements, iterate through each
-        # paragraph, appending all text (t) children to that paragraphs text.
-        for para in paralist:
-            paratext = u''
-            # Loop through each paragraph
-            for element in para.iter():
-                # Find t (text) elements
-                if element.tag == text_tag:
-                    if element.text:
-                        paratext = paratext+element.text
-            # Add our completed paragraph text to the list of paragraph text
-            if not len(paratext) == 0:
-                paratextlist.append(paratext)
-        return paratextlist
 
 #
 # DocxComposer Class
