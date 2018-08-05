@@ -340,9 +340,8 @@ class DocxDocument:
                 file_name = join(to_dir, fname)
                 if not os.path.exists(os.path.dirname(file_name)):
                     os.makedirs(os.path.dirname(file_name))
-                f = open(file_name, 'wb')
-                f.write(xmlcontent)
-                f.close()
+                with open(file_name, 'wb') as f:
+                    f.write(xmlcontent)
         except Exception as ex:
             print("Error in extract_files ...", ex)
             return False
@@ -1474,11 +1473,12 @@ class DocxComposer:
         if not os.path.exists(filename):
             raise RuntimeError('You need %r file in template' % filename)
 
-        parts = dict([
-            (x.attrib['PartName'], x.attrib['ContentType'])
-            for x in etree.fromstring(open(filename, 'rb').read()).xpath('*')
-            if 'PartName' in x.attrib
-        ])
+        with open(filename, 'rb') as f:
+            parts = dict([
+                (x.attrib['PartName'], x.attrib['ContentType'])
+                for x in etree.fromstring(f.read()).xpath('*')
+                if 'PartName' in x.attrib
+            ])
 
         # Add support for filetypes
         filetypes = {'rels': 'application/vnd.openxmlformats-package.relationships+xml',
@@ -1583,7 +1583,8 @@ class DocxComposer:
         if not os.path.exists(filename):
             raise RuntimeError('You need %r file in template' % filename)
 
-        relationships = etree.fromstring(open(filename, 'rb').read())
+        with open(filename, 'rb') as f:
+            relationships = etree.fromstring(f.read())
         relationshiplist = [
             [x.attrib['Id'], x.attrib['Type'], x.attrib['Target']]
             for x in relationships.xpath('*')
