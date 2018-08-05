@@ -113,23 +113,6 @@ def append_element(elem, xml, path=None, index=0, ns=nsprefixes):
     return False
 
 
-def find_file(filename, child_dir=None):
-    '''
-       Find file...
-    '''
-    fname = filename
-    if not os.access(filename, os.F_OK):
-        for pth in sys.path:
-            if child_dir:
-                pth = join(pth, child_dir)
-            fname = join(pth, filename)
-            if os.access(fname, os.F_OK):
-                break
-            else:
-                fname = None
-    return fname
-
-
 def get_enumerate_type(typ):
     '''
 
@@ -479,13 +462,7 @@ class DocxComposer:
         '''
            Set style file 
         '''
-        fname = find_file(stylefile, 'sphinx-docxbuilder/docx')
-
-        if fname == None:
-            print("Error: style file( %s ) not found" % stylefile)
-            return None
-
-        self.styleDocx = DocxDocument(fname)
+        self.styleDocx = DocxDocument(stylefile)
 
         self.template_dir = tempfile.mkdtemp(prefix='docx-')
         result = self.styleDocx.extract_files(self.template_dir)

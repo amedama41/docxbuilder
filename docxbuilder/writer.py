@@ -146,7 +146,9 @@ class DocxWriter(writers.Writer):
         if stylefile:
             self.docx.new_document(stylefile)
         else:
-            self.docx.new_document('style.docx')
+            default_style = os.path.join(
+                    os.path.dirname(__file__), 'docx/style.docx')
+            self.docx.new_document(default_style)
 
     def save(self, filename):
         self.docx.set_coverpage(self.coverpage)
