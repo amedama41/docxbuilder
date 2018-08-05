@@ -1466,14 +1466,12 @@ class DocxComposer:
            create [Content_Types].xml 
            This function copied from 'python-docx' library
         '''
-        prev_dir = os.getcwd()  # save previous working dir
-        os.chdir(self.template_dir)
-
         filename = '[Content_Types].xml'
-        if not os.path.exists(filename):
+        filepath = os.path.join(self.template_dir, filename)
+        if not os.path.exists(filepath):
             raise RuntimeError('You need %r file in template' % filename)
 
-        with open(filename, 'rb') as f:
+        with open(filepath, 'rb') as f:
             parts = dict([
                 (x.attrib['PartName'], x.attrib['ContentType'])
                 for x in etree.fromstring(f.read()).xpath('*')
@@ -1499,7 +1497,6 @@ class DocxComposer:
                 [['Default', {'Extension': extension, 'ContentType': filetypes[extension]}]])
 
         types = make_element_tree(types_tree, nsprefixes['ct'])
-        os.chdir(prev_dir)
         self._contenttypes = types
         return types
 
@@ -1576,21 +1573,17 @@ class DocxComposer:
         return web
 
     def relationshiplist(self):
-        prev_dir = os.getcwd()  # save previous working dir
-        os.chdir(self.template_dir)
-
         filename = 'word/_rels/document.xml.rels'
-        if not os.path.exists(filename):
+        filepath = os.path.join(self.template_dir, filename)
+        if not os.path.exists(filepath):
             raise RuntimeError('You need %r file in template' % filename)
 
-        with open(filename, 'rb') as f:
+        with open(filepath, 'rb') as f:
             relationships = etree.fromstring(f.read())
         relationshiplist = [
             [x.attrib['Id'], x.attrib['Type'], x.attrib['Target']]
             for x in relationships.xpath('*')
         ]
-
-        os.chdir(prev_dir)
 
         return relationshiplist
 
