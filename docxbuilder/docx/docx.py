@@ -316,6 +316,11 @@ class DocxDocument:
 
         return coverpage
 
+    def get_number_of_medias(self):
+        media_list = filter(lambda fname: fname.startswith('word/media/'),
+                            self.docx.namelist())
+        return len(list(media_list))
+
     def extract_files(self, to_dir, pprint=False):
         '''
           Extract all files from docx 
@@ -485,6 +490,7 @@ class DocxComposer:
             self.styleDocx.numbering, 'w:abstractNum')
         self.numids = get_elements(self.styleDocx.numbering, 'w:num')
         self.numbering = make_element_tree(['w:numbering'])
+        self.images = self.styleDocx.get_number_of_medias()
 
         return
 
