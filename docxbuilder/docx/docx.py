@@ -1399,8 +1399,9 @@ class DocxComposer:
 
         # Set relationship ID to the first available
         picid = '2'
-        picrelid = 'rId'+str(len(relationshiplist)+1)
+        picrelid = 'rId' + str(len(relationshiplist) + 1)
         relationshiplist.append([
+            picrelid,
             'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
             'media/'+picname])
 
@@ -1578,7 +1579,7 @@ class DocxComposer:
 
         relationships = etree.fromstring(open(filename, 'rb').read())
         relationshiplist = [
-            [x.attrib['Type'], x.attrib['Target']]
+            [x.attrib['Id'], x.attrib['Type'], x.attrib['Target']]
             for x in relationships.xpath('*')
         ]
 
@@ -1593,12 +1594,9 @@ class DocxComposer:
         '''
         # Default list of relationships
         rel_tree = [['Relationships']]
-        count = 0
-        for relationship in self.relationships:
-            # Relationship IDs (rId) start at 1.
+        for id_, type_, target in self.relationships:
             rel_tree.append([['Relationship', {
-                            'Id': 'rId'+str(count+1), 'Type': relationship[0], 'Target':relationship[1]}]])
-            count += 1
+                            'Id': id_, 'Type': type_, 'Target': target}]])
 
         relationships = make_element_tree(rel_tree, nsprefixes['pr'])
         self._wordrelationships = relationships
