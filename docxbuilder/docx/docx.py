@@ -877,8 +877,6 @@ class DocxComposer:
             xmltxt = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+txt+'</w:p>'
             p = etree.fromstring(xmltxt)
             run = get_elements(p, 'w:r')
-            # remove the last run, because it could be '<w:br>'
-            run.pop()
         else:
             run = make_element_tree(run_tree)
 
