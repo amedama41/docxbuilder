@@ -895,7 +895,7 @@ class DocxTranslator(nodes.NodeVisitor):
         colsize_chars = self.table[0]
         colsize = []
         for i, x in enumerate(colsize_chars):
-            colsize.append(int(x)*110)
+            colsize.append(int(x))
 
         lines = self.table[1:]
         fmted_rows = []

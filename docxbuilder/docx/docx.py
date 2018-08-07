@@ -1345,13 +1345,10 @@ class DocxComposer:
         columns = len(contents[0])
 
         if colsize is None:
-            for i in range(columns):
-                colsize[i] = 2400
-        sizeof_table = 0
-        for n in colsize:
-            sizeof_table += n
+            colsize = [int(100 / columns) for _ in range(columns)]
 
-        colsize[-1] += self.max_table_width - sizeof_table
+        colsize = list(
+                map(lambda c: int(c * self.max_table_width / 100), colsize))
 
         table = self.create_table(colsize, tstyle=tstyle)
 
