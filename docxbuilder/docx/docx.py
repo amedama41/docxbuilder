@@ -259,6 +259,8 @@ class DocxDocument:
         self.character_style_id = stylenames['Default Paragraph Font']
         width, height = self.get_contents_area_size()
         # paper info: unit ---> 2099 mm = 11900 paper_unit
+        self.contents_width = width
+        self.contents_height = height
         self.document_width = int(width * 2099 / 11900)  # mm
         self.document_height = int(height * 2970 / 16840)  # mm
 
@@ -477,6 +479,7 @@ class DocxComposer:
 
         self.stylenames = self.styleDocx.extract_stylenames()
         self.paper_info = self.styleDocx.get_paper_info()
+        self.max_table_width = self.styleDocx.contents_width
         self.bullet_list_indents = self.get_numbering_left('ListBullet')
         self.bullet_list_numId = self.styleDocx.get_numbering_style_id(
             'ListBullet')
