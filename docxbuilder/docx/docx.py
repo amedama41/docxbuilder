@@ -257,8 +257,10 @@ class DocxDocument:
         stylenames = self.extract_stylenames()
         self.paragraph_style_id = stylenames['Normal']
         self.character_style_id = stylenames['Default Paragraph Font']
-        self.document_width = None
-        self.document_height = None
+        width, height = self.get_contents_area_size()
+        # paper info: unit ---> 2099 mm = 11900 paper_unit
+        self.document_width = int(width * 2099 / 11900)  # mm
+        self.document_height = int(height * 2970 / 16840)  # mm
 
     def get_xmltree(self, fname):
         '''
@@ -287,9 +289,8 @@ class DocxDocument:
             stylenames[name] = value
         return stylenames
 
-    def get_paper_info(self):
-        paper_info = get_elements(
-            self.document, '/w:document/w:body/w:sectPr')[0]
+    def get_contents_area_size(self):
+        paper_info = self.get_paper_info()
         paper_size = get_elements(
             self.document, '/w:document/w:body/w:sectPr/w:pgSz')[0]
         paper_margin = get_elements(
@@ -298,13 +299,10 @@ class DocxDocument:
             norm_name('w:right'))) - int(paper_margin.get(norm_name('w:left')))
         height = int(paper_size.get(norm_name('w:h'))) - int(paper_margin.get(
             norm_name('w:top'))) - int(paper_margin.get(norm_name('w:bottom')))
+        return width, height
 
-        # paper info: unit ---> 2099 mm = 11900 paper_unit
-        self.document_width = int(width * 2099 / 11900)  # mm
-        self.document_height = int(height * 2970 / 16840)  # mm
-
-        print(self.document_width, self.document_height)
-        return paper_info
+    def get_paper_info(self):
+        return get_elements(self.document, '/w:document/w:body/w:sectPr')[0]
 
     def get_coverpage(self):
         coverInfo = get_attribute(
