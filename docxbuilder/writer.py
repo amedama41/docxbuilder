@@ -144,7 +144,8 @@ class DocxWriter(writers.Writer):
 
         stylefile = self.builder.config['docx_style']
         if stylefile:
-            self.docx.new_document(stylefile)
+            self.docx.new_document(os.path.join(
+                self.builder.confdir, os.path.join(stylefile)))
         else:
             default_style = os.path.join(
                     os.path.dirname(__file__), 'docx/style.docx')

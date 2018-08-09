@@ -3,7 +3,7 @@ from docxbuilder.builder import DocxBuilder
 
 def setup(app):
     app.add_builder(DocxBuilder)
-    app.add_config_value('docx_style', None, 'env')
+    app.add_config_value('docx_style', '', 'env')
     app.add_config_value('docx_title', 'SphinxDocx', 'env')
     app.add_config_value('docx_subject', 'Sphinx Document', 'env')
     app.add_config_value('docx_creator', 'sphinx-docxbuilder', 'env')
