@@ -868,10 +868,9 @@ class DocxComposer:
                 if style not in self.stylenames:
                     self.new_character_style(style)
 
-                run_tree.append(
-                    [['w:rPr'], [['w:rStyle', {'w:val': style}], [['w:t', txt, attr]]]])
-            else:
-                run_tree.append([['w:t', txt, attr]])
+                run_tree.append([['w:rPr'], [['w:rStyle', {'w:val': style}]]])
+
+            run_tree.append([['w:t', txt, attr]])
 
         # Make run element
         if rawXml:
