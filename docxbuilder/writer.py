@@ -1438,7 +1438,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_literal_emphasis(self, node):
         dprint()
-        self.append_style('LiteralEmphasise')
+        self.append_style('LiteralEmphasis')
 
     def visit_strong(self, node):
         dprint()
