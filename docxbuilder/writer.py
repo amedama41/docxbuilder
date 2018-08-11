@@ -650,6 +650,9 @@ class DocxTranslator(nodes.NodeVisitor):
         # self.add_text(node.astext())
         ##raise nodes.SkipNode
 
+    def depart_desc_parameter(self, node):
+        pass
+
     def visit_desc_optional(self, node):
         dprint()
         #raise nodes.SkipNode
@@ -723,6 +726,9 @@ class DocxTranslator(nodes.NodeVisitor):
         # self.end_state()
         ##raise nodes.SkipNode
 
+    def depart_productionlist(self, node):
+        pass
+
     def visit_seealso(self, node):
         dprint()
         self.new_state()
@@ -759,6 +765,9 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_label(self, node):
         dprint()
         #raise nodes.SkipNode
+
+    def depart_label(self, node):
+        pass
 
     # XXX: option list could use some better styling
 
@@ -831,6 +840,9 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_tabular_col_spec(self, node):
         dprint()
         #raise nodes.SkipNode
+
+    def depart_tabular_col_spec(self, node):
+        pass
 
     def visit_colspec(self, node):
         dprint()
@@ -921,6 +933,9 @@ class DocxTranslator(nodes.NodeVisitor):
         #              + '.')
         # self.end_state()
         #raise nodes.SkipNode
+
+    def depart_acks(self, node):
+        pass
 
     def visit_image(self, node):
         dprint()
@@ -1059,6 +1074,9 @@ class DocxTranslator(nodes.NodeVisitor):
         # self.new_state()
         #self.add_text('=' * 70)
         # self.end_state()
+
+    def depart_transition(self, node):
+        pass
 
     def visit_bullet_list(self, node):
         dprint()
@@ -1398,9 +1416,15 @@ class DocxTranslator(nodes.NodeVisitor):
         dprint()
         #raise nodes.SkipNode
 
+    def depart_index(self, node):
+        pass
+
     def visit_substitution_definition(self, node):
         dprint()
         #raise nodes.SkipNode
+
+    def depart_substitution_definition(self, node):
+        pass
 
     def visit_pending_xref(self, node):
         dprint()
@@ -1497,10 +1521,16 @@ class DocxTranslator(nodes.NodeVisitor):
         #raise nodes.SkipNode
         #self.add_text('[%s]' % node.astext())
 
+    def depart_footnote_reference(self, node):
+        pass
+
     def visit_citation_reference(self, node):
         dprint()
         #raise nodes.SkipNode
         #self.add_text('[%s]' % node.astext())
+
+    def depart_citation_reference(self, node):
+        pass
 
     def visit_Text(self, node):
         dprint()
