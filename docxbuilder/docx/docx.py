@@ -1358,6 +1358,16 @@ class DocxComposer:
         self.append(table)
         return table
 
+    def add_hyperlink_relationship(self, target):
+        rid = 'rId%d' % (len(self.relationships) + 1)
+        self.relationships.append({
+            'Id': rid,
+            'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
+            'Target': target,
+            'TargetMode': 'External'
+        })
+        return rid
+
     def picture(self, picname, picdescription, pixelwidth=None,
                 pixelheight=None, nochangeaspect=True, nochangearrowheads=True, align='center'):
         '''
@@ -1400,10 +1410,11 @@ class DocxComposer:
         # Set relationship ID to the first available
         picid = '2'
         picrelid = 'rId' + str(len(relationshiplist) + 1)
-        relationshiplist.append([
-            picrelid,
-            'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
-            'media/'+picname])
+        relationshiplist.append({
+            'Id': picrelid,
+            'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
+            'Target': 'media/'+picname
+        })
 
         # There are 3 main elements inside a picture
         pic_tree = [['pic:pic'],
@@ -1575,10 +1586,7 @@ class DocxComposer:
 
         with open(filepath, 'rb') as f:
             relationships = etree.fromstring(f.read())
-        relationshiplist = [
-            [x.attrib['Id'], x.attrib['Type'], x.attrib['Target']]
-            for x in relationships.xpath('*')
-        ]
+        relationshiplist = [x.attrib for x in relationships.xpath('*')]
 
         return relationshiplist
 
@@ -1589,9 +1597,8 @@ class DocxComposer:
         '''
         # Default list of relationships
         rel_tree = [['Relationships']]
-        for id_, type_, target in self.relationships:
-            rel_tree.append([['Relationship', {
-                            'Id': id_, 'Type': type_, 'Target': target}]])
+        for attributes in self.relationships:
+            rel_tree.append([['Relationship', attributes]])
 
         relationships = make_element_tree(rel_tree, nsprefixes['pr'])
         self._wordrelationships = relationships

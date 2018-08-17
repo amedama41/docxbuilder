@@ -289,7 +289,8 @@ class LiteralBlock(object):
         return [p]
 
 class HyperLink(object):
-    def __init__(self, refuri=None, refid=None):
+    def __init__(self, rid):
+        self._rid = rid
         self._run_list = []
         self._text_style_stack = ['HyperLink']
 
@@ -310,8 +311,9 @@ class HyperLink(object):
         raise RuntimeError('Can not append %s' % to_error_string(contents))
 
     def to_xml(self):
-        return self._run_list # TODO: hyperlink support
-        h = make_hyperlink()
+        if self._rid is None: # TODO: hyperlink support
+            return self._run_list
+        h = make_hyperlink(self._rid)
         h.extend(self._run_list)
         return [h]
 
@@ -991,9 +993,13 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_reference(self, node):
-        refuri = node.get('refuri')
+        refuri = node.get('refuri', None)
         refid = node.get('refid')
-        self._doc_stack.append(HyperLink(refuri=refuri, refid=refid))
+        if refuri and not node.get('internal', False):
+            rid = self._docx.add_hyperlink_relationship(refuri)
+        else:
+            rid = None
+        self._doc_stack.append(HyperLink(rid))
 
     def depart_reference(self, node):
         hyperlink = self._doc_stack.pop()
