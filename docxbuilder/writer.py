@@ -566,7 +566,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_compound(self, node):
         if not self._toc_out: # TODO
             self._toc_out = True
-            maxdepth = get_toc_maxdepth(self._builder, 'index')
+            maxdepth = get_toc_maxdepth(
+                    self._builder, self._builder.config.master_doc)
             if maxdepth < 1:
                 maxdepth = 10
             self._docx.table_of_contents(toc_text='Contents', maxlevel=maxdepth)
