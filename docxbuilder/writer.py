@@ -90,31 +90,21 @@ def get_items_list(src):
 
 
 def findElement(elem, tag):
-    res = None
-    if not elem:
-        return res
-
-    for x in elem:
-        try:
-            if x.tagname == tag:
-                return x
-            else:
-                res = findElement(x.children, tag)
-        except:
-            res = None
-    return res
-
+    if not isinstance(elem, nodes.Element):
+        return None
+    if elem.tagname == tag:
+        return elem
+    for child in elem:
+        res = findElement(child, tag)
+        if res is not None:
+            return res
+    return None
 
 def get_toc_maxdepth(builder, docname):
-    toc_maxdepth = 0
-    try:
-        toc = findElement(builder.env.tocs[docname], 'toctree')
-
-        if toc:
-            toc_maxdepth = toc['maxdepth']
-    except:
-        toc_maxdepth = 0
-    return toc_maxdepth
+    toc = findElement(builder.env.tocs[docname], 'toctree')
+    if toc is not None:
+        return toc.get('maxdepth', -1)
+    return -1
 
 #
 #  DocxWriter class for sphinx
@@ -577,6 +567,8 @@ class DocxTranslator(nodes.NodeVisitor):
         if not self._toc_out: # TODO
             self._toc_out = True
             maxdepth = get_toc_maxdepth(self._builder, 'index')
+            if maxdepth < 1:
+                maxdepth = 10
             self._docx.table_of_contents(toc_text='Contents', maxlevel=maxdepth)
             self._docx.pagebreak(type='page', orient='portrait')
 
