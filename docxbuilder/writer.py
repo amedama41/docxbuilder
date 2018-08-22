@@ -186,15 +186,16 @@ def make_hyperlink(relationship_id):
 def make_paragraph(indent_level, style):
     if style is None:
         style = 'BodyText'
-    indent = indent_level * 480 # TODO
-    paragraph_tree = [
-            ['w:p'],
-            [
-                ['w:pPr'],
-                [['w:pStyle', {'w:val': style}]],
-                [['w:ind', {'w:leftChars': '0', 'w:left': str(indent)}]]
-            ]
+    style_tree = [
+            ['w:pPr'],
+            [['w:pStyle', {'w:val': style}]],
     ]
+    if indent_level is not None:
+        indent = indent_level * 480 # TODO
+        style_tree.append(
+            [['w:ind', {'w:leftChars': '0', 'w:left': str(indent)}]])
+
+    paragraph_tree = [['w:p'], style_tree]
     return docx.make_element_tree(paragraph_tree)
 
 def make_list_paragraph(num_id, list_indent_level, indent, style):
@@ -220,7 +221,7 @@ def to_error_string(contents):
     return type(contents).__name__ + '\n' + '\n'.join(map(func, xml_list))
 
 class Paragraph(object):
-    def __init__(self, indent_level, paragraph_style=None):
+    def __init__(self, indent_level=None, paragraph_style=None):
         self._indent_level = indent_level
         self._style = paragraph_style
         self._run_list = []
@@ -522,7 +523,7 @@ class DocxTranslator(nodes.NodeVisitor):
             style = 'TableHeading'
         else:
             style = 'Heading%d' % self._section_level_stack[-1]
-        self._doc_stack.append(Paragraph(self._indent_level_stack[-1], style))
+        self._doc_stack.append(Paragraph(paragraph_style=style))
 
     def depart_title(self, node):
         self._pop_and_append()
@@ -689,8 +690,7 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_caption(self, node):
-        self._doc_stack.append(
-                Paragraph(self._indent_level_stack[-1], 'ImageCaption'))
+        self._doc_stack.append(Paragraph(paragraph_style='ImageCaption'))
 
     def depart_caption(self, node):
         self._pop_and_append()
