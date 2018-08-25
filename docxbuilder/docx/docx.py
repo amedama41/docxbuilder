@@ -453,6 +453,7 @@ class DocxComposer:
         self.images = 0
         self.nocoverpage = False
 
+        self._hyperlink_rid_map = {} # target => relationship id
         self._image_rid_map = {} # imagepath => relationship id
 
         if stylefile == None:
@@ -1357,6 +1358,10 @@ class DocxComposer:
         return table
 
     def add_hyperlink_relationship(self, target):
+        rid = self._hyperlink_rid_map.get(target)
+        if rid is not None:
+            return rid
+
         rid = 'rId%d' % (len(self.relationships) + 1)
         self.relationships.append({
             'Id': rid,
@@ -1364,6 +1369,7 @@ class DocxComposer:
             'Target': target,
             'TargetMode': 'External'
         })
+        self._hyperlink_rid_map[target] = rid
         return rid
 
     def add_image_relationship(self, imagepath):
