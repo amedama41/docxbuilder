@@ -425,6 +425,8 @@ class DocxDocument:
 
 
 class DocxComposer:
+    _picid = 100
+
     def __init__(self, stylefile=None):
         '''
            Constructor
@@ -1400,37 +1402,36 @@ class DocxComposer:
         self._image_rid_map[imagepath] = rid
         return rid
 
-    def picture(self, picname, picdescription, cmwidth, cmheight,
-                nochangeaspect=True, nochangearrowheads=True, align='center'):
+    @classmethod
+    def make_inline_picture_run(
+            cls, rid, picname, cmwidth, cmheight, picdescription,
+            nochangeaspect=True, nochangearrowheads=True):
         '''
-          Take a relationshiplist, picture file name, and return a paragraph containing the image
-          and an updated relationshiplist
+          Take a relationship id, picture file name, and return a run element
+          containing the image
 
-          This function is copied from 'python-docx' library
+          This function is based on 'python-docx' library
         '''
-        # http://openxmldeveloper.org/articles/462.aspx
-        # Create an image. Size may be specified, otherwise it will based on the
-        # pixel size of image. Return a paragraph containing the picture'''
-
-        picrelid = self.add_image_relationship(picname)
-
         # OpenXML measures on-screen objects in English Metric Units
         emupercm = 360000
         width = str(int(cmwidth * emupercm))
         height = str(int(cmheight * emupercm))
 
-        picid = '2'
-        picname = os.path.basename(picname)
+        cls._picid += 1
+        picid = str(cls._picid)
         # There are 3 main elements inside a picture
         pic_tree = [['pic:pic'],
                     [['pic:nvPicPr'],  # The non visual picture properties
-                     [['pic:cNvPr', {'id': '0',
-                                     'name': 'Picture 1', 'descr': picname}]],
-                     [['pic:cNvPicPr'], [['a:picLocks', {'noChangeAspect': str(
-                         int(nochangeaspect)), 'noChangeArrowheads': str(int(nochangearrowheads))}]]]
+                     [['pic:cNvPr', {'id': picid,
+                                     'name': picname, 'descr': picdescription}]],
+                     [['pic:cNvPicPr'], [['a:picLocks', {
+                         'noChangeAspect': str(int(nochangeaspect)),
+                         'noChangeArrowheads': str(int(nochangearrowheads))}]]]
                      ],
-                    [['pic:blipFill'],  # The Blipfill - specifies how the image fills the picture area (stretch, tile, etc.)
-                     [['a:blip', {'r:embed': picrelid}]],
+                    # The Blipfill - specifies how the image fills the picture
+                    # area (stretch, tile, etc.)
+                    [['pic:blipFill'],
+                     [['a:blip', {'r:embed': rid}]],
                      [['a:srcRect']],
                      [['a:stretch'], [['a:fillRect']]]
                      ],
@@ -1453,23 +1454,19 @@ class DocxComposer:
                        [['wp:effectExtent', {'l': '25400',
                                              't': '0', 'r': '0', 'b': '0'}]],
                        [['wp:docPr', {
-                           'id': picid, 'name': 'Picture 1', 'descr': picdescription}]],
+                           'id': picid,
+                           'name': picname, 'descr': picdescription}]],
                        [['wp:cNvGraphicFramePr'], [
                            ['a:graphicFrameLocks', {'noChangeAspect': '1'}]]],
                        graphic_tree
                        ]
 
-        paragraph_tree = [['w:p'],
-                          [['w:pPr'], [['w:jc', {'w:val': align}]]],
-                          [['w:r'], [['w:rPr'], [['w:noProof']]],
-                              [['w:drawing'], inline_tree]]
-                          ]
-
-        paragraph = make_element_tree(paragraph_tree)
-        self.append(paragraph)
-
-        self.last_paragraph = None
-        return paragraph
+        run_tree = [
+                ['w:r'],
+                [['w:rPr'], [['w:noProof']]],
+                [['w:drawing'], inline_tree]
+        ]
+        return make_element_tree(run_tree)
 
     def contenttypes(self):
         '''

@@ -225,7 +225,7 @@ def make_hyperlink(relationship_id):
     hyperlink_tree = [['w:hyperlink', {'r:id': relationship_id}]]
     return docx.make_element_tree(hyperlink_tree)
 
-def make_paragraph(indent_level, style):
+def make_paragraph(indent_level, style, align):
     if style is None:
         style = 'BodyText'
     style_tree = [
@@ -236,6 +236,8 @@ def make_paragraph(indent_level, style):
         indent = indent_level * 480 # TODO
         style_tree.append(
             [['w:ind', {'w:leftChars': '0', 'w:left': str(indent)}]])
+    if align is not None:
+        style_tree.append([['w:jc', {'w:val': align}]])
 
     paragraph_tree = [['w:p'], style_tree]
     return docx.make_element_tree(paragraph_tree)
@@ -263,9 +265,10 @@ def to_error_string(contents):
     return type(contents).__name__ + '\n' + '\n'.join(map(func, xml_list))
 
 class Paragraph(object):
-    def __init__(self, indent_level=None, paragraph_style=None):
+    def __init__(self, indent_level=None, paragraph_style=None, align=None):
         self._indent_level = indent_level
         self._style = paragraph_style
+        self._align = align
         self._run_list = []
         self._text_style_stack = [None]
 
@@ -275,6 +278,10 @@ class Paragraph(object):
 
     def add_break(self):
         self._run_list.append(make_break_run())
+
+    def add_picture(self, rid, filename, width, height, alt):
+        self._run_list.append(docx.DocxComposer.make_inline_picture_run(
+            rid, filename, width, height, alt))
 
     def push_style(self, text_style):
         self._text_style_stack.append(text_style)
@@ -291,7 +298,7 @@ class Paragraph(object):
             raise RuntimeError('Can not append %s' % to_error_string(contents))
 
     def to_xml(self):
-        p = make_paragraph(self._indent_level, self._style)
+        p = make_paragraph(self._indent_level, self._style, self._align)
         p.extend(self._run_list)
         return [p]
 
@@ -310,7 +317,7 @@ class LiteralBlock(object):
         raise RuntimeError('Can not append %s' % to_error_string(contents))
 
     def to_xml(self):
-        p = make_paragraph(self._indent_level, 'LiteralBlock')
+        p = make_paragraph(self._indent_level, 'LiteralBlock', None)
         for text in self._text_list:
             lineos = 1
             highlighted = self._highlighter.highlight_block(
@@ -541,6 +548,14 @@ class DocxTranslator(nodes.NodeVisitor):
         width = t.current_cell_width()
         if width is not None:
             self._table_width_stack[-1] = width
+
+    def _append_picture(self, filepath, width, height, alt):
+        rid = self._docx.add_image_relationship(filepath)
+        filename = os.path.basename(filepath)
+        # TODO: Check whether _doc_stack already includes Paragraph
+        p = Paragraph(align='center')
+        p.add_picture(rid, filename, width, height, alt)
+        self._doc_stack[-1].append(p)
 
     def visit_start_of_file(self, node):
         self._section_level_stack.append(0)
@@ -1122,7 +1137,7 @@ class DocxTranslator(nodes.NodeVisitor):
         file_path = os.path.join(self._builder.env.srcdir, uri)
         width, height = self._get_image_scaled_size(node, file_path)
 
-        self._add_picture(file_path, width, height)
+        self._append_picture(file_path, width, height, node.get('alt', ''))
 
     def depart_image(self, node):
         pass
@@ -1289,7 +1304,7 @@ class DocxTranslator(nodes.NodeVisitor):
         fname, filename = graphviz.render_dot(
             self, node['code'], node['options'], 'png')
         width, height = self._get_image_scaled_size(node, filename)
-        self._add_picture(filename, width, height)
+        self._append_picture(filename, width, height, node.get('alt', ''))
         raise nodes.SkipNode
 
     def visit_refcount(self, node):
@@ -1337,15 +1352,3 @@ class DocxTranslator(nodes.NodeVisitor):
         except Exception as e:
             self.document.reporter.warning(e)
             return None
-
-    def _add_picture(self, filepath, width, height):
-        class Raw(object):
-            def __init__(self, paragaph):
-                self._paragraph = paragaph
-
-            def to_xml(self):
-                return [self._paragraph]
-
-        paragaph = self._docx.picture(filepath, '', width, height)
-        self._docx.current_docbody.remove(paragaph)
-        self._doc_stack[-1].append(Raw(paragaph))
