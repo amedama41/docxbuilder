@@ -453,6 +453,8 @@ class DocxComposer:
         self.images = 0
         self.nocoverpage = False
 
+        self._image_rid_map = {} # imagepath => relationship id
+
         if stylefile == None:
             self.template_dir = None
         else:
@@ -1364,6 +1366,34 @@ class DocxComposer:
         })
         return rid
 
+    def add_image_relationship(self, imagepath):
+        imagepath = os.path.abspath(imagepath)
+
+        rid = self._image_rid_map.get(imagepath)
+        if rid is not None:
+            return rid
+
+        # Copy the file into the media dir
+        media_dir = os.path.join(self.template_dir, 'word', 'media')
+        if not os.path.isdir(media_dir):
+            os.mkdir(media_dir)
+        picext = os.path.splitext(imagepath)
+        if (picext[1] == '.jpg'):
+            picext[1] = '.jpeg'
+        self.images += 1
+        picname = 'image%d%s' % (self.images, picext[1])
+        shutil.copyfile(imagepath, os.path.join(media_dir, picname))
+
+        # Calculate relationship ID to the first available
+        rid = 'rId%d' % (len(self.relationships) + 1)
+        self.relationships.append({
+            'Id': rid,
+            'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
+            'Target': 'media/' + picname
+        })
+        self._image_rid_map[imagepath] = rid
+        return rid
+
     def picture(self, picname, picdescription, cmwidth, cmheight,
                 nochangeaspect=True, nochangearrowheads=True, align='center'):
         '''
@@ -1375,37 +1405,16 @@ class DocxComposer:
         # http://openxmldeveloper.org/articles/462.aspx
         # Create an image. Size may be specified, otherwise it will based on the
         # pixel size of image. Return a paragraph containing the picture'''
-        # Copy the file into the media dir
-        media_dir = join(self.template_dir, 'word', 'media')
-        if not os.path.isdir(media_dir):
-            os.mkdir(media_dir)
-#       picpath, picname = os.path.abspath(picname), os.path.basename(picname)
 
-        picpath, picname = os.path.abspath(picname), os.path.basename(picname)
-        picext = os.path.splitext(picname)
-        self.images += 1
-        if (picext[1] == '.jpg'):
-            picname = 'image'+str(self.images)+'.jpeg'
-        else:
-            picname = 'image'+str(self.images)+picext[1]
-
-        shutil.copyfile(picpath, join(media_dir, picname))
-        relationshiplist = self.relationships
+        picrelid = self.add_image_relationship(picname)
 
         # OpenXML measures on-screen objects in English Metric Units
         emupercm = 360000
         width = str(int(cmwidth * emupercm))
         height = str(int(cmheight * emupercm))
 
-        # Set relationship ID to the first available
         picid = '2'
-        picrelid = 'rId' + str(len(relationshiplist) + 1)
-        relationshiplist.append({
-            'Id': picrelid,
-            'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
-            'Target': 'media/'+picname
-        })
-
+        picname = os.path.basename(picname)
         # There are 3 main elements inside a picture
         pic_tree = [['pic:pic'],
                     [['pic:nvPicPr'],  # The non visual picture properties
@@ -1451,7 +1460,6 @@ class DocxComposer:
                           ]
 
         paragraph = make_element_tree(paragraph_tree)
-        self.relationships = relationshiplist
         self.append(paragraph)
 
         self.last_paragraph = None
