@@ -16,7 +16,6 @@ from __future__ import print_function
 '''
 
 from lxml import etree
-from PIL import Image
 import zipfile
 import shutil
 import re
@@ -258,11 +257,8 @@ class DocxDocument:
         self.paragraph_style_id = stylenames['Normal']
         self.character_style_id = stylenames['Default Paragraph Font']
         width, height = self.get_contents_area_size()
-        # paper info: unit ---> 2099 mm = 11900 paper_unit
         self.contents_width = width
         self.contents_height = height
-        self.document_width = int(width * 2099 / 11900)  # mm
-        self.document_height = int(height * 2970 / 16840)  # mm
 
     def get_xmltree(self, fname):
         '''
@@ -1368,8 +1364,8 @@ class DocxComposer:
         })
         return rid
 
-    def picture(self, picname, picdescription, pixelwidth=None,
-                pixelheight=None, nochangeaspect=True, nochangearrowheads=True, align='center'):
+    def picture(self, picname, picdescription, cmwidth, cmheight,
+                nochangeaspect=True, nochangearrowheads=True, align='center'):
         '''
           Take a relationshiplist, picture file name, and return a paragraph containing the image
           and an updated relationshiplist
@@ -1396,16 +1392,10 @@ class DocxComposer:
         shutil.copyfile(picpath, join(media_dir, picname))
         relationshiplist = self.relationships
 
-        # Check if the user has specified a size
-        if not pixelwidth or not pixelheight:
-            # If not, get info from the picture itself
-            pixelwidth, pixelheight = Image.open(picpath).size[0:2]
-
         # OpenXML measures on-screen objects in English Metric Units
-        # 1cm = 36000 EMUs
-        emuperpixel = 12667
-        width = str(pixelwidth * emuperpixel)
-        height = str(pixelheight * emuperpixel)
+        emupercm = 360000
+        width = str(int(cmwidth * emupercm))
+        height = str(int(cmheight * emupercm))
 
         # Set relationship ID to the first available
         picid = '2'

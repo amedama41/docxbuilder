@@ -106,6 +106,48 @@ def get_toc_maxdepth(builder, docname):
         return toc.get('maxdepth', -1)
     return -1
 
+def get_image_size(filename):
+    if Image is None:
+        raise RuntimeError(
+            'image size not fully specified and PIL not installed')
+    with Image.open(filename, 'r') as imageobj:
+        dpi = imageobj.info.get('dpi', (72, 72))
+        # dpi information can be (xdpi, ydpi) or xydpi
+        try:
+            iter(dpi)
+        except:
+            dpi = (dpi, dpi)
+        width = imageobj.size[0]
+        height = imageobj.size[1]
+        cmperin = 2.54
+        return (width * cmperin / dpi[0], height * cmperin / dpi[1])
+
+def convert_to_cm_size(size_with_unit, max_width):
+    if size_with_unit is None:
+        return None
+    if size_with_unit.endswith('%'):
+        return max_width * float(size_with_unit[:-1]) / 100
+
+    match = re.match(r'^(\d+(?:\.\d*)?)(\D*)$', size_with_unit)
+    if not match:
+        raise RuntimeError('Unexpected length unit: %s' % size_with_unit)
+    size = float(match.group(1))
+    unit = match.group(2)
+    if not unit:
+        unit = 'px'
+
+    cmperin = 2.54
+    ratio_map = {
+            'em': 12 * cmperin / 144, # TODO: Use BodyText font size
+            'ex': 12 * cmperin / 144,
+            'mm': 0.1, 'cm': 1, 'in': cmperin,
+            'px': cmperin / 96, 'pt': cmperin / 72, 'pc': cmperin / 6,
+    }
+    ratio = ratio_map.get(unit)
+    if ratio is None:
+        raise RuntimeError('Unknown length unit: %s' % size_with_unit)
+    return size * ratio
+
 #
 #  DocxWriter class for sphinx
 #
@@ -1078,7 +1120,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_image(self, node):
         uri = node.attributes['uri']
         file_path = os.path.join(self._builder.env.srcdir, uri)
-        width, height = self._get_image_scaled_width_height(node, file_path)
+        width, height = self._get_image_scaled_size(node, file_path)
 
         self._add_picture(file_path, width, height)
 
@@ -1246,7 +1288,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_graphviz(self, node):
         fname, filename = graphviz.render_dot(
             self, node['code'], node['options'], 'png')
-        width, height = self._get_image_scaled_width_height(node, filename)
+        width, height = self._get_image_scaled_size(node, filename)
         self._add_picture(filename, width, height)
         raise nodes.SkipNode
 
@@ -1260,123 +1302,41 @@ class DocxTranslator(nodes.NodeVisitor):
         print(node.tagname)
         raise nodes.SkipNode
 
-    def _get_image_scaled_width_height(self, node, filename):
-        dpi = (72, 72)
+    def _get_image_scaled_size(self, node, filename):
+        twippercm = 567.0
+        max_width = self._table_width_stack[-1] / twippercm
 
-        if Image is not None:
-            try:
-                imageobj = Image.open(filename, 'r')
-            except:
-                raise RuntimeError('Fail to open image file: %s' % filename)
+        width = self._get_cm_size(node, 'width', max_width)
+        height = self._get_cm_size(node, 'height')
 
-            dpi = imageobj.info.get('dpi', dpi)
-            # dpi information can be (xdpi, ydpi) or xydpi
-            try:
-                iter(dpi)
-            except:
-                dpi = (dpi, dpi)
-        else:
-            imageobj = None
-            raise RuntimeError(
-                'image size not fully specified and PIL not installed')
+        if width is None and height is None:
+            width, height = get_image_size(filename)
+        elif width is None:
+            img_width, img_height = get_image_size(filename)
+            width = img_width * height / img_height
+        elif height is None:
+            img_width, img_height = get_image_size(filename)
+            height = img_height * width / img_width
 
-        scale = self._get_image_scale(node)
-        width = self._get_image_width_height(node, 'width')
-        height = self._get_image_width_height(node, 'height')
+        scale = node.get('scale')
+        if scale is not None:
+            scale = float(scale) / 100
+            width *= scale
+            height *= scale
 
-        if width is not None and width[1] == '%':
-            width = [int(self._docx.styleDocx.document_width *
-                         width[0] * 0.00284), 'px']
+        if width > max_width:
+            ratio = max_width / width
+            width = max_width
+            height *= ratio
 
-        if height is not None and height[1] == '%':
-            height = [int(self._docx.styleDocx.document_height *
-                          height[0] * 0.00284), 'px']
+        return width, height
 
-        if width is None or height is None:
-            if imageobj is None:
-                raise RuntimeError(
-                    'image size not fully specified and PIL not installed')
-            if width is None:
-                if height is None:
-                    width = [imageobj.size[0], 'px']
-                    height = [imageobj.size[1], 'px']
-                else:
-                    scaled_width = imageobj.size[0] * \
-                        height[0] / imageobj.size[1]
-                    width = [scaled_width, 'px']
-            else:
-                if height is None:
-                    scaled_height = imageobj.size[1] * \
-                        width[0] / imageobj.size[0]
-                    height = [scaled_height, 'px']
-                else:
-                    height = [imageobj.size[1], 'px']
-
-        width[0] *= scale
-        height[0] *= scale
-        if width[1] == 'in':
-            width = [width[0] * dpi[0], 'px']
-        if height[1] == 'in':
-            height = [height[0] * dpi[1], 'px']
-
-        #  We shoule shulink image (multiply 72/96)
-        width[0] *= 0.75
-        height[0] *= 0.75
-
-        #
-        maxwidth = int(self._docx.styleDocx.document_width * 0.284) * 0.9
-
-        if width[0] > maxwidth:
-            ratio = height[0] / width[0]
-            width[0] = maxwidth
-            height[0] = width[0] * ratio
-
-        maxheight = int(self._docx.styleDocx.document_width * 0.284) * 0.9
-        if height[0] > maxheight:
-            ratio = width[0] / height[0]
-            height[0] = maxheight
-            width[0] = height[0] * ratio
-
-        return int(width[0]), int(height[0])
-
-    def _get_image_width_height(self, node, attr):
-        size = None
-        if attr in node.attributes:
-            size = node.attributes[attr]
-            if size[-1] == '%':
-                size = float(size[:-1])
-                size = [size, '%']
-            else:
-                unit = size[-2:]
-                if unit.isalpha():
-                    size = size[:-2]
-                else:
-                    unit = 'px'
-                try:
-                    size = float(size)
-                except ValueError as e:
-                    self.document.reporter.warning(
-                        'Invalid %s for image: "%s"' % (
-                            attr, node.attributes[attr]))
-                size = [size, unit]
-        return size
-
-    def _get_image_scale(self, node):
-        if 'scale' in node.attributes:
-            try:
-                scale = int(node.attributes['scale'])
-                if scale < 1:  # or scale > 100:
-                    self.document.reporter.warning(
-                        'scale out of range (%s), using 1.' % (scale, ))
-                    scale = 1
-                scale = scale * 0.01
-            except ValueError as e:
-                self.document.reporter.warning(
-                    'Invalid scale for image: "%s"' % (
-                        node.attributes['scale'], ))
-        else:
-            scale = 1.0
-        return scale
+    def _get_cm_size(self, node, attr, max_width=0):
+        try:
+            return convert_to_cm_size(node.get(attr), max_width)
+        except Exception as e:
+            self.document.reporter.warning(e)
+            return None
 
     def _add_picture(self, filepath, width, height):
         class Raw(object):
