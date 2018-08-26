@@ -1353,6 +1353,12 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_download_reference(self, node):
         pass
 
+    def visit_number_reference(self, node):
+        self.visit_reference(node)
+
+    def depart_number_reference(self, node):
+        self.depart_reference(node)
+
     def visit_meta(self, node):
         raise nodes.SkipNode
 
