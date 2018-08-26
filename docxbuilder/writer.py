@@ -164,6 +164,7 @@ class DocxWriter(writers.Writer):
         writers.Writer.__init__(self)
         self.builder = builder
         self.docx = docx.DocxComposer()
+        self.numfig_map = None
 
         self.title = self.builder.config['docx_title']
         self.subject = self.builder.config['docx_subject']
@@ -186,6 +187,9 @@ class DocxWriter(writers.Writer):
                     os.path.dirname(__file__), 'docx/style.docx')
             self.docx.new_document(default_style)
 
+    def set_numfig_map(self, numfig_map):
+        self.numfig_map = numfig_map
+
     def save(self, filename):
         self.docx.set_coverpage(self.coverpage)
 
@@ -200,7 +204,8 @@ class DocxWriter(writers.Writer):
         self.docx.save(filename)
 
     def translate(self):
-        visitor = DocxTranslator(self.document, self.builder, self.docx)
+        visitor = DocxTranslator(
+                self.document, self.builder, self.docx, self.numfig_map)
         self.document.walkabout(visitor)
         self.output = ''  # visitor.body
 
@@ -505,11 +510,12 @@ def admonition(table_style):
     return _visit_admonition
 
 class DocxTranslator(nodes.NodeVisitor):
-    def __init__(self, document, builder, docx):
+    def __init__(self, document, builder, docx, numfig_map):
         nodes.NodeVisitor.__init__(self, document)
         self._builder = builder
         self.builder = self._builder # Needs for graphviz.render_dot
         self._doc_stack = [Document(docx.docbody)]
+        self._docname_stack = [builder.config.master_doc]
         self._section_level_stack = [0]
         self._indent_level_stack = [0]
         self._table_width_stack = [docx.max_table_width]
@@ -524,6 +530,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 'html',
                 builder.config.pygments_style,
                 builder.config.trim_doctest_flags)
+        self._numfig_map = numfig_map
         self._toc_out = False
 
     def _pop_and_append(self):
@@ -557,11 +564,26 @@ class DocxTranslator(nodes.NodeVisitor):
         p.add_picture(rid, filename, width, height, alt)
         self._doc_stack[-1].append(p)
 
+    def _get_numfig(self, figtype, ids):
+        item = self._numfig_map.get(figtype)
+        if item is None:
+            return None
+        prefix, num_map = item
+        if prefix is None:
+            return None
+        for id in ids:
+            num = num_map.get('%s/%s' % (self._docname_stack[-1], id))
+            if num:
+                return prefix % ('.'.join(map(str, num)) + ' ')
+        return None
+
     def visit_start_of_file(self, node):
+        self._docname_stack.append(node['docname'])
         self._section_level_stack.append(0)
 
     def depart_start_of_file(self, node):
         self._section_level_stack.pop()
+        self._docname_stack.pop()
 
     def visit_Text(self, node):
         self._doc_stack[-1].add_text(node.astext())
@@ -578,9 +600,13 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_title(self, node):
         if isinstance(node.parent, nodes.table):
             style = 'TableHeading'
+            title_num = self._get_numfig('table', node.parent['ids'])
         else:
             style = 'Heading%d' % self._section_level_stack[-1]
+            title_num = None
         self._doc_stack.append(Paragraph(paragraph_style=style))
+        if title_num is not None:
+            self._doc_stack[-1].add_text(title_num)
 
     def depart_title(self, node):
         self._pop_and_append()
@@ -747,7 +773,16 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_caption(self, node):
-        self._doc_stack.append(Paragraph(paragraph_style='ImageCaption'))
+        if isinstance(node.parent, nodes.figure):
+            style = 'ImageCaption'
+            figtype = 'figure'
+        else:
+            style = 'LiteralCaption'
+            figtype = 'code-block'
+        self._doc_stack.append(Paragraph(paragraph_style=style))
+        caption_num = self._get_numfig(figtype, node.parent['ids'])
+        if caption_num is not None:
+            self._doc_stack[-1].add_text(caption_num)
 
     def depart_caption(self, node):
         self._pop_and_append()

@@ -62,6 +62,19 @@ class DocxBuilder(Builder):
         self.fix_refuris(tree)
         return tree
 
+    def make_numfig_map(self):
+        numfig_map = {}
+        for docname, item in self.env.toc_fignumbers.items():
+            for figtype, info in item.items():
+                prefix = self.config.numfig_format.get(figtype)
+                if prefix is None:
+                    continue
+                _, num_map = numfig_map.setdefault(figtype, (prefix, {}))
+                for id, num in info.items():
+                    key = '%s/%s' % (docname, id)
+                    num_map[key] = num
+        return numfig_map
+
     def write(self, *ignored):
         docnames = self.env.all_docs
 
@@ -71,6 +84,7 @@ class DocxBuilder(Builder):
 
         self.info(bold('assembling single document... '), nonl=True)
         doctree = self.assemble_doctree()
+        self.writer.set_numfig_map(self.make_numfig_map())
         self.info()
         self.info(bold('writing... '), nonl=True)
         docname = "%s-%s" % (self.config.project, self.config.version)
