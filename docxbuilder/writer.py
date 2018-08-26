@@ -405,6 +405,10 @@ class Table(object):
         self._body = []
         self._current_target = self._body
 
+    @property
+    def style(self):
+        return self._style
+
     def add_col_width(self, col_width):
         self._colsize_list.append(col_width)
 
@@ -560,7 +564,8 @@ class DocxTranslator(nodes.NodeVisitor):
         t.add_cell()
         width = t.current_cell_width()
         if width is not None:
-            self._table_width_stack[-1] = width
+            margin = self._docx.get_table_cell_margin(t.style)
+            self._table_width_stack[-1] = width - margin
 
     def _append_picture(self, filepath, width, height, alt):
         rid = self._docx.add_image_relationship(filepath)

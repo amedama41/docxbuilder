@@ -416,6 +416,32 @@ class DocxDocument:
                     return indres
         return indres
 
+    def get_table_horizon_margin(self, style_name):
+        misc_margin = 8 * 2 * 10 # Miscellaneous margin (e.g. border width)
+        table_styles = get_elements(self.styles, '/w:styles/w:style')
+        for style in table_styles:
+            name_elem = style.find('w:name', nsprefixes)
+            name = name_elem.get(norm_name('w:val'))
+            if name == style_name:
+                break
+        else:
+            return misc_margin
+
+        cell_margin = style.find('w:tblPr/w:tblCellMar', nsprefixes)
+        if cell_margin is None:
+            return misc_margin # TODO: Check based style
+
+        type_attr = norm_name('w:type')
+        w_attr = norm_name('w:w')
+        def get_margin(elem):
+            if elem is None:
+                return misc_margin
+            if elem.get(type_attr) != 'dxa':
+                return misc_margin
+            return int(elem.get(w_attr))
+        left = cell_margin.find('w:left', nsprefixes)
+        right = cell_margin.find('w:right', nsprefixes)
+        return get_margin(left) + get_margin(right) + misc_margin
 
 ##########
 
@@ -448,6 +474,7 @@ class DocxComposer:
         self.keywords = []
         self.max_table_width = 8000
         self.sizeof_field_list = [2000, 5500]
+        self.table_margin_map = {}
 
         self.abstractNums = []
         self.numids = []
@@ -518,6 +545,13 @@ class DocxComposer:
             if int(x) > max_id:
                 max_id = int(x)
         return max_id
+
+    def get_table_cell_margin(self, style_name):
+        margin = self.table_margin_map.get(style_name)
+        if margin is not None:
+            return margin
+        return self.table_margin_map.setdefault(
+                style_name, self.styleDocx.get_table_horizon_margin(style_name))
 
     def delete_template(self):
         '''
