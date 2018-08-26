@@ -75,6 +75,14 @@ class DocxBuilder(Builder):
                     num_map[key] = num
         return numfig_map
 
+    def make_numsec_map(self):
+        numsec_map = {}
+        for docname, info in self.env.toc_secnumbers.items():
+            for id, num in info.items():
+                key = '%s/%s' % (docname, id)
+                numsec_map[key] = num
+        return numsec_map
+
     def write(self, *ignored):
         docnames = self.env.all_docs
 
@@ -84,6 +92,7 @@ class DocxBuilder(Builder):
 
         self.info(bold('assembling single document... '), nonl=True)
         doctree = self.assemble_doctree()
+        self.writer.set_numsec_map(self.make_numsec_map())
         self.writer.set_numfig_map(self.make_numfig_map())
         self.info()
         self.info(bold('writing... '), nonl=True)

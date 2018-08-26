@@ -164,6 +164,7 @@ class DocxWriter(writers.Writer):
         writers.Writer.__init__(self)
         self.builder = builder
         self.docx = docx.DocxComposer()
+        self.numsec_map = None
         self.numfig_map = None
 
         self.title = self.builder.config['docx_title']
@@ -187,6 +188,9 @@ class DocxWriter(writers.Writer):
                     os.path.dirname(__file__), 'docx/style.docx')
             self.docx.new_document(default_style)
 
+    def set_numsec_map(self, numsec_map):
+        self.numsec_map = numsec_map
+
     def set_numfig_map(self, numfig_map):
         self.numfig_map = numfig_map
 
@@ -205,7 +209,8 @@ class DocxWriter(writers.Writer):
 
     def translate(self):
         visitor = DocxTranslator(
-                self.document, self.builder, self.docx, self.numfig_map)
+                self.document, self.builder, self.docx,
+                self.numsec_map, self.numfig_map)
         self.document.walkabout(visitor)
         self.output = ''  # visitor.body
 
@@ -510,7 +515,7 @@ def admonition(table_style):
     return _visit_admonition
 
 class DocxTranslator(nodes.NodeVisitor):
-    def __init__(self, document, builder, docx, numfig_map):
+    def __init__(self, document, builder, docx, numsec_map, numfig_map):
         nodes.NodeVisitor.__init__(self, document)
         self._builder = builder
         self.builder = self._builder # Needs for graphviz.render_dot
@@ -530,6 +535,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 'html',
                 builder.config.pygments_style,
                 builder.config.trim_doctest_flags)
+        self._numsec_map = numsec_map
         self._numfig_map = numfig_map
         self._toc_out = False
 
@@ -563,6 +569,18 @@ class DocxTranslator(nodes.NodeVisitor):
         p = Paragraph(align='center')
         p.add_picture(rid, filename, width, height, alt)
         self._doc_stack[-1].append(p)
+
+    def _get_numsec(self, ids):
+        for id in ids:
+            num = self._numsec_map.get('%s/#%s' % (self._docname_stack[-1], id))
+            if num:
+                return '.'.join(map(str, num)) + ' '
+        else:
+            # First section of each file has no hash
+            num = self._numsec_map.get('%s/' % self._docname_stack[-1], None)
+            if num:
+                return '.'.join(map(str, num)) + ' '
+        return None
 
     def _get_numfig(self, figtype, ids):
         item = self._numfig_map.get(figtype)
@@ -601,8 +619,11 @@ class DocxTranslator(nodes.NodeVisitor):
         if isinstance(node.parent, nodes.table):
             style = 'TableHeading'
             title_num = self._get_numfig('table', node.parent['ids'])
-        else:
+        elif isinstance(node.parent, nodes.section):
             style = 'Heading%d' % self._section_level_stack[-1]
+            title_num = self._get_numsec(node.parent['ids'])
+        else:
+            style = None # TODO
             title_num = None
         self._doc_stack.append(Paragraph(paragraph_style=style))
         if title_num is not None:
