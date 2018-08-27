@@ -684,13 +684,8 @@ class DocxComposer:
                   [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
                   [['w:r'], [['w:instrText', ' TOC \\o "1-%d" \\h \\z \\u ' %
                               maxlevel, {'xml:space': 'preserve'}]]],
-                  [['w:r'], [['w:fldChar', {'w:fldCharType': 'separare'}]]],
                   [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]]
                   ]
-        sdtContent_tree.append(p_tree)
-
-        p_tree = [
-            ['w:p'], [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]]]
         sdtContent_tree.append(p_tree)
 
         toc_tree.append(sdtContent_tree)
