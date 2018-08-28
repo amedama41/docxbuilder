@@ -437,12 +437,19 @@ class Table(object):
         self._current_target[-1][-1].extend(contents.to_xml())
 
     def to_xml(self):
+        look_attrs = {
+                'w:noHBand': 'false', 'w:noVBand': 'false',
+                'w:lastRow': 'false', 'w:lastColumn': 'false'
+        }
+        look_attrs['w:firstRow'] = 'true' if self._head else 'false'
+        look_attrs['w:firstColumn'] = 'true' if self._stub > 0 else 'false'
         table_tree = [
                 ['w:tbl'],
                 [
                     ['w:tblPr'],
                     [['w:tblStyle', {'w:val': self._style}]],
-                    [['w:tblW', {'w:w': '0', 'w:type': 'auto'}]]
+                    [['w:tblW', {'w:w': '0', 'w:type': 'auto'}]],
+                    [['w:tblLook', look_attrs]],
                 ],
         ]
         table_grid_tree = [['w:tblGrid']]
