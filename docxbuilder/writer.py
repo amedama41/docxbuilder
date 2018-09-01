@@ -1533,7 +1533,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_centered(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(Paragraph(self._indent_level_stack[-1])) # TODO
+        self._doc_stack.append(
+                Paragraph(self._indent_level_stack[-1], align='center'))
 
     def depart_centered(self, node):
         self._pop_and_append()
