@@ -48,8 +48,10 @@ class DocxFormatter(RtfFormatter):
                 start = ''.join(buf)
                 if start:
                     outfile.write('<w:rPr>%s</w:rPr> ' % start)
-                vals = value.split('\n')
-                for i, txt in enumerate(vals):
+                index = 0
+                while index < len(value):
+                    idx = value.find('\n', index)
+                    txt = value[index:idx] if idx != -1 else value[index:]
                     if txt.find(' ') != -1:
                         outfile.write(r'<w:t xml:space="preserve">')
                     else:
@@ -58,8 +60,10 @@ class DocxFormatter(RtfFormatter):
                     txt = txt.replace('>', '&gt;')
                     outfile.write(txt)
                     outfile.write(r'</w:t>')
-                    if i < len(vals) - 1:
-                        outfile.write(r'<w:br />')
+                    if idx == -1:
+                        break
+                    outfile.write(r'<w:br />')
+                    index = idx + 1
                 outfile.write(r'</w:r>')
 
 
@@ -68,5 +72,4 @@ class DocxPygmentsBridge(PygmentsBridge):
     def __init__(self, dest='docx', stylename='sphinx',
                  trim_doctest_flags=False):
         PygmentsBridge.__init__(self, dest, stylename, trim_doctest_flags)
-        dest = "html"
         self.formatter = DocxFormatter
