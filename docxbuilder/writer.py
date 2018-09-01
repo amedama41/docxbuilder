@@ -231,8 +231,13 @@ def make_run(text, style):
 def make_break_run():
     return docx.make_element_tree([['w:r'], [['w:br']]])
 
-def make_hyperlink(relationship_id):
-    hyperlink_tree = [['w:hyperlink', {'r:id': relationship_id}]]
+def make_hyperlink(relationship_id, anchor):
+    attrs = {}
+    if relationship_id is not None:
+        attrs['r:id'] = relationship_id
+    if anchor is not None:
+        attrs['w:anchor'] = anchor
+    hyperlink_tree = [['w:hyperlink', attrs]]
     return docx.make_element_tree(hyperlink_tree)
 
 def make_paragraph(indent_level, style, align):
@@ -274,6 +279,25 @@ def to_error_string(contents):
     xml_list = contents.to_xml()
     return type(contents).__name__ + '\n' + '\n'.join(map(func, xml_list))
 
+class BookmarkStart(object):
+    def __init__(self, id, name):
+        self._id = id
+        self._name = name
+
+    def to_xml(self):
+        return [docx.make_element_tree([
+            ['w:bookmarkStart', {'w:id': str(self._id), 'w:name': self._name}]
+        ])]
+
+class BookmarkEnd(object):
+    def __init__(self, id):
+        self._id = id
+
+    def to_xml(self):
+        return [docx.make_element_tree([
+            ['w:bookmarkEnd', {'w:id': str(self._id)}]
+        ])]
+
 class Paragraph(object):
     def __init__(self, indent_level=None, paragraph_style=None, align=None):
         self._indent_level = indent_level
@@ -302,7 +326,7 @@ class Paragraph(object):
     def append(self, contents):
         if isinstance(contents, Paragraph): # for nested line_block
             self._run_list.extend(contents._run_list)
-        elif isinstance(contents, HyperLink):
+        elif isinstance(contents, (BookmarkStart, BookmarkEnd, HyperLink)):
             self._run_list.extend(contents.to_xml())
         else:
             raise RuntimeError('Can not append %s' % to_error_string(contents))
@@ -339,8 +363,9 @@ class LiteralBlock(object):
         return [p]
 
 class HyperLink(object):
-    def __init__(self, rid):
+    def __init__(self, rid, anchor):
         self._rid = rid
+        self._anchor = anchor
         self._run_list = []
         self._text_style_stack = ['HyperLink']
 
@@ -358,12 +383,15 @@ class HyperLink(object):
         self._text_style_stack.pop()
 
     def append(self, contents):
-        raise RuntimeError('Can not append %s' % to_error_string(contents))
+        if isinstance(contents, (BookmarkStart, BookmarkEnd)):
+            self._run_list.extend(contents.to_xml())
+        else:
+            raise RuntimeError('Can not append %s' % to_error_string(contents))
 
     def to_xml(self):
-        if self._rid is None: # TODO: hyperlink support
+        if self._rid is None and self._anchor is None:
             return self._run_list
-        h = make_hyperlink(self._rid)
+        h = make_hyperlink(self._rid, self._anchor)
         h.extend(self._run_list)
         return [h]
 
@@ -371,12 +399,19 @@ class ListItem(object):
     def __init__(self, num_id, list_indent_level, indent, list_style):
         p = make_list_paragraph(num_id, list_indent_level, indent, list_style)
         self._xml_list = [p]
+        self._available_list_paragraph = True
 
     def append(self, contents):
-        if len(self._xml_list) == 1 and len(self._xml_list[-1]) == 1:
-            if isinstance(contents, Paragraph) and contents._style is None:
-                self._xml_list[-1].extend(contents._run_list)
+        if len(self._xml_list) == 1:
+            if isinstance(contents, (BookmarkStart, BookmarkEnd)):
+                self._xml_list[-1].extend(contents.to_xml())
                 return
+            if self._available_list_paragraph:
+                if isinstance(contents, Paragraph) and contents._style is None:
+                    self._xml_list[-1].extend(contents._run_list)
+                    return
+                else:
+                    self._available_list_paragraph = False
         self._xml_list.extend(contents.to_xml())
 
     def to_xml(self):
@@ -385,9 +420,15 @@ class ListItem(object):
 class DefinitionListItem(object):
     def __init__(self):
         self._contents_list = []
+        self._last_term = None
 
-    def pop(self):
-        return self._contents_list.pop()
+    @property
+    def last_term(self):
+        return self._last_term
+
+    def add_term(self, term_paragraph):
+        self._contents_list.append(term_paragraph)
+        self._last_term = term_paragraph
 
     def append(self, contents):
         self._contents_list.append(contents)
@@ -511,6 +552,7 @@ class Document(object):
 def admonition(table_style):
     def _visit_admonition(func):
         def visit_admonition(self, node):
+            self._append_bookmark_start(node.get('ids', []))
             table_width = self._table_width_stack[-1]
             t = self._append_table(table_style, [table_width - 1000])
             t.start_head()
@@ -548,11 +590,30 @@ class DocxTranslator(nodes.NodeVisitor):
                 builder.config.trim_doctest_flags)
         self._numsec_map = numsec_map
         self._numfig_map = numfig_map
+        self._bookmark_id = 0
+        self._bookmark_id_map = {} # bookmark name => BookmarkStart id
         self._toc_out = False
 
     def _pop_and_append(self):
         contents = self._doc_stack.pop()
         self._doc_stack[-1].append(contents)
+
+    def _append_bookmark_start(self, ids):
+        docname = self._docname_stack[-1]
+        for id in ids:
+            name = '%s#%s' % (docname, id)
+            self._bookmark_id += 1
+            self._bookmark_id_map[name] = self._bookmark_id
+            self._doc_stack[-1].append(BookmarkStart(self._bookmark_id, name))
+
+    def _append_bookmark_end(self, ids):
+        docname = self._docname_stack[-1]
+        for id in ids:
+            name = '%s#%s' % (docname, id)
+            bookmark_id = self._bookmark_id_map.pop(name, None)
+            if bookmark_id is None:
+                continue
+            self._doc_stack[-1].append(BookmarkEnd(bookmark_id))
 
     def _append_table(self, table_style, colsize_list):
         t = Table(table_style, colsize_list)
@@ -609,10 +670,14 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_start_of_file(self, node):
         self._docname_stack.append(node['docname'])
+        self._append_bookmark_start([''])
+        self._append_bookmark_start(node.get('ids', []))
         self._section_level_stack.append(0)
 
     def depart_start_of_file(self, node):
         self._section_level_stack.pop()
+        self._append_bookmark_end(node.get('ids', []))
+        self._append_bookmark_end([''])
         self._docname_stack.pop()
 
     def visit_Text(self, node):
@@ -628,6 +693,7 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_title(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         if isinstance(node.parent, nodes.table):
             style = 'TableHeading'
             title_num = self._get_numfig('table', node.parent['ids'])
@@ -643,29 +709,38 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_title(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_subtitle(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(self._indent_level_stack[-1])) # TODO
 
     def depart_subtitle(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_section(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._section_level_stack[-1] += 1
 
     def depart_section(self, node):
         self._section_level_stack[-1] -= 1
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_topic(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_topic(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_sidebar(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_sidebar(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_transition(self, node):
@@ -675,12 +750,15 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_paragraph(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(self._indent_level_stack[-1]))
 
     def depart_paragraph(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_compound(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         if not self._toc_out: # TODO
             self._toc_out = True
             maxdepth = get_toc_maxdepth(
@@ -691,15 +769,16 @@ class DocxTranslator(nodes.NodeVisitor):
             self._docx.pagebreak(type='page', orient='portrait')
 
     def depart_compound(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_container(self, node):
-        pass # Do nothing
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_container(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_literal_block(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         language = node.get('language', self._language)
         highlight_args = node.get('highlight_args', {})
         self._doc_stack.append(
@@ -708,6 +787,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_literal_block(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_doctest_block(self, node):
         raise nodes.SkipNode # TODO
@@ -716,53 +796,66 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_math_block(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(self._indent_level_stack[-1])) # TODO
 
     def depart_math_block(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_line_block(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(self._indent_level_stack[-1]))
         self._line_block_level += 1
 
     def depart_line_block(self, node):
         self._line_block_level -= 1
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_line(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         indent = ''.join('    ' for _ in range(self._line_block_level - 1))
         self._doc_stack[-1].add_text(indent)
 
     def depart_line(self, node):
         self._doc_stack[-1].add_break()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_block_quote(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._indent_level_stack[-1] += 1
 
     def depart_block_quote(self, node):
         self._indent_level_stack[-1] -= 1
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_attribution(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         p = Paragraph(self._indent_level_stack[-1])
         p.add_text('— ')
         self._doc_stack.append(p)
 
     def depart_attribution(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_table(self, node):
-        pass # Do nothing
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_table(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_tgroup(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._append_table('rstTable', [])
 
-    def depart_tgroup(self, mode):
+    def depart_tgroup(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_colspec(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         table = self._doc_stack[-1]
         table_width = self._table_width_stack[-1]
         table.add_col_width(int(table_width * node['colwidth'] / 100))
@@ -770,42 +863,47 @@ class DocxTranslator(nodes.NodeVisitor):
             table.add_stub()
 
     def depart_colspec(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_thead(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         table = self._doc_stack[-1]
         table.start_head()
 
     def depart_thead(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_tbody(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         table = self._doc_stack[-1]
         table.start_body()
 
     def depart_tbody(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_row(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         table = self._doc_stack[-1]
         table.add_row()
 
     def depart_row(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_entry(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._add_table_cell()
 
     def depart_entry(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_figure(self, node):
-        pass # Do nothing
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_figure(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_caption(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         if isinstance(node.parent, nodes.figure):
             style = 'ImageCaption'
             figtype = 'figure'
@@ -819,12 +917,13 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_caption(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_legend(self, node):
-        pass # Do nothing
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_legend(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_footnote(self, node):
         raise nodes.SkipNode # TODO
@@ -845,20 +944,25 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_rubric(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(self._indent_level_stack[-1])) # TODO
 
     def depart_rubric(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_bullet_list(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._indent_level_stack[-1] += 1
         self._list_id_stack.append(self._bullet_list_id)
 
     def depart_bullet_list(self, node):
         self._indent_level_stack[-1] -= 1
         self._list_id_stack.pop()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_enumerated_list(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._indent_level_stack[-1] += 1
         self._max_list_id += 1
         self._list_id_stack.append(self._max_list_id)
@@ -873,8 +977,10 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_enumerated_list(self, node):
         self._indent_level_stack[-1] -= 1
         self._list_id_stack.pop()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_list_item(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         indent_level = self._indent_level_stack[-1] - 1
         if isinstance(node.parent, nodes.enumerated_list):
             style = 'ListNumber'
@@ -889,83 +995,102 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_list_item(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_definition_list(self, node):
-        pass # Do nothing
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_definition_list(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_definition_list_item(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(DefinitionListItem())
 
     def depart_definition_list_item(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_term(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(
                 Paragraph(self._indent_level_stack[-1], 'DefinitionItem'))
 
     def depart_term(self, node):
-        self._pop_and_append()
+        term_paragraph = self._doc_stack.pop()
+        self._doc_stack[-1].add_term(term_paragraph)
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_classifier(self, node):
-        term_paragraph = self._doc_stack[-1].pop()
+        self._append_bookmark_start(node.get('ids', []))
+        term_paragraph = self._doc_stack[-1].last_term
         self._doc_stack.append(term_paragraph)
         term_paragraph.add_text(' : ')
 
     def depart_classifier(self, node):
-        self._pop_and_append()
+        self._doc_stack.pop()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_definition(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._indent_level_stack[-1] += 1
 
     def depart_definition(self, node):
         self._indent_level_stack[-1] -= 1
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_field_list(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         table_width = self._table_width_stack[-1]
         colsize_list = [int(table_width * 1 / 4), int(table_width * 3 / 4)]
         self._append_table('FieldList', colsize_list)
 
     def depart_field_list(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_field(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         table = self._doc_stack[-1]
         table.add_row()
 
     def depart_field(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_field_name(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._add_table_cell()
         self._doc_stack.append(Paragraph(self._indent_level_stack[-1]))
 
     def depart_field_name(self, node):
         self._doc_stack[-1].add_text(':')
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_field_body(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._add_table_cell()
 
     def depart_field_body(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_option_list(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         table_width = self._table_width_stack[-1]
         self._append_table('OptionList', [table_width - 500])
 
     def depart_option_list(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_option_list_item(self, node):
-        pass # Do nothing
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_option_list_item(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_option_group(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         table = self._doc_stack[-1]
         table.add_row()
         self._add_table_cell()
@@ -973,29 +1098,34 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_option_group(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_option(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         parent = node.parent
         first_option_index = parent.first_child_matching_class(nodes.option)
         if parent[first_option_index] is not node:
             self._doc_stack[-1].add_text(', ')
 
     def depart_option(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_option_string(self, node):
-        pass # Do nothing
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_option_string(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_option_argument(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].add_text(node.get('delimiter', ' '))
 
     def depart_option_argument(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_description(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         table = self._doc_stack[-1]
         table.add_row()
         self._add_table_cell()
@@ -1003,6 +1133,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_description(self, node):
         self._indent_level_stack[-1] -= 1
+        self._append_bookmark_end(node.get('ids', []))
 
     @admonition('AttentionAdmonition')
     def visit_attention(self, node):
@@ -1010,6 +1141,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_attention(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     @admonition('CautionAdmonition')
     def visit_caution(self, node):
@@ -1017,6 +1149,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_caution(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     @admonition('DangerAdmonition')
     def visit_danger(self, node):
@@ -1024,6 +1157,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_danger(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     @admonition('ErrorAdmonition')
     def visit_error(self, node):
@@ -1031,6 +1165,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_error(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     @admonition('HintAdmonition')
     def visit_hint(self, node):
@@ -1038,6 +1173,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_hint(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     @admonition('ImportantAdmonition')
     def visit_important(self, node):
@@ -1045,6 +1181,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_important(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     @admonition('NoteAdmonition')
     def visit_note(self, node):
@@ -1052,6 +1189,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_note(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     @admonition('TipAdmonition')
     def visit_tip(self, node):
@@ -1059,6 +1197,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_tip(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     @admonition('WarningAdmonition')
     def visit_warning(self, node):
@@ -1066,11 +1205,14 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_warning(self, node):
         self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_admonition(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_admonition(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_substitution_definition(self, node):
@@ -1087,37 +1229,52 @@ class DocxTranslator(nodes.NodeVisitor):
 
 
     def visit_emphasis(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].push_style('Emphasis')
 
     def depart_emphasis(self, node):
         self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_strong(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].push_style('Strong')
 
     def depart_strong(self, node):
         self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_literal(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].push_style('Literal')
 
     def depart_literal(self, node):
         self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_math(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_math(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_reference(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         refuri = node.get('refuri', None)
         refid = node.get('refid')
-        if refuri and not node.get('internal', False):
-            rid = self._docx.add_hyperlink_relationship(refuri)
+        if refuri:
+            if node.get('internal', False):
+                rid = None
+                anchor = self._get_bookmark_name(refuri)
+            else:
+                rid = self._docx.add_hyperlink_relationship(refuri)
+                anchor = None
         else:
             rid = None
-        self._doc_stack.append(HyperLink(rid))
+            anchor = '%s#%s' % (self._docname_stack[-1], refid)
+        self._doc_stack.append(HyperLink(rid, anchor))
 
     def depart_reference(self, node):
         hyperlink = self._doc_stack.pop()
@@ -1127,80 +1284,102 @@ class DocxTranslator(nodes.NodeVisitor):
             p = Paragraph(self._indent_level_stack[-1])
             p.append(hyperlink)
             self._doc_stack[-1].append(p)
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_footnote_reference(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_footnote_reference(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_citation_reference(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_citation_reference(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_substitution_reference(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_substitution_reference(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_title_reference(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].push_style('TitleReference')
 
     def depart_title_reference(self, node):
         self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_abbreviation(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].push_style('Abbreviation') # TODO
 
     def depart_abbreviation(self, node):
         self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_acronym(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_acronym(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_subscript(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].push_style('Subscript')
 
     def depart_subscript(self, node):
         self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_superscript(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].push_style('Superscript')
 
     def depart_superscript(self, node):
         self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_inline(self, node):
-        pass
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_inline(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_problematic(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].push_style('Problematic')
 
     def depart_problematic(self, node):
         self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_generated(self, node):
-        pass # Do nothing
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_generated(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_target(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_target(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_image(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         uri = node.attributes['uri']
         file_path = os.path.join(self._builder.env.srcdir, uri)
         width, height = self._get_image_scaled_size(node, file_path)
@@ -1208,33 +1387,35 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_picture(file_path, width, height, node.get('alt', ''))
 
     def depart_image(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_raw(self, node):
         raise nodes.SkipNode # TODO
 
 
     def visit_compact_paragraph(self, node):
-        pass
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_compact_paragraph(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_literal_emphasis(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].push_style('LiteralEmphasis')
 
     def depart_literal_emphasis(self, node):
         self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_highlightlang(self, node):
         self._language = node.get('lang', 'guess')
         raise nodes.SkipNode
 
     def visit_glossary(self, node):
-        pass # Do nothing
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_glossary(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_desc(self, node):
         raise nodes.SkipNode # TODO
@@ -1243,63 +1424,83 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_desc_signature(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_desc_signature(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_desc_name(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass
 
     def depart_desc_name(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_desc_addname(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass
 
     def depart_desc_addname(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_desc_type(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass
 
     def depart_desc_type(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_desc_returns(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass
 
     def depart_desc_returns(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_desc_parameterlist(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass
 
     def depart_desc_parameterlist(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_desc_parameter(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass
 
     def depart_desc_parameter(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_desc_optional(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass
 
     def depart_desc_optional(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_desc_annotation(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass
 
     def depart_desc_annotation(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_desc_content(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass
 
     def depart_desc_content(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_productionlist(self, node):
@@ -1309,9 +1510,11 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_seealso(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_seealso(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_tabular_col_spec(self, node):
@@ -1324,45 +1527,59 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_centered(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(self._indent_level_stack[-1])) # TODO
 
     def depart_centered(self, node):
         self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_hlist(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO make table
 
     def depart_hlist(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_hlistcol(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_hlistcol(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_versionmodified(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_versionmodified(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_index(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_index(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_pending_xref(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_pending_xref(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_download_reference(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         pass # TODO
 
     def depart_download_reference(self, node):
+        self._append_bookmark_end(node.get('ids', []))
         pass
 
     def visit_number_reference(self, node):
@@ -1375,10 +1592,12 @@ class DocxTranslator(nodes.NodeVisitor):
         raise nodes.SkipNode
 
     def visit_graphviz(self, node):
+        self._append_bookmark_start(node.get('ids', []))
         fname, filename = graphviz.render_dot(
             self, node['code'], node['options'], 'png')
         width, height = self._get_image_scaled_size(node, filename)
         self._append_picture(filename, width, height, node.get('alt', ''))
+        self._append_bookmark_end(node.get('ids', []))
         raise nodes.SkipNode
 
     def visit_refcount(self, node):
@@ -1390,6 +1609,16 @@ class DocxTranslator(nodes.NodeVisitor):
     def unknown_visit(self, node):
         print(node.tagname)
         raise nodes.SkipNode
+
+    def _get_bookmark_name(self, refuri):
+        hashindex = refuri.find('#')
+        if hashindex == 0:
+            return self._docname_stack[-1] + refuri
+        if hashindex < 0 and refuri in self._builder.env.all_docs:
+            return refuri + '#'
+        if refuri[:hashindex] in self._builder.env.all_docs:
+            return refuri
+        return None
 
     def _get_image_scaled_size(self, node, filename):
         twippercm = 567.0

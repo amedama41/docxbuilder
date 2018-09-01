@@ -12,7 +12,6 @@
 
 from os import path
 
-from docutils import nodes
 from docutils.io import StringOutput
 
 from sphinx.builders import Builder
@@ -34,21 +33,7 @@ class DocxBuilder(Builder):
         return 'pass'
 
     def get_target_uri(self, docname, typ=None):
-        return ''
-
-    def fix_refuris(self, tree):
-        # fix refuris with double anchor
-        fname = self.config.master_doc + self.out_suffix
-        for refnode in tree.traverse(nodes.reference):
-            if 'refuri' not in refnode:
-                continue
-            refuri = refnode['refuri']
-            hashindex = refuri.find('#')
-            if hashindex < 0:
-                continue
-            hashindex = refuri.find('#', hashindex + 1)
-            if hashindex >= 0:
-                refnode['refuri'] = fname + refuri[hashindex:]
+        return docname
 
     def prepare_writing(self, docnames):
         self.writer = DocxWriter(self)
@@ -59,7 +44,6 @@ class DocxBuilder(Builder):
         tree = inline_all_toctrees(self, set(), master, tree, darkgreen, [])
         tree['docname'] = master
         self.env.resolve_references(tree, master, self)
-        self.fix_refuris(tree)
         return tree
 
     def make_numfig_map(self):
