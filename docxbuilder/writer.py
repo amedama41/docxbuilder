@@ -584,6 +584,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._docname_stack = [builder.config.master_doc]
         self._section_level_stack = [0]
         self._indent_level_stack = [0]
+        self._list_level_stack = [0]
         self._table_width_stack = [docx.max_table_width]
         self._align_stack = [None]
         self._line_block_level = 0
@@ -628,12 +629,14 @@ class DocxTranslator(nodes.NodeVisitor):
         t = Table(table_style, colsize_list, align)
         self._doc_stack.append(t)
         self._indent_level_stack.append(0)
+        self._list_level_stack.append(0)
         self._align_stack.append(None)
         self._table_width_stack.append(self._table_width_stack[-1])
         return t
 
     def _pop_and_append_table(self):
         self._indent_level_stack.pop()
+        self._list_level_stack.pop()
         self._align_stack.pop()
         self._table_width_stack.pop()
         self._pop_and_append()
@@ -975,10 +978,12 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_bullet_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._indent_level_stack[-1] += 1
+        self._list_level_stack[-1] += 1
         self._list_id_stack.append(self._bullet_list_id)
 
     def depart_bullet_list(self, node):
         self._indent_level_stack[-1] -= 1
+        self._list_level_stack[-1] -= 1
         self._list_id_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
@@ -1002,15 +1007,18 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_list_item(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        indent_level = self._indent_level_stack[-1] - 1
+        list_id = self._list_id_stack[-1]
         if isinstance(node.parent, nodes.enumerated_list):
             style = 'ListNumber'
             list_indent_level = 0
+            indent = self._docx.number_list_indent
         else:
             style = 'ListBullet'
-            list_indent_level = indent_level
-        list_id = self._list_id_stack[-1]
-        indent = self._docx.get_numbering_indent(style, indent_level, list_id)
+            list_indent_level = self._list_level_stack[-1] - 1
+            indent = self._docx.get_numbering_indent(
+                    style, list_indent_level, list_id)
+        indent += (self._docx.number_list_indent *
+                (self._indent_level_stack[-1] - (list_indent_level + 1)))
         self._doc_stack.append(
                 ListItem(list_id, list_indent_level, indent, style))
 
