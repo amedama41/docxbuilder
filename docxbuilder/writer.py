@@ -122,7 +122,7 @@ def get_image_size(filename):
         cmperin = 2.54
         return (width * cmperin / dpi[0], height * cmperin / dpi[1])
 
-def convert_to_cm_size(size_with_unit, max_width):
+def convert_to_twip_size(size_with_unit, max_width):
     if size_with_unit is None:
         return None
     if size_with_unit.endswith('%'):
@@ -136,17 +136,26 @@ def convert_to_cm_size(size_with_unit, max_width):
     if not unit:
         unit = 'px'
 
+    twipperin = 1440.0
     cmperin = 2.54
+    twippercm = twipperin / cmperin
     ratio_map = {
-            'em': 12 * cmperin / 144, # TODO: Use BodyText font size
-            'ex': 12 * cmperin / 144,
-            'mm': 0.1, 'cm': 1, 'in': cmperin,
-            'px': cmperin / 96, 'pt': cmperin / 72, 'pc': cmperin / 6,
+            'em': 12 * twipperin / 144, # TODO: Use BodyText font size
+            'ex': 12 * twipperin / 144,
+            'mm': twippercm / 10, 'cm': twippercm, 'in': twipperin,
+            'px': twipperin / 96, 'pt': twipperin / 72, 'pc': twipperin / 6,
     }
     ratio = ratio_map.get(unit)
     if ratio is None:
         raise RuntimeError('Unknown length unit: %s' % size_with_unit)
     return size * ratio
+
+def convert_to_cm_size(twip_size):
+    if twip_size is None:
+        return None
+    twipperin = 1440.0
+    cmperin = 2.54
+    return twip_size / twipperin * cmperin
 
 #
 #  DocxWriter class for sphinx
@@ -918,10 +927,15 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_figure(self, node):
         self._append_bookmark_start(node.get('ids', []))
+        width = convert_to_twip_size(
+                node.get('width', '100%'), self._table_width_stack[-1])
+        self._table_width_stack.append(
+                width if width is not None else self._table_width_stack[-1])
         self._align_stack.append(node.get('align', self._align_stack[-1]))
 
     def depart_figure(self, node):
         self._align_stack.pop()
+        self._table_width_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_caption(self, node):
@@ -1655,10 +1669,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 'ListBullet', list_level - 1)
 
     def _get_image_scaled_size(self, node, filename):
-        twippercm = 567.0
-        max_width = self._table_width_stack[-1] / twippercm
-
-        width = self._get_cm_size(node, 'width', max_width)
+        width = self._get_cm_size(node, 'width', self._table_width_stack[-1])
         height = self._get_cm_size(node, 'height')
 
         if width is None and height is None:
@@ -1676,6 +1687,7 @@ class DocxTranslator(nodes.NodeVisitor):
             width *= scale
             height *= scale
 
+        max_width = convert_to_cm_size(self._table_width_stack[-1])
         if width > max_width:
             ratio = max_width / width
             width = max_width
@@ -1685,7 +1697,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _get_cm_size(self, node, attr, max_width=0):
         try:
-            return convert_to_cm_size(node.get(attr), max_width)
+            return convert_to_cm_size(
+                    convert_to_twip_size(node.get(attr), max_width))
         except Exception as e:
             self.document.reporter.warning(e)
             return None
