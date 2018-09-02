@@ -240,15 +240,14 @@ def make_hyperlink(relationship_id, anchor):
     hyperlink_tree = [['w:hyperlink', attrs]]
     return docx.make_element_tree(hyperlink_tree)
 
-def make_paragraph(indent_level, style, align):
+def make_paragraph(indent, style, align):
     if style is None:
         style = 'BodyText'
     style_tree = [
             ['w:pPr'],
             [['w:pStyle', {'w:val': style}]],
     ]
-    if indent_level is not None:
-        indent = indent_level * 480 # TODO
+    if indent is not None:
         style_tree.append(
             [['w:ind', {'w:leftChars': '0', 'w:left': str(indent)}]])
     if align is not None:
@@ -299,8 +298,8 @@ class BookmarkEnd(object):
         ])]
 
 class Paragraph(object):
-    def __init__(self, indent_level=None, paragraph_style=None, align=None):
-        self._indent_level = indent_level
+    def __init__(self, indent=None, paragraph_style=None, align=None):
+        self._indent = indent
         self._style = paragraph_style
         self._align = align
         self._run_list = []
@@ -332,13 +331,13 @@ class Paragraph(object):
             raise RuntimeError('Can not append %s' % to_error_string(contents))
 
     def to_xml(self):
-        p = make_paragraph(self._indent_level, self._style, self._align)
+        p = make_paragraph(self._indent, self._style, self._align)
         p.extend(self._run_list)
         return [p]
 
 class LiteralBlock(object):
-    def __init__(self, indent_level, language, highlight_args, highlighter):
-        self._indent_level = indent_level
+    def __init__(self, indent, language, highlight_args, highlighter):
+        self._indent = indent
         self._language = language
         self._highlight_args = highlight_args
         self._highlighter = highlighter
@@ -351,7 +350,7 @@ class LiteralBlock(object):
         raise RuntimeError('Can not append %s' % to_error_string(contents))
 
     def to_xml(self):
-        p = make_paragraph(self._indent_level, 'LiteralBlock', None)
+        p = make_paragraph(self._indent, 'LiteralBlock', None)
         for text in self._text_list:
             lineos = 1
             highlighted = self._highlighter.highlight_block(
@@ -566,7 +565,7 @@ def admonition(table_style):
             t.start_head()
             t.add_row()
             self._add_table_cell()
-            p = Paragraph(self._indent_level_stack[-1])
+            p = Paragraph(self._indent_stack[-1])
             p.add_text(admonitionlabels[node.tagname] + ':')
             t.append(p)
             t.start_body()
@@ -583,8 +582,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._doc_stack = [Document(docx.docbody)]
         self._docname_stack = [builder.config.master_doc]
         self._section_level_stack = [0]
-        self._indent_level_stack = [0]
         self._list_level_stack = [0]
+        self._indent_stack = [0]
         self._table_width_stack = [docx.max_table_width]
         self._align_stack = [None]
         self._line_block_level = 0
@@ -628,15 +627,15 @@ class DocxTranslator(nodes.NodeVisitor):
     def _append_table(self, table_style, colsize_list, align):
         t = Table(table_style, colsize_list, align)
         self._doc_stack.append(t)
-        self._indent_level_stack.append(0)
         self._list_level_stack.append(0)
+        self._indent_stack.append(0)
         self._align_stack.append(None)
         self._table_width_stack.append(self._table_width_stack[-1])
         return t
 
     def _pop_and_append_table(self):
-        self._indent_level_stack.pop()
         self._list_level_stack.pop()
+        self._indent_stack.pop()
         self._align_stack.pop()
         self._table_width_stack.pop()
         self._pop_and_append()
@@ -727,7 +726,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_subtitle(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(Paragraph(self._indent_level_stack[-1])) # TODO
+        self._doc_stack.append(Paragraph(self._indent_stack[-1])) # TODO
 
     def depart_subtitle(self, node):
         self._pop_and_append()
@@ -765,8 +764,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_paragraph(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(Paragraph(
-            self._indent_level_stack[-1], align=self._align_stack[-1]))
+        self._doc_stack.append(
+                Paragraph(self._indent_stack[-1], align=self._align_stack[-1]))
 
     def depart_paragraph(self, node):
         self._pop_and_append()
@@ -797,7 +796,7 @@ class DocxTranslator(nodes.NodeVisitor):
         language = node.get('language', self._language)
         highlight_args = node.get('highlight_args', {})
         self._doc_stack.append(
-                LiteralBlock(self._indent_level_stack[-1],
+                LiteralBlock(self._indent_stack[-1],
                              language, highlight_args, self._highlighter))
 
     def depart_literal_block(self, node):
@@ -813,7 +812,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_math_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(
-            self._indent_level_stack[-1], align=self._align_stack[-1])) # TODO
+            self._indent_stack[-1], align=self._align_stack[-1])) # TODO
 
     def depart_math_block(self, node):
         self._pop_and_append()
@@ -821,8 +820,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_line_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(Paragraph(
-            self._indent_level_stack[-1], align=self._align_stack[-1]))
+        self._doc_stack.append(
+                Paragraph(self._indent_stack[-1], align=self._align_stack[-1]))
         self._line_block_level += 1
 
     def depart_line_block(self, node):
@@ -841,17 +840,17 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_block_quote(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._indent_level_stack[-1] += 1
+        self._indent_stack[-1] += self._docx.number_list_indent
         self._align_stack.append(None)
 
     def depart_block_quote(self, node):
-        self._indent_level_stack[-1] -= 1
+        self._indent_stack[-1] -= self._docx.number_list_indent
         self._align_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_attribution(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        p = Paragraph(self._indent_level_stack[-1])
+        p = Paragraph(self._indent_stack[-1])
         p.add_text('— ')
         self._doc_stack.append(p)
 
@@ -969,7 +968,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_rubric(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(Paragraph(self._indent_level_stack[-1])) # TODO
+        self._doc_stack.append(Paragraph(self._indent_stack[-1])) # TODO
 
     def depart_rubric(self, node):
         self._pop_and_append()
@@ -977,19 +976,21 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_bullet_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._indent_level_stack[-1] += 1
         self._list_level_stack[-1] += 1
+        self._indent_stack[-1] += self._get_additional_list_indent(
+                self._list_level_stack[-1] - 1)
         self._list_id_stack.append(self._bullet_list_id)
 
     def depart_bullet_list(self, node):
-        self._indent_level_stack[-1] -= 1
+        self._indent_stack[-1] -= self._get_additional_list_indent(
+                self._list_level_stack[-1] - 1)
         self._list_level_stack[-1] -= 1
         self._list_id_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_enumerated_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._indent_level_stack[-1] += 1
+        self._indent_stack[-1] += self._docx.number_list_indent
         self._max_list_id += 1
         self._list_id_stack.append(self._max_list_id)
         enumtype = node.get('enumtype', 'arabic')
@@ -1001,7 +1002,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 '{}%1{}'.format(prefix, suffix), enumtype)
 
     def depart_enumerated_list(self, node):
-        self._indent_level_stack[-1] -= 1
+        self._indent_stack[-1] -= self._docx.number_list_indent
         self._list_id_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
@@ -1011,16 +1012,11 @@ class DocxTranslator(nodes.NodeVisitor):
         if isinstance(node.parent, nodes.enumerated_list):
             style = 'ListNumber'
             list_indent_level = 0
-            indent = self._docx.number_list_indent
         else:
             style = 'ListBullet'
             list_indent_level = self._list_level_stack[-1] - 1
-            indent = self._docx.get_numbering_indent(
-                    style, list_indent_level, list_id)
-        indent += (self._docx.number_list_indent *
-                (self._indent_level_stack[-1] - (list_indent_level + 1)))
-        self._doc_stack.append(
-                ListItem(list_id, list_indent_level, indent, style))
+        self._doc_stack.append(ListItem(
+            list_id, list_indent_level, self._indent_stack[-1], style))
 
     def depart_list_item(self, node):
         self._pop_and_append()
@@ -1043,7 +1039,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_term(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(
-                Paragraph(self._indent_level_stack[-1], 'DefinitionItem'))
+                Paragraph(self._indent_stack[-1], 'DefinitionItem'))
 
     def depart_term(self, node):
         term_paragraph = self._doc_stack.pop()
@@ -1062,10 +1058,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_definition(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._indent_level_stack[-1] += 1
+        self._indent_stack[-1] += self._docx.number_list_indent
 
     def depart_definition(self, node):
-        self._indent_level_stack[-1] -= 1
+        self._indent_stack[-1] -= self._docx.number_list_indent
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_field_list(self, node):
@@ -1089,7 +1085,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_field_name(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._add_table_cell()
-        self._doc_stack.append(Paragraph(self._indent_level_stack[-1]))
+        self._doc_stack.append(Paragraph(self._indent_stack[-1]))
 
     def depart_field_name(self, node):
         self._doc_stack[-1].add_text(':')
@@ -1124,7 +1120,7 @@ class DocxTranslator(nodes.NodeVisitor):
         table = self._doc_stack[-1]
         table.add_row()
         self._add_table_cell()
-        self._doc_stack.append(Paragraph(self._indent_level_stack[-1]))
+        self._doc_stack.append(Paragraph(self._indent_stack[-1]))
 
     def depart_option_group(self, node):
         self._pop_and_append()
@@ -1159,10 +1155,10 @@ class DocxTranslator(nodes.NodeVisitor):
         table = self._doc_stack[-1]
         table.add_row()
         self._add_table_cell()
-        self._indent_level_stack[-1] += 1
+        self._indent_stack[-1] += self._docx.number_list_indent
 
     def depart_description(self, node):
-        self._indent_level_stack[-1] -= 1
+        self._indent_stack[-1] -= self._docx.number_list_indent
         self._append_bookmark_end(node.get('ids', []))
 
     @admonition('AttentionAdmonition')
@@ -1311,8 +1307,7 @@ class DocxTranslator(nodes.NodeVisitor):
         if isinstance(self._doc_stack[-1], Paragraph):
             self._doc_stack[-1].append(hyperlink)
         else:
-            p = Paragraph(
-                    self._indent_level_stack[-1], align=self._align_stack[-1])
+            p = Paragraph(self._indent_stack[-1], align=self._align_stack[-1])
             p.append(hyperlink)
             self._doc_stack[-1].append(p)
         self._append_bookmark_end(node.get('ids', []))
@@ -1560,7 +1555,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_centered(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(
-                Paragraph(self._indent_level_stack[-1], align='center'))
+                Paragraph(self._indent_stack[-1], align='center'))
 
     def depart_centered(self, node):
         self._pop_and_append()
@@ -1651,6 +1646,13 @@ class DocxTranslator(nodes.NodeVisitor):
         if refuri[:hashindex] in self._builder.env.all_docs:
             return refuri
         return None
+
+    def _get_additional_list_indent(self, list_level):
+        indent = self._docx.get_numbering_indent('ListBullet', list_level)
+        if list_level == 0:
+            return indent
+        return indent - self._docx.get_numbering_indent(
+                'ListBullet', list_level - 1)
 
     def _get_image_scaled_size(self, node, filename):
         twippercm = 567.0
