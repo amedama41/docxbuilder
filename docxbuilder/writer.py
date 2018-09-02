@@ -389,6 +389,10 @@ class HyperLink(object):
     def add_break(self):
         self._run_list.append(make_break_run())
 
+    def add_picture(self, rid, filename, width, height, alt):
+        self._run_list.append(docx.DocxComposer.make_inline_picture_run(
+            rid, filename, width, height, alt))
+
     def push_style(self, text_style):
         self._text_style_stack.append(text_style)
 
@@ -660,10 +664,12 @@ class DocxTranslator(nodes.NodeVisitor):
     def _append_picture(self, filepath, width, height, alt):
         rid = self._docx.add_image_relationship(filepath)
         filename = os.path.basename(filepath)
-        # TODO: Check whether _doc_stack already includes Paragraph
-        p = Paragraph(align=self._align_stack[-1])
-        p.add_picture(rid, filename, width, height, alt)
-        self._doc_stack[-1].append(p)
+        if not isinstance(self._doc_stack[-1], (Paragraph, HyperLink)):
+            p = Paragraph(self._indent_stack[-1], align=self._align_stack[-1])
+            p.add_picture(rid, filename, width, height, alt)
+            self._doc_stack[-1].append(p)
+        else:
+            self._doc_stack[-1].add_picture(rid, filename, width, height, alt)
 
     def _get_numsec(self, ids):
         for id in ids:
