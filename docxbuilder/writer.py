@@ -582,6 +582,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._section_level_stack = [0]
         self._indent_level_stack = [0]
         self._table_width_stack = [docx.max_table_width]
+        self._align_stack = [None]
         self._line_block_level = 0
         self._docx = docx
         self._max_list_id = docx.get_max_numbering_id()
@@ -624,11 +625,13 @@ class DocxTranslator(nodes.NodeVisitor):
         t = Table(table_style, colsize_list)
         self._doc_stack.append(t)
         self._indent_level_stack.append(0)
+        self._align_stack.append(None)
         self._table_width_stack.append(self._table_width_stack[-1])
         return t
 
     def _pop_and_append_table(self):
         self._indent_level_stack.pop()
+        self._align_stack.pop()
         self._table_width_stack.pop()
         self._pop_and_append()
 
@@ -644,7 +647,7 @@ class DocxTranslator(nodes.NodeVisitor):
         rid = self._docx.add_image_relationship(filepath)
         filename = os.path.basename(filepath)
         # TODO: Check whether _doc_stack already includes Paragraph
-        p = Paragraph(align='center')
+        p = Paragraph(align=self._align_stack[-1])
         p.add_picture(rid, filename, width, height, alt)
         self._doc_stack[-1].append(p)
 
@@ -756,7 +759,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_paragraph(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(Paragraph(self._indent_level_stack[-1]))
+        self._doc_stack.append(Paragraph(
+            self._indent_level_stack[-1], align=self._align_stack[-1]))
 
     def depart_paragraph(self, node):
         self._pop_and_append()
@@ -802,7 +806,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_math_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(Paragraph(self._indent_level_stack[-1])) # TODO
+        self._doc_stack.append(Paragraph(
+            self._indent_level_stack[-1], align=self._align_stack[-1])) # TODO
 
     def depart_math_block(self, node):
         self._pop_and_append()
@@ -810,7 +815,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_line_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(Paragraph(self._indent_level_stack[-1]))
+        self._doc_stack.append(Paragraph(
+            self._indent_level_stack[-1], align=self._align_stack[-1]))
         self._line_block_level += 1
 
     def depart_line_block(self, node):
@@ -830,9 +836,11 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_block_quote(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._indent_level_stack[-1] += 1
+        self._align_stack.append(None)
 
     def depart_block_quote(self, node):
         self._indent_level_stack[-1] -= 1
+        self._align_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_attribution(self, node):
@@ -903,8 +911,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_figure(self, node):
         self._append_bookmark_start(node.get('ids', []))
+        self._align_stack.append(node.get('align', None))
 
     def depart_figure(self, node):
+        self._align_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_caption(self, node):
@@ -915,7 +925,8 @@ class DocxTranslator(nodes.NodeVisitor):
         else:
             style = 'LiteralCaption'
             figtype = 'code-block'
-        self._doc_stack.append(Paragraph(paragraph_style=style))
+        self._doc_stack.append(
+                Paragraph(paragraph_style=style, align=self._align_stack[-1]))
         caption_num = self._get_numfig(figtype, node.parent['ids'])
         if caption_num is not None:
             self._doc_stack[-1].add_text(caption_num)
@@ -1286,7 +1297,8 @@ class DocxTranslator(nodes.NodeVisitor):
         if isinstance(self._doc_stack[-1], Paragraph):
             self._doc_stack[-1].append(hyperlink)
         else:
-            p = Paragraph(self._indent_level_stack[-1])
+            p = Paragraph(
+                    self._indent_level_stack[-1], align=self._align_stack[-1])
             p.append(hyperlink)
             self._doc_stack[-1].append(p)
         self._append_bookmark_end(node.get('ids', []))
