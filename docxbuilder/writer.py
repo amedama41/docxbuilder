@@ -623,7 +623,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def _append_bookmark_start(self, ids):
         docname = self._docname_stack[-1]
         for id in ids:
-            name = '%s#%s' % (docname, id)
+            name = '%s/%s' % (docname, id)
             self._bookmark_id += 1
             self._bookmark_id_map[name] = self._bookmark_id
             self._doc_stack[-1].append(BookmarkStart(self._bookmark_id, name))
@@ -631,7 +631,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def _append_bookmark_end(self, ids):
         docname = self._docname_stack[-1]
         for id in ids:
-            name = '%s#%s' % (docname, id)
+            name = '%s/%s' % (docname, id)
             bookmark_id = self._bookmark_id_map.pop(name, None)
             if bookmark_id is None:
                 continue
@@ -1319,7 +1319,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 anchor = None
         else:
             rid = None
-            anchor = '%s#%s' % (self._docname_stack[-1], refid)
+            anchor = '%s/%s' % (self._docname_stack[-1], refid)
         self._doc_stack.append(HyperLink(rid, anchor))
 
     def depart_reference(self, node):
@@ -1660,11 +1660,11 @@ class DocxTranslator(nodes.NodeVisitor):
     def _get_bookmark_name(self, refuri):
         hashindex = refuri.find('#')
         if hashindex == 0:
-            return self._docname_stack[-1] + refuri
+            return '%s/%s' % (self._docname_stack[-1], refuri[1:])
         if hashindex < 0 and refuri in self._builder.env.all_docs:
-            return refuri + '#'
+            return refuri + '/'
         if refuri[:hashindex] in self._builder.env.all_docs:
-            return refuri
+            return refuri.replace('#', '/')
         return None
 
     def _get_additional_list_indent(self, list_level):
