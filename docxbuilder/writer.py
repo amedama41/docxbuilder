@@ -76,36 +76,6 @@ def dprint(_func=None, **kw):
 # Utility functions
 
 
-def remove_items(src, target):
-    for x in target:
-        src.remove(x)
-
-
-def get_items_list(src):
-    result = []
-    for x in src:
-        if x and x != [[]]:
-            result.append(x)
-    return result
-
-
-def findElement(elem, tag):
-    if not isinstance(elem, nodes.Element):
-        return None
-    if elem.tagname == tag:
-        return elem
-    for child in elem:
-        res = findElement(child, tag)
-        if res is not None:
-            return res
-    return None
-
-def get_toc_maxdepth(builder, docname):
-    toc = findElement(builder.env.tocs[docname], 'toctree')
-    if toc is not None:
-        return toc.get('maxdepth', -1)
-    return -1
-
 def get_image_size(filename):
     if Image is None:
         raise RuntimeError(
@@ -614,7 +584,6 @@ class DocxTranslator(nodes.NodeVisitor):
         self._numfig_map = numfig_map
         self._bookmark_id = 0
         self._bookmark_id_map = {} # bookmark name => BookmarkStart id
-        self._toc_out = False
 
     def _pop_and_append(self):
         contents = self._doc_stack.pop()
@@ -715,7 +684,7 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_document(self, node):
-        self._toc_out = False
+        pass
 
     def depart_document(self, node):
         pass
@@ -788,14 +757,6 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_compound(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        if not self._toc_out: # TODO
-            self._toc_out = True
-            maxdepth = get_toc_maxdepth(
-                    self._builder, self._builder.config.master_doc)
-            if maxdepth < 1:
-                maxdepth = 10
-            self._docx.table_of_contents(toc_text='Contents', maxlevel=maxdepth)
-            self._docx.pagebreak(type='page', orient='portrait')
 
     def depart_compound(self, node):
         self._append_bookmark_end(node.get('ids', []))
@@ -1438,6 +1399,19 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_raw(self, node):
         raise nodes.SkipNode # TODO
 
+
+    def visit_toctree(self, node):
+        if node.get('hidden', False):
+            return
+        maxdepth = node.get('maxdepth', -1)
+        if maxdepth < 1:
+            maxdepth = 10
+        caption = node.get('caption')
+        self._docx.table_of_contents(toc_text=caption, maxlevel=maxdepth)
+        self._docx.pagebreak(type='page', orient='portrait')
+
+    def depart_toctree(self, node):
+        pass
 
     def visit_compact_paragraph(self, node):
         self._append_bookmark_start(node.get('ids', []))

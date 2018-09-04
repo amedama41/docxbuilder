@@ -14,10 +14,10 @@ from os import path
 
 from docutils.io import StringOutput
 
+from sphinx import addnodes
 from sphinx.builders import Builder
 from sphinx.util.osutil import ensuredir, os_path
-from sphinx.util.nodes import inline_all_toctrees
-from sphinx.util.console import bold, darkgreen
+from sphinx.util.console import bold
 from docxbuilder.writer import DocxWriter
 
 
@@ -41,7 +41,7 @@ class DocxBuilder(Builder):
     def assemble_doctree(self):
         master = self.config.master_doc
         tree = self.env.get_doctree(master)
-        tree = inline_all_toctrees(self, set(), master, tree, darkgreen, [])
+        tree = insert_all_toctrees(tree, self.env, [])
         tree['docname'] = master
         self.env.resolve_references(tree, master, self)
         return tree
@@ -98,3 +98,25 @@ class DocxBuilder(Builder):
     def finish(self):
         #self.warn("call finish")
         pass
+
+def insert_all_toctrees(tree, env, traversed):
+    tree = tree.deepcopy()
+    for toctreenode in tree.traverse(addnodes.toctree):
+        newnodes = []
+        includefiles = toctreenode['includefiles']
+        for includefile in includefiles:
+            if includefile in traversed:
+                continue
+            try:
+                traversed.append(includefile)
+                subtree = insert_all_toctrees(
+                        env.get_doctree(includefile), env, traversed)
+            except Exception:
+                continue
+            start_of_file = addnodes.start_of_file(docname=includefile)
+            start_of_file.children = subtree.children
+            newnodes.append(start_of_file)
+        parent = toctreenode.parent
+        index = parent.index(toctreenode)
+        parent.insert(index + 1, newnodes)
+    return tree
