@@ -573,7 +573,6 @@ class DocxTranslator(nodes.NodeVisitor):
         self._list_level_stack = [0]
         self._indent_stack = [0]
         self._table_width_stack = [docx.max_table_width]
-        self._align_stack = [None]
         self._line_block_level = 0
         self._docx = docx
         self._max_list_id = docx.get_max_numbering_id()
@@ -611,19 +610,17 @@ class DocxTranslator(nodes.NodeVisitor):
                 continue
             self._doc_stack[-1].append(BookmarkEnd(bookmark_id))
 
-    def _append_table(self, table_style, colsize_list, align):
+    def _append_table(self, table_style, colsize_list, align=None):
         t = Table(table_style, colsize_list, align)
         self._doc_stack.append(t)
         self._list_level_stack.append(0)
         self._indent_stack.append(0)
-        self._align_stack.append(None)
         self._table_width_stack.append(self._table_width_stack[-1])
         return t
 
     def _pop_and_append_table(self):
         self._list_level_stack.pop()
         self._indent_stack.pop()
-        self._align_stack.pop()
         self._table_width_stack.pop()
         self._pop_and_append()
 
@@ -635,11 +632,11 @@ class DocxTranslator(nodes.NodeVisitor):
             margin = self._docx.get_table_cell_margin(t.style)
             self._table_width_stack[-1] = width - margin
 
-    def _append_picture(self, filepath, width, height, alt):
+    def _append_picture(self, filepath, width, height, alt, parent):
         rid = self._docx.add_image_relationship(filepath)
         filename = os.path.basename(filepath)
         if not isinstance(self._doc_stack[-1], (Paragraph, HyperLink)):
-            p = Paragraph(self._indent_stack[-1], align=self._align_stack[-1])
+            p = Paragraph(self._indent_stack[-1], align=parent.get('align'))
             p.add_picture(rid, filename, width, height, alt)
             self._doc_stack[-1].append(p)
         else:
@@ -753,8 +750,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_paragraph(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(
-                Paragraph(self._indent_stack[-1], align=self._align_stack[-1]))
+        self._doc_stack.append(Paragraph(self._indent_stack[-1]))
 
     def depart_paragraph(self, node):
         self._pop_and_append()
@@ -792,8 +788,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_math_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(Paragraph(
-            self._indent_stack[-1], align=self._align_stack[-1])) # TODO
+        self._doc_stack.append(Paragraph(self._indent_stack[-1])) # TODO
 
     def depart_math_block(self, node):
         self._pop_and_append()
@@ -801,8 +796,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_line_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(
-                Paragraph(self._indent_stack[-1], align=self._align_stack[-1]))
+        self._doc_stack.append(Paragraph(self._indent_stack[-1]))
         self._line_block_level += 1
 
     def depart_line_block(self, node):
@@ -822,11 +816,9 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_block_quote(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._indent_stack[-1] += self._docx.number_list_indent
-        self._align_stack.append(None)
 
     def depart_block_quote(self, node):
         self._indent_stack[-1] -= self._docx.number_list_indent
-        self._align_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_attribution(self, node):
@@ -841,15 +833,13 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_table(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._align_stack.append(node.get('align', self._align_stack[-1]))
 
     def depart_table(self, node):
-        self._align_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_tgroup(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._append_table('rstTable', [], self._align_stack[-1])
+        self._append_table('rstTable', [], node.parent.get('align'))
 
     def depart_tgroup(self, node):
         self._pop_and_append_table()
@@ -903,10 +893,8 @@ class DocxTranslator(nodes.NodeVisitor):
                 node.get('width', '100%'), self._table_width_stack[-1])
         self._table_width_stack.append(
                 width if width is not None else self._table_width_stack[-1])
-        self._align_stack.append(node.get('align', self._align_stack[-1]))
 
     def depart_figure(self, node):
-        self._align_stack.pop()
         self._table_width_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
@@ -915,11 +903,12 @@ class DocxTranslator(nodes.NodeVisitor):
         if isinstance(node.parent, nodes.figure):
             style = 'ImageCaption'
             figtype = 'figure'
+            align = node.parent.get('align')
         else:
             style = 'LiteralCaption'
             figtype = 'code-block'
-        self._doc_stack.append(
-                Paragraph(paragraph_style=style, align=self._align_stack[-1]))
+            align = None
+        self._doc_stack.append(Paragraph(paragraph_style=style, align=align))
         caption_num = self._get_numfig(figtype, node.parent['ids'])
         if caption_num is not None:
             self._doc_stack[-1].add_text(caption_num)
@@ -1054,7 +1043,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._table_width_stack[-1]
         colsize_list = [int(table_width * 1 / 4), int(table_width * 3 / 4)]
-        self._append_table('FieldList', colsize_list, self._align_stack[-1])
+        self._append_table('FieldList', colsize_list)
 
     def depart_field_list(self, node):
         self._pop_and_append_table()
@@ -1088,8 +1077,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_option_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._table_width_stack[-1]
-        self._append_table(
-                'OptionList', [table_width - 500], self._align_stack[-1])
+        self._append_table('OptionList', [table_width - 500])
 
     def depart_option_list(self, node):
         self._pop_and_append_table()
@@ -1293,7 +1281,9 @@ class DocxTranslator(nodes.NodeVisitor):
         if isinstance(self._doc_stack[-1], Paragraph):
             self._doc_stack[-1].append(hyperlink)
         else:
-            p = Paragraph(self._indent_stack[-1], align=self._align_stack[-1])
+            # Get align because parent may be a figure element
+            p = Paragraph(
+                    self._indent_stack[-1], align=node.parent.get('align'))
             p.append(hyperlink)
             self._doc_stack[-1].append(p)
         self._append_bookmark_end(node.get('ids', []))
@@ -1395,8 +1385,8 @@ class DocxTranslator(nodes.NodeVisitor):
         uri = node.attributes['uri']
         file_path = os.path.join(self._builder.env.srcdir, uri)
         width, height = self._get_image_scaled_size(node, file_path)
-
-        self._append_picture(file_path, width, height, node.get('alt', ''))
+        self._append_picture(
+                file_path, width, height, node.get('alt', ''), node.parent)
 
     def depart_image(self, node):
         self._append_bookmark_end(node.get('ids', []))
@@ -1622,7 +1612,8 @@ class DocxTranslator(nodes.NodeVisitor):
         fname, filename = graphviz.render_dot(
             self, node['code'], node['options'], 'png')
         width, height = self._get_image_scaled_size(node, filename)
-        self._append_picture(filename, width, height, node.get('alt', ''))
+        self._append_picture(
+                filename, width, height, node.get('alt', ''), node.parent)
         self._append_bookmark_end(node.get('ids', []))
         raise nodes.SkipNode
 
