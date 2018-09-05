@@ -425,9 +425,10 @@ class DefinitionListItem(object):
             map(lambda c: c.to_xml(), self._contents_list)))
 
 class Table(object):
-    def __init__(self, table_style, colsize_list, align):
+    def __init__(self, table_style, colsize_list, indent, align):
         self._style = table_style
         self._colsize_list = colsize_list
+        self._indent = indent
         self._align = align
         self._stub = 0
         self._head = []
@@ -478,6 +479,7 @@ class Table(object):
                     ['w:tblPr'],
                     [['w:tblStyle', {'w:val': self._style}]],
                     [['w:tblW', {'w:w': '0', 'w:type': 'auto'}]],
+                    [['w:tblInd', {'w:w': str(self._indent), 'w:type': 'dxa'}]],
                     [['w:tblLook', look_attrs]],
                 ],
         ]
@@ -549,7 +551,8 @@ def admonition(table_style):
         def visit_admonition(self, node):
             self._append_bookmark_start(node.get('ids', []))
             table_width = self._table_width_stack[-1]
-            t = self._append_table(table_style, [table_width - 1000], 'center')
+            t = self._append_table(
+                    table_style, [table_width - 1000], 0, 'center')
             t.start_head()
             t.add_row()
             self._add_table_cell()
@@ -610,12 +613,16 @@ class DocxTranslator(nodes.NodeVisitor):
                 continue
             self._doc_stack[-1].append(BookmarkEnd(bookmark_id))
 
-    def _append_table(self, table_style, colsize_list, align=None):
-        t = Table(table_style, colsize_list, align)
+    def _append_table(self, table_style, colsize_list, indent, align=None):
+        t = Table(table_style, colsize_list, indent, align)
         self._doc_stack.append(t)
         self._list_level_stack.append(0)
         self._indent_stack.append(0)
-        self._table_width_stack.append(self._table_width_stack[-1])
+        if colsize_list:
+            table_width = sum(colsize_list)
+        else:
+            table_width = self._table_width_stack[-1] - indent
+        self._table_width_stack.append(table_width)
         return t
 
     def _pop_and_append_table(self):
@@ -839,7 +846,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_tgroup(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._append_table('rstTable', [], node.parent.get('align'))
+        align = node.parent.get('align')
+        self._append_table('rstTable', [], self._indent_stack[-1], align)
 
     def depart_tgroup(self, node):
         self._pop_and_append_table()
@@ -1041,9 +1049,9 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_field_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        table_width = self._table_width_stack[-1]
+        table_width = self._table_width_stack[-1] - self._indent_stack[-1]
         colsize_list = [int(table_width * 1 / 4), int(table_width * 3 / 4)]
-        self._append_table('FieldList', colsize_list)
+        self._append_table('FieldList', colsize_list, self._indent_stack[-1])
 
     def depart_field_list(self, node):
         self._pop_and_append_table()
@@ -1076,8 +1084,9 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_option_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        table_width = self._table_width_stack[-1]
-        self._append_table('OptionList', [table_width - 500])
+        table_width = self._table_width_stack[-1] - self._indent_stack[-1]
+        self._append_table(
+                'OptionList', [table_width - 500], self._indent_stack[-1])
 
     def depart_option_list(self, node):
         self._pop_and_append_table()
