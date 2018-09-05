@@ -463,7 +463,7 @@ class Table(object):
         return self._colsize_list[num_cell - 1]
 
     def append(self, contents):
-        self._current_target[-1][-1].extend(contents.to_xml())
+        self._current_target[-1][-1].append(contents)
 
     def to_xml(self):
         look_attrs = {
@@ -528,7 +528,12 @@ class Table(object):
                 ]
         ]
         elem = docx.make_element_tree(tc_tree)
-        elem.extend(cell)
+
+        # The last element must be paragraph for Microsoft word
+        if not cell or isinstance(cell[-1], Table):
+            cell.append(Paragraph())
+        elem.extend(
+                itertools.chain.from_iterable(map(lambda c: c.to_xml(), cell)))
         return elem
 
 class Document(object):
