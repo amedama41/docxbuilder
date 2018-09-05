@@ -1408,8 +1408,6 @@ class DocxTranslator(nodes.NodeVisitor):
         if node.get('hidden', False):
             return
         maxdepth = node.get('maxdepth', -1)
-        if maxdepth < 1:
-            maxdepth = 10
         caption = node.get('caption')
         self._docx.table_of_contents(toc_text=caption, maxlevel=maxdepth)
         self._docx.pagebreak(type='page', orient='portrait')

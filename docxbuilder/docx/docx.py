@@ -672,6 +672,7 @@ class DocxComposer:
                 ['w:r'], [['w:rPr'], [['w:long']]], [['w:t', toc_text]]]]
             sdtContent_tree.append(p_tree)
 
+        target_outline_range = ('"1-%d"' % maxlevel) if maxlevel > 0 else ''
         p_tree = [['w:p'],
                   [['w:pPr'],
                    [['w:pStyle', {'w:val': 'TOC_Contents'}]],
@@ -682,8 +683,8 @@ class DocxComposer:
                    [['w:rPr'], [['w:b', {'w:val': '0'}]], [['w:noProof']]]
                    ],
                   [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
-                  [['w:r'], [['w:instrText', ' TOC \\o "1-%d" \\h \\z \\u ' %
-                              maxlevel, {'xml:space': 'preserve'}]]],
+                  [['w:r'], [['w:instrText', ' TOC \\o %s \\h \\z \\u ' %
+                              target_outline_range, {'xml:space': 'preserve'}]]],
                   [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]]
                   ]
         sdtContent_tree.append(p_tree)
