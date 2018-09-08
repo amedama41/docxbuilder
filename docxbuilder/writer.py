@@ -927,9 +927,9 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_figure(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        width = convert_to_twip_size(
-                node.get('width', '100%'), self._table_width_stack[-1])
-        delta_width = self._table_width_stack[-1] - width
+        paragraph_width = self._get_paragraph_width()
+        width = convert_to_twip_size(node.get('width', '100%'), paragraph_width)
+        delta_width = paragraph_width - width
         align = node.get('align', 'left')
         if align == 'left':
             self._indent_stack.append(self._indent_stack[-1])
