@@ -1700,7 +1700,8 @@ class DocxTranslator(nodes.NodeVisitor):
                 'ListBullet', list_level - 1)
 
     def _get_image_scaled_size(self, node, filename):
-        width = self._get_cm_size(node, 'width', self._table_width_stack[-1])
+        paragraph_width = self._get_paragraph_width()
+        width = self._get_cm_size(node, 'width', paragraph_width)
         height = self._get_cm_size(node, 'height')
 
         if width is None and height is None:
@@ -1718,7 +1719,7 @@ class DocxTranslator(nodes.NodeVisitor):
             width *= scale
             height *= scale
 
-        max_width = convert_to_cm_size(self._table_width_stack[-1])
+        max_width = convert_to_cm_size(paragraph_width)
         if width > max_width:
             ratio = max_width / width
             width = max_width
