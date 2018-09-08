@@ -729,13 +729,22 @@ class DocxTranslator(nodes.NodeVisitor):
         if isinstance(node.parent, nodes.table):
             style = 'TableHeading'
             title_num = self._get_numfig('table', node.parent['ids'])
+            indent = self._indent_stack[-1]
+            right_indent = self._right_indent_stack[-1]
+            align = node.parent.get('align')
         elif isinstance(node.parent, nodes.section):
             style = 'Heading%d' % self._section_level_stack[-1]
             title_num = self._get_numsec(node.parent['ids'])
+            indent = None
+            right_indent = None
+            align = None
         else:
             style = None # TODO
             title_num = None
-        self._doc_stack.append(Paragraph(paragraph_style=style))
+            indent = self._indent_stack[-1]
+            right_indent = self._right_indent_stack[-1]
+            align = None
+        self._doc_stack.append(Paragraph(indent, right_indent, style, align))
         if title_num is not None:
             self._doc_stack[-1].add_text(title_num)
 
