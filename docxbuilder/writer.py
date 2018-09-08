@@ -635,11 +635,11 @@ class DocxTranslator(nodes.NodeVisitor):
         t = Table(table_style, colsize_list, indent, align)
         self._doc_stack.append(t)
         self._list_level_stack.append(0)
-        self._indent_stack.append(0)
         if colsize_list:
             table_width = sum(colsize_list)
         else:
             table_width = self._get_paragraph_width()
+        self._indent_stack.append(0)
         self._right_indent_stack.append(0)
         self._table_width_stack.append(table_width)
         return t
