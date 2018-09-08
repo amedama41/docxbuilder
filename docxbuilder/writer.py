@@ -568,7 +568,7 @@ def admonition(table_style):
             self._append_bookmark_start(node.get('ids', []))
             table_width = self._table_width_stack[-1]
             t = self._append_table(
-                    table_style, [table_width - 1000], 0, 'center')
+                    table_style, [table_width - 1000], False, 'center')
             t.start_head()
             t.add_row()
             self._add_table_cell()
@@ -630,7 +630,8 @@ class DocxTranslator(nodes.NodeVisitor):
                 continue
             self._doc_stack[-1].append(BookmarkEnd(bookmark_id))
 
-    def _append_table(self, table_style, colsize_list, indent, align=None):
+    def _append_table(self, table_style, colsize_list, is_indent, align=None):
+        indent = self._indent_stack[-1] if is_indent else 0
         t = Table(table_style, colsize_list, indent, align)
         self._doc_stack.append(t)
         self._list_level_stack.append(0)
@@ -638,8 +639,7 @@ class DocxTranslator(nodes.NodeVisitor):
         if colsize_list:
             table_width = sum(colsize_list)
         else:
-            table_width = (self._table_width_stack[-1]
-                    - indent - self._right_indent_stack[-1])
+            table_width = self._get_paragraph_width()
         self._right_indent_stack.append(0)
         self._table_width_stack.append(table_width)
         return t
@@ -695,6 +695,10 @@ class DocxTranslator(nodes.NodeVisitor):
             if num:
                 return prefix % ('.'.join(map(str, num)) + ' ')
         return None
+
+    def _get_paragraph_width(self):
+        return (self._table_width_stack[-1]
+                - self._indent_stack[-1] - self._right_indent_stack[-1])
 
     def visit_start_of_file(self, node):
         self._docname_stack.append(node['docname'])
@@ -873,7 +877,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_tgroup(self, node):
         self._append_bookmark_start(node.get('ids', []))
         align = node.parent.get('align')
-        self._append_table('rstTable', [], self._indent_stack[-1], align)
+        self._append_table('rstTable', [], True, align)
 
     def depart_tgroup(self, node):
         self._pop_and_append_table()
@@ -1092,10 +1096,9 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_field_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        table_width = (self._table_width_stack[-1]
-                - self._indent_stack[-1] - self._right_indent_stack[-1])
+        table_width = self._get_paragraph_width()
         colsize_list = [int(table_width * 1 / 4), int(table_width * 3 / 4)]
-        self._append_table('FieldList', colsize_list, self._indent_stack[-1])
+        self._append_table('FieldList', colsize_list, True)
 
     def depart_field_list(self, node):
         self._pop_and_append_table()
@@ -1128,10 +1131,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_option_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        table_width = (self._table_width_stack[-1]
-                - self._indent_stack[-1] - self._right_indent_stack[-1])
-        self._append_table(
-                'OptionList', [table_width - 500], self._indent_stack[-1])
+        table_width = self._get_paragraph_width()
+        self._append_table('OptionList', [table_width - 500], True)
 
     def depart_option_list(self, node):
         self._pop_and_append_table()
