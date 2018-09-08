@@ -219,7 +219,7 @@ def make_hyperlink(relationship_id, anchor):
     hyperlink_tree = [['w:hyperlink', attrs]]
     return docx.make_element_tree(hyperlink_tree)
 
-def make_paragraph(indent, right_indent, style, align):
+def make_paragraph(indent, right_indent, style, align, list_info):
     if style is None:
         style = 'BodyText'
     style_tree = [
@@ -227,6 +227,13 @@ def make_paragraph(indent, right_indent, style, align):
             [['w:pStyle', {'w:val': style}]],
     ]
     ind_attrs = {}
+    if list_info is not None:
+        num_id, list_level = list_info
+        style_tree.append([
+            ['w:numPr'],
+            [['w:ilvl', {'w:val': str(list_level)}]],
+            [['w:numId', {'w:val': str(num_id)}]],
+        ])
     if indent is not None:
         ind_attrs['w:leftChars'] = '0'
         ind_attrs['w:left'] = str(indent)
@@ -238,26 +245,6 @@ def make_paragraph(indent, right_indent, style, align):
         style_tree.append([['w:jc', {'w:val': align}]])
 
     paragraph_tree = [['w:p'], style_tree]
-    return docx.make_element_tree(paragraph_tree)
-
-def make_list_paragraph(num_id, list_level, indent, right_indent, style):
-    ind_attrs = {
-            'w:leftChars': '0', 'w:left': str(indent),
-            'w:right': str(right_indent)
-    }
-    paragraph_tree = [
-            ['w:p'],
-            [
-                ['w:pPr'],
-                [['w:pStyle', {'w:val': style}]],
-                [
-                    ['w:numPr'],
-                    [['w:ilvl', {'w:val': str(list_level)}]],
-                    [['w:numId', {'w:val': str(num_id)}]],
-                ],
-                [['w:ind', ind_attrs]]
-            ]
-    ]
     return docx.make_element_tree(paragraph_tree)
 
 def to_error_string(contents):
@@ -287,11 +274,12 @@ class BookmarkEnd(object):
 
 class Paragraph(object):
     def __init__(self, indent=None, right_indent=None,
-                 paragraph_style=None, align=None):
+                 paragraph_style=None, align=None, list_info=None):
         self._indent = indent
         self._right_indent = right_indent
         self._style = paragraph_style
         self._align = align
+        self._list_info = list_info
         self._run_list = []
         self._text_style_stack = [None]
 
@@ -322,7 +310,8 @@ class Paragraph(object):
 
     def to_xml(self):
         p = make_paragraph(
-                self._indent, self._right_indent, self._style, self._align)
+                self._indent, self._right_indent, self._style, self._align,
+                self._list_info)
         p.extend(self._run_list)
         return [p]
 
@@ -344,7 +333,7 @@ class LiteralBlock(object):
 
     def to_xml(self):
         p = make_paragraph(
-                self._indent, self._right_indent, 'LiteralBlock', None)
+                self._indent, self._right_indent, 'LiteralBlock', None, None)
         for text in self._text_list:
             lineos = 1
             highlighted = self._highlighter.highlight_block(
@@ -399,26 +388,27 @@ class HyperLink(object):
 
 class ListItem(object):
     def __init__(self, num_id, list_level, indent, right_indent, list_style):
-        p = make_list_paragraph(
-                num_id, list_level, indent, right_indent, list_style)
-        self._xml_list = [p]
+        list_paragraph = Paragraph(
+                indent, right_indent, list_style,
+                list_info=(num_id, list_level))
+        self._contents_list = [list_paragraph]
         self._available_list_paragraph = True
 
     def append(self, contents):
-        if len(self._xml_list) == 1:
+        if len(self._contents_list) == 1:
             if isinstance(contents, (BookmarkStart, BookmarkEnd)):
-                self._xml_list[-1].extend(contents.to_xml())
+                self._contents_list[0].append(contents)
                 return
             if self._available_list_paragraph:
                 if isinstance(contents, Paragraph) and contents._style is None:
-                    self._xml_list[-1].extend(contents._run_list)
+                    self._contents_list[0].append(contents)
                     return
                 else:
                     self._available_list_paragraph = False
-        self._xml_list.extend(contents.to_xml())
+        self._contents_list.append(contents)
 
-    def to_xml(self):
-        return self._xml_list
+    def __iter__(self):
+        return iter(self._contents_list)
 
 class DefinitionListItem(object):
     def __init__(self):
@@ -1057,7 +1047,9 @@ class DocxTranslator(nodes.NodeVisitor):
             self._indent_stack[-1], self._right_indent_stack[-1], style))
 
     def depart_list_item(self, node):
-        self._pop_and_append()
+        list_item = self._doc_stack.pop()
+        for contents in list_item:
+            self._doc_stack[-1].append(contents)
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_definition_list(self, node):
