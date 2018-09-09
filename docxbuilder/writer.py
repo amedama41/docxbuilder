@@ -514,7 +514,7 @@ class Table(object):
         table_width = sum(self._colsize_list)
         total_colspec = sum(self._colspec_list)
         self._colsize_list = list(map(
-            lambda colspec: int(float(table_width) * colspec / total_colspec),
+            lambda colspec: int(table_width * colspec / total_colspec),
             self._colspec_list))
 
 class Document(object):
