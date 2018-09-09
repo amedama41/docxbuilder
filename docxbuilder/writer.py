@@ -394,6 +394,7 @@ class HyperLink(object):
 class Table(object):
     def __init__(self, table_style, colsize_list, indent, align):
         self._style = table_style
+        self._colspec_list = []
         self._colsize_list = colsize_list
         self._indent = indent
         self._align = align
@@ -406,8 +407,8 @@ class Table(object):
     def style(self):
         return self._style
 
-    def add_col_width(self, col_width):
-        self._colsize_list.append(col_width)
+    def add_colspec(self, colspec):
+        self._colspec_list.append(colspec)
 
     def add_stub(self):
         self._stub += 1
@@ -426,6 +427,9 @@ class Table(object):
 
     def current_cell_width(self):
         num_cell = len(self._current_target[-1])
+        if self._colspec_list:
+            self._reset_colsize_list()
+            self._colspec_list = []
         if len(self._colsize_list) < num_cell:
             return None
         return self._colsize_list[num_cell - 1]
@@ -505,6 +509,13 @@ class Table(object):
         elem.extend(
                 itertools.chain.from_iterable(map(lambda c: c.to_xml(), cell)))
         return elem
+
+    def _reset_colsize_list(self):
+        table_width = sum(self._colsize_list)
+        total_colspec = sum(self._colspec_list)
+        self._colsize_list = list(map(
+            lambda colspec: int(float(table_width) * colspec / total_colspec),
+            self._colspec_list))
 
 class Document(object):
     def __init__(self, body):
@@ -636,10 +647,7 @@ class DocxTranslator(nodes.NodeVisitor):
         t = Table(table_style, colsize_list, indent, align)
         self._doc_stack.append(t)
         self._list_level_stack.append(0)
-        if colsize_list:
-            table_width = sum(colsize_list)
-        else:
-            table_width = self._get_paragraph_width()
+        table_width = sum(colsize_list)
         self._indent_stack.append(0)
         self._right_indent_stack.append(0)
         self._table_width_stack.append(table_width)
@@ -890,7 +898,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_tgroup(self, node):
         self._append_bookmark_start(node.get('ids', []))
         align = node.parent.get('align')
-        self._append_table('rstTable', [], True, align)
+        self._append_table(
+                'rstTable', [self._get_paragraph_width()], True, align)
 
     def depart_tgroup(self, node):
         self._pop_and_append_table()
@@ -900,7 +909,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         table = self._doc_stack[-1]
         table_width = self._table_width_stack[-1]
-        table.add_col_width(int(table_width * node['colwidth'] / 100))
+        table.add_colspec(node['colwidth'])
         if node.get('stub', 0) == 1:
             table.add_stub()
 
