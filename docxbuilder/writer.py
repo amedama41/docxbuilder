@@ -386,50 +386,6 @@ class HyperLink(object):
         h.extend(self._run_list)
         return [h]
 
-class ListItem(object):
-    def __init__(self, num_id, list_level, indent, right_indent, list_style):
-        list_paragraph = Paragraph(
-                indent, right_indent, list_style,
-                list_info=(num_id, list_level))
-        self._contents_list = [list_paragraph]
-        self._available_list_paragraph = True
-
-    def append(self, contents):
-        if len(self._contents_list) == 1:
-            if isinstance(contents, (BookmarkStart, BookmarkEnd)):
-                self._contents_list[0].append(contents)
-                return
-            if self._available_list_paragraph:
-                if isinstance(contents, Paragraph) and contents._style is None:
-                    self._contents_list[0].append(contents)
-                    return
-                else:
-                    self._available_list_paragraph = False
-        self._contents_list.append(contents)
-
-    def __iter__(self):
-        return iter(self._contents_list)
-
-class DefinitionListItem(object):
-    def __init__(self):
-        self._contents_list = []
-        self._last_term = None
-
-    @property
-    def last_term(self):
-        return self._last_term
-
-    def add_term(self, term_paragraph):
-        self._contents_list.append(term_paragraph)
-        self._last_term = term_paragraph
-
-    def append(self, contents):
-        self._contents_list.append(contents)
-
-    def to_xml(self):
-        return list(itertools.chain.from_iterable(
-            map(lambda c: c.to_xml(), self._contents_list)))
-
 class Table(object):
     def __init__(self, table_style, colsize_list, indent, align):
         self._style = table_style
@@ -552,6 +508,51 @@ class Document(object):
         for xml in contents.to_xml():
             self._body.append(xml)
 
+class ContentsList(object):
+    def __init__(self):
+        self._contents_list = []
+
+    def append(self, contents):
+        self._contents_list.append(contents)
+
+    def __iter__(self):
+        return iter(self._contents_list)
+
+class ListItem(ContentsList):
+    def __init__(self, num_id, list_level, indent, right_indent, list_style):
+        super(ListItem, self).__init__()
+        self._list_paragraph = Paragraph(
+                indent, right_indent, list_style,
+                list_info=(num_id, list_level))
+        self._available_list_paragraph = True
+        super(ListItem, self).append(self._list_paragraph)
+
+    def append(self, contents):
+        if len(self._contents_list) == 1:
+            if isinstance(contents, (BookmarkStart, BookmarkEnd)):
+                self._list_paragraph.append(contents)
+                return
+            if self._available_list_paragraph:
+                if isinstance(contents, Paragraph) and contents._style is None:
+                    self._list_paragraph.append(contents)
+                    return
+                else:
+                    self._available_list_paragraph = False
+        super(ListItem, self).append(contents)
+
+class DefinitionListItem(ContentsList):
+    def __init__(self):
+        super(DefinitionListItem, self).__init__()
+        self._last_term = None
+
+    @property
+    def last_term(self):
+        return self._last_term
+
+    def add_term(self, term_paragraph):
+        self._contents_list.append(term_paragraph)
+        self._last_term = term_paragraph
+
 def admonition(table_style):
     def _visit_admonition(func):
         def visit_admonition(self, node):
@@ -601,7 +602,11 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _pop_and_append(self):
         contents = self._doc_stack.pop()
-        self._doc_stack[-1].append(contents)
+        if isinstance(contents, ContentsList):
+            for c in contents:
+                self._doc_stack[-1].append(c)
+        else:
+            self._doc_stack[-1].append(contents)
 
     def _append_bookmark_start(self, ids):
         docname = self._docname_stack[-1]
@@ -1047,9 +1052,7 @@ class DocxTranslator(nodes.NodeVisitor):
             self._indent_stack[-1], self._right_indent_stack[-1], style))
 
     def depart_list_item(self, node):
-        list_item = self._doc_stack.pop()
-        for contents in list_item:
-            self._doc_stack[-1].append(contents)
+        self._pop_and_append()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_definition_list(self, node):
