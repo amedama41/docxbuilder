@@ -645,6 +645,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._right_indent_stack.pop()
         self._table_width_stack.pop()
         self._pop_and_append()
+        # Append a paragaph as a margin between the table and the next element
+        self._doc_stack[-1].append(Paragraph())
 
     def _add_table_cell(self):
         t = self._doc_stack[-1]
