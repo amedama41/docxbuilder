@@ -219,7 +219,7 @@ def make_hyperlink(relationship_id, anchor):
     hyperlink_tree = [['w:hyperlink', attrs]]
     return docx.make_element_tree(hyperlink_tree)
 
-def make_paragraph(indent, right_indent, style, align, list_info):
+def make_paragraph(indent, right_indent, style, align, keep_next, list_info):
     if style is None:
         style = 'BodyText'
     style_tree = [
@@ -243,6 +243,8 @@ def make_paragraph(indent, right_indent, style, align, list_info):
         style_tree.append([['w:ind', ind_attrs]])
     if align is not None:
         style_tree.append([['w:jc', {'w:val': align}]])
+    if keep_next:
+        style_tree.append([['w:keepNext']])
 
     paragraph_tree = [['w:p'], style_tree]
     return docx.make_element_tree(paragraph_tree)
@@ -274,11 +276,13 @@ class BookmarkEnd(object):
 
 class Paragraph(object):
     def __init__(self, indent=None, right_indent=None,
-                 paragraph_style=None, align=None, list_info=None):
+                 paragraph_style=None, align=None, keep_next=False,
+                 list_info=None):
         self._indent = indent
         self._right_indent = right_indent
         self._style = paragraph_style
         self._align = align
+        self._keep_next = keep_next
         self._list_info = list_info
         self._run_list = []
         self._text_style_stack = [None]
@@ -311,7 +315,7 @@ class Paragraph(object):
     def to_xml(self):
         p = make_paragraph(
                 self._indent, self._right_indent, self._style, self._align,
-                self._list_info)
+                self._keep_next, self._list_info)
         p.extend(self._run_list)
         return [p]
 
@@ -333,7 +337,8 @@ class LiteralBlock(object):
 
     def to_xml(self):
         p = make_paragraph(
-                self._indent, self._right_indent, 'LiteralBlock', None, None)
+                self._indent, self._right_indent, 'LiteralBlock',
+                None, False, None)
         for text in self._text_list:
             lineos = 1
             highlighted = self._highlighter.highlight_block(
@@ -563,7 +568,7 @@ def admonition(table_style):
             t.start_head()
             t.add_row()
             self._add_table_cell()
-            p = Paragraph()
+            p = Paragraph(keep_next=True)
             p.add_text(admonitionlabels[node.tagname] + ':')
             t.append(p)
             t.start_body()
@@ -741,7 +746,8 @@ class DocxTranslator(nodes.NodeVisitor):
             indent = self._indent_stack[-1]
             right_indent = self._right_indent_stack[-1]
             align = None
-        self._doc_stack.append(Paragraph(indent, right_indent, style, align))
+        self._doc_stack.append(
+                Paragraph(indent, right_indent, style, align, True))
         if title_num is not None:
             self._doc_stack[-1].add_text(title_num)
 
@@ -961,12 +967,15 @@ class DocxTranslator(nodes.NodeVisitor):
             style = 'ImageCaption'
             figtype = 'figure'
             align = node.parent.get('align')
+            keep_next = False
         else:
             style = 'LiteralCaption'
             figtype = 'code-block'
             align = None
+            keep_next = True
         self._doc_stack.append(Paragraph(
-            self._indent_stack[-1], self._right_indent_stack[-1], style, align))
+            self._indent_stack[-1], self._right_indent_stack[-1], style,
+            align, keep_next))
         caption_num = self._get_numfig(figtype, node.parent['ids'])
         if caption_num is not None:
             self._doc_stack[-1].add_text(caption_num)
@@ -1075,7 +1084,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(
             self._indent_stack[-1], self._right_indent_stack[-1],
-            'DefinitionItem'))
+            'DefinitionItem', keep_next=True))
 
     def depart_term(self, node):
         term_paragraph = self._doc_stack.pop()
@@ -1155,7 +1164,7 @@ class DocxTranslator(nodes.NodeVisitor):
         table = self._doc_stack[-1]
         table.add_row()
         self._add_table_cell()
-        self._doc_stack.append(Paragraph(0))
+        self._doc_stack.append(Paragraph(0, keep_next=True))
 
     def depart_option_group(self, node):
         self._pop_and_append()
