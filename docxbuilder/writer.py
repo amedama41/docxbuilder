@@ -469,19 +469,19 @@ class Table(object):
         return [table]
 
     def make_row(self, index, row, is_head):
-        row_style = {
+        row_style_attrs = {
                 'w:evenHBand': ('true' if index % 2 == 0 else 'false'),
                 'w:oddHBand': ('true' if index % 2 != 0 else 'false'),
                 'w:firstRow': ('true' if is_head else 'false'),
         }
-        tr_tree = docx.make_element_tree([
-                ['w:tr'],
-                [
-                    ['w:trPr'],
-                    [['w:cnfStyle', row_style]],
-                    [['w:cantSplit']],
-                ]
-        ])
+        property_tree = [
+                ['w:trPr'],
+                [['w:cnfStyle', row_style_attrs]],
+                [['w:cantSplit']],
+        ]
+        if is_head:
+            property_tree.append([['w:tblHeader']])
+        tr_tree = docx.make_element_tree([['w:tr'], property_tree])
         for index, cell in enumerate(row):
             tr_tree.append(self.make_cell(index, cell))
         return tr_tree
