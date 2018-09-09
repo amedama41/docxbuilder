@@ -474,7 +474,8 @@ class Table(object):
                 ['w:tr'],
                 [
                     ['w:trPr'],
-                    [['w:cnfStyle', row_style]]
+                    [['w:cnfStyle', row_style]],
+                    [['w:cantSplit']],
                 ]
         ])
         for index, cell in enumerate(row):
