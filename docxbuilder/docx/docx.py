@@ -236,6 +236,11 @@ def get_attribute(xml, path, name):
         return None
     return elems[0].attrib[norm_name(name)]
 
+def get_special_footnotes(footnotes_xml):
+    return get_elements(
+            footnotes_xml,
+            '/w:footnotes/w:footnote[@w:type and not(@w:type="normal")]')
+
 #
 #  DocxDocument class
 #   This class for analizing docx-file
@@ -259,6 +264,10 @@ class DocxDocument:
         width, height = self.get_contents_area_size()
         self.contents_width = width
         self.contents_height = height
+
+    @property
+    def footnotes(self):
+        return self.get_xmltree('word/footnotes.xml')
 
     def get_xmltree(self, fname):
         '''
@@ -484,6 +493,9 @@ class DocxComposer:
 
         self._hyperlink_rid_map = {} # target => relationship id
         self._image_rid_map = {} # imagepath => relationship id
+        self._footnote_id_map = {} # docname#id => footnote id
+        self._footnote_list = []
+        self._max_footnote_id = 0
 
         if stylefile == None:
             self.template_dir = None
@@ -519,6 +531,13 @@ class DocxComposer:
         self.numids = get_elements(self.styleDocx.numbering, 'w:num')
         self.numbering = make_element_tree(['w:numbering'])
         self.images = self.styleDocx.get_number_of_medias()
+
+        self._footnote_list.extend(
+                get_special_footnotes(self.styleDocx.footnotes))
+        norm_id = norm_name('w:id')
+        self._max_footnote_id = max(
+                map(lambda f: int(f.get(norm_id)), self._footnote_list),
+                default=0)
 
         return
 
@@ -610,11 +629,15 @@ class DocxComposer:
 
         self.docbody.append(self.paper_info)
 
+        footnotes = make_element_tree([['w:footnotes']])
+        footnotes.extend(self._footnote_list)
+
         # Serialize our trees into out zip file
         treesandfiles = {self.document: 'word/document.xml',
                          self._coreprops: 'docProps/core.xml',
                          self._appprops: 'docProps/app.xml',
                          self._contenttypes: '[Content_Types].xml',
+                         footnotes: 'word/footnotes.xml',
                          self.numbering: 'word/numbering.xml',
                          self.styleDocx.styles: 'word/styles.xml',
                          self._websettings: 'word/webSettings.xml',
@@ -1497,6 +1520,21 @@ class DocxComposer:
                 [['w:drawing'], inline_tree]
         ]
         return make_element_tree(run_tree)
+
+    def set_default_footnote_id(self, key, default_fid=None):
+        fid = self._footnote_id_map.get(key)
+        if fid is not None:
+            return fid
+        if default_fid is None:
+            self._max_footnote_id += 1
+            default_fid = self._max_footnote_id
+        self._footnote_id_map[key] = default_fid
+        return default_fid
+
+    def append_footnote(self, fid, contents):
+        footnote = make_element_tree([['w:footnote', {'w:id': str(fid)}]])
+        footnote.extend(contents)
+        self._footnote_list.append(footnote)
 
     def contenttypes(self):
         '''

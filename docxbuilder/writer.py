@@ -249,6 +249,30 @@ def make_paragraph(indent, right_indent, style, align, keep_next, list_info):
     paragraph_tree = [['w:p'], style_tree]
     return docx.make_element_tree(paragraph_tree)
 
+def make_footnote_reference(footnote_id):
+    return docx.make_element_tree([
+        ['w:r'],
+        [
+            ['w:rPr'],
+            [['w:rStyle', {'w:val': 'FootnoteReference'}]],
+        ],
+        [
+            ['w:footnoteReference', {'w:id': str(footnote_id)}],
+        ],
+    ])
+
+def make_footnote_ref():
+    return docx.make_element_tree([
+        ['w:r'],
+        [
+            ['w:rPr'],
+            [['w:rStyle', {'w:val': 'FootnoteReference'}]],
+        ],
+        [
+            ['w:footnoteRef'],
+        ],
+    ])
+
 def to_error_string(contents):
     from xml.etree.ElementTree import tostring
     func = lambda xml: tostring(xml, encoding='utf8').decode('utf8')
@@ -297,6 +321,12 @@ class Paragraph(object):
     def add_picture(self, rid, filename, width, height, alt):
         self._run_list.append(docx.DocxComposer.make_inline_picture_run(
             rid, filename, width, height, alt))
+
+    def add_footnote_reference(self, footnote_id):
+        self._run_list.append(make_footnote_reference(footnote_id))
+
+    def add_footnote_ref(self):
+        self._run_list.append(make_footnote_ref())
 
     def push_style(self, text_style):
         self._text_style_stack.append(text_style)
@@ -371,6 +401,9 @@ class HyperLink(object):
     def add_picture(self, rid, filename, width, height, alt):
         self._run_list.append(docx.DocxComposer.make_inline_picture_run(
             rid, filename, width, height, alt))
+
+    def add_footnote_reference(self, footnote_id):
+        self._run_list.append(make_footnote_reference(footnote_id))
 
     def push_style(self, text_style):
         self._text_style_stack.append(text_style)
@@ -535,6 +568,30 @@ class ContentsList(object):
     def __iter__(self):
         return iter(self._contents_list)
 
+    def __len__(self):
+        return len(self._contents_list)
+
+class Footnote(ContentsList):
+    def __init__(self):
+        super(Footnote, self).__init__()
+        self._footnote_paragraph = Paragraph(None, None, 'FootnoteText')
+        self._footnote_paragraph.add_footnote_ref()
+        self._available_footnote_paragraph = True
+        super(Footnote, self).append(self._footnote_paragraph)
+
+    def append(self, contents):
+        if len(self) == 1:
+            if isinstance(contents, (BookmarkStart, BookmarkEnd)):
+                self._footnote_paragraph.append(contents)
+                return
+            if self._available_footnote_paragraph:
+                if isinstance(contents, Paragraph) and contents._style is None:
+                    self._footnote_paragraph.append(contents)
+                    return
+                else:
+                    self._available_footnote_paragraph = False
+        super(Footnote, self).append(contents)
+
 class ListItem(ContentsList):
     def __init__(self, num_id, list_level, indent, right_indent, list_style):
         super(ListItem, self).__init__()
@@ -545,7 +602,7 @@ class ListItem(ContentsList):
         super(ListItem, self).append(self._list_paragraph)
 
     def append(self, contents):
-        if len(self._contents_list) == 1:
+        if len(self) == 1:
             if isinstance(contents, (BookmarkStart, BookmarkEnd)):
                 self._list_paragraph.append(contents)
                 return
@@ -1001,10 +1058,22 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_footnote(self, node):
-        raise nodes.SkipNode # TODO
+        self._doc_stack.append(Footnote())
+        self._append_bookmark_start(node.get('ids', []))
 
     def depart_footnote(self, node):
-        pass
+        self._append_bookmark_end(node.get('ids', []))
+        footnote = self._doc_stack.pop()
+        prev_fid = None
+        for id in node.get('ids'):
+            fid = self._docx.set_default_footnote_id(
+                    '%s#%s' % (self._docname_stack[-1], id), prev_fid)
+            if fid != prev_fid:
+                self._docx.append_footnote(
+                        fid,
+                        itertools.chain.from_iterable(
+                            map(lambda c: c.to_xml(), footnote)))
+                prev_fid = fid
 
     def visit_citation(self, node):
         raise nodes.SkipNode # TODO
@@ -1013,6 +1082,8 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_label(self, node):
+        if isinstance(node.parent, nodes.footnote):
+            raise nodes.SkipNode
         pass # TODO
 
     def depart_label(self, node):
@@ -1371,11 +1442,13 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_footnote_reference(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass # TODO
-
-    def depart_footnote_reference(self, node):
+        refid = node.get('refid', None)
+        if refid is not None:
+            fid = self._docx.set_default_footnote_id(
+                    '%s#%s' % (self._docname_stack[-1], refid))
+            self._doc_stack[-1].add_footnote_reference(fid)
         self._append_bookmark_end(node.get('ids', []))
-        pass
+        raise nodes.SkipNode
 
     def visit_citation_reference(self, node):
         self._append_bookmark_start(node.get('ids', []))
