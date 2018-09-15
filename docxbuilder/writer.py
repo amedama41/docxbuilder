@@ -1518,9 +1518,21 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         uri = node.attributes['uri']
         file_path = os.path.join(self._builder.env.srcdir, uri)
-        width, height = self._get_image_scaled_size(node, file_path)
-        self._append_picture(
-                file_path, width, height, node.get('alt', ''), node.parent)
+        try:
+            width, height = self._get_image_scaled_size(node, file_path)
+            self._append_picture(
+                    file_path, width, height, node.get('alt', ''), node.parent)
+        except Exception as e:
+            self.document.reporter.warning(e)
+            alt_text = node.get('alt', uri)
+            if isinstance(self._doc_stack[-1], (Paragraph, HyperLink)):
+                self._doc_stack[-1].add_text(alt_text)
+            else:
+                p = Paragraph(
+                        self._indent_stack[-1], self._right_indent_stack[-1],
+                        align=node.parent.get('align'))
+                p.add_text(alt_text)
+                self._doc_stack[-1].append(p)
 
     def depart_image(self, node):
         self._append_bookmark_end(node.get('ids', []))
