@@ -571,48 +571,25 @@ class ContentsList(object):
     def __len__(self):
         return len(self._contents_list)
 
-class Footnote(ContentsList):
-    def __init__(self):
-        super(Footnote, self).__init__()
-        self._footnote_paragraph = Paragraph(None, None, 'FootnoteText')
-        self._footnote_paragraph.add_footnote_ref()
-        self._available_footnote_paragraph = True
-        super(Footnote, self).append(self._footnote_paragraph)
+class FixedTopParagraphList(ContentsList):
+    def __init__(self, top_paragraph):
+        super(FixedTopParagraphList, self).__init__()
+        self._top_paragraph = top_paragraph
+        self._available_top_paragraph = True
+        super(FixedTopParagraphList, self).append(self._top_paragraph)
 
     def append(self, contents):
         if len(self) == 1:
             if isinstance(contents, (BookmarkStart, BookmarkEnd)):
-                self._footnote_paragraph.append(contents)
+                self._top_paragraph.append(contents)
                 return
-            if self._available_footnote_paragraph:
+            if self._available_top_paragraph:
                 if isinstance(contents, Paragraph) and contents._style is None:
-                    self._footnote_paragraph.append(contents)
+                    self._top_paragraph.append(contents)
                     return
                 else:
-                    self._available_footnote_paragraph = False
-        super(Footnote, self).append(contents)
-
-class ListItem(ContentsList):
-    def __init__(self, num_id, list_level, indent, right_indent, list_style):
-        super(ListItem, self).__init__()
-        self._list_paragraph = Paragraph(
-                indent, right_indent, list_style,
-                list_info=(num_id, list_level))
-        self._available_list_paragraph = True
-        super(ListItem, self).append(self._list_paragraph)
-
-    def append(self, contents):
-        if len(self) == 1:
-            if isinstance(contents, (BookmarkStart, BookmarkEnd)):
-                self._list_paragraph.append(contents)
-                return
-            if self._available_list_paragraph:
-                if isinstance(contents, Paragraph) and contents._style is None:
-                    self._list_paragraph.append(contents)
-                    return
-                else:
-                    self._available_list_paragraph = False
-        super(ListItem, self).append(contents)
+                    self._available_top_paragraph = False
+        super(FixedTopParagraphList, self).append(contents)
 
 class DefinitionListItem(ContentsList):
     def __init__(self):
@@ -1058,7 +1035,9 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_footnote(self, node):
-        self._doc_stack.append(Footnote())
+        p = Paragraph(None, None, 'FootnoteText')
+        p.add_footnote_ref()
+        self._doc_stack.append(FixedTopParagraphList(p))
         self._append_bookmark_start(node.get('ids', []))
 
     def depart_footnote(self, node):
@@ -1139,9 +1118,10 @@ class DocxTranslator(nodes.NodeVisitor):
         else:
             style = 'ListBullet'
             list_indent_level = self._list_level_stack[-1] - 1
-        self._doc_stack.append(ListItem(
-            list_id, list_indent_level,
-            self._indent_stack[-1], self._right_indent_stack[-1], style))
+        self._doc_stack.append(FixedTopParagraphList(
+            Paragraph(
+                self._indent_stack[-1], self._right_indent_stack[-1], style,
+                list_info=(list_id, list_indent_level))))
 
     def depart_list_item(self, node):
         self._pop_and_append()
