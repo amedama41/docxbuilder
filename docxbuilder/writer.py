@@ -1069,6 +1069,8 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_rubric(self, node):
+        if node.astext() in ('Footnotes', _('Footnotes')):
+            raise nodes.SkipNode
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(
             self._indent_stack[-1], self._right_indent_stack[-1])) # TODO
