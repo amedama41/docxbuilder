@@ -9,6 +9,7 @@ from pygments.formatters import RtfFormatter
 class DocxFormatter(RtfFormatter):
     def __init__(self, **options):
         RtfFormatter.__init__(self, **options)
+        self.hl_lines = options.get('hl_lines', [])
         self.color_mapping = {}
         for _, style in self.style:
             for color in style['color'], style['bgcolor'], style['border']:
@@ -20,11 +21,11 @@ class DocxFormatter(RtfFormatter):
                     )
 
     def format_unencoded(self, tokensource, outfile):
+        lines = [[]]
         for ttype, value in tokensource:
             if value == '\n':
-                outfile.write(r'<w:r><w:br /></w:r>')
+                lines.append([])
             else:
-                outfile.write(r'<w:r>')
                 while not self.style.styles_token(ttype) and ttype.parent:
                     ttype = ttype.parent
                 style = self.style.style_for_token(ttype)
@@ -45,26 +46,37 @@ class DocxFormatter(RtfFormatter):
                     buf.append(r'<w:bdr w:val="single" w:space="0" w:color="%s" />' %
                                self.color_mapping[style['border']])
 
-                start = ''.join(buf)
-                if start:
-                    outfile.write('<w:rPr>%s</w:rPr> ' % start)
+                style = ''.join(buf)
+                value = value.replace('<', '&lt;')
+                value = value.replace('>', '&gt;')
                 index = 0
                 while index < len(value):
                     idx = value.find('\n', index)
-                    txt = value[index:idx] if idx != -1 else value[index:]
-                    if txt.find(' ') != -1:
-                        outfile.write(r'<w:t xml:space="preserve">')
-                    else:
-                        outfile.write(r'<w:t>')
-                    txt = txt.replace('<', '&lt;')
-                    txt = txt.replace('>', '&gt;')
-                    outfile.write(txt)
-                    outfile.write(r'</w:t>')
                     if idx == -1:
+                        lines[-1].append((value[index:], style))
                         break
-                    outfile.write(r'<w:br />')
-                    index = idx + 1
-                outfile.write(r'</w:r>')
+                    else:
+                        lines[-1].append((value[index:idx], style))
+                        lines.append([])
+                        index = idx + 1
+
+        for lineno, tokens in enumerate(lines, 1):
+            for text, style in tokens:
+                outfile.write(r'<w:r>')
+                if lineno in self.hl_lines:
+                    style += r'<w:highlight w:val="yellow" />' # TODO: color
+                if style:
+                    outfile.write(r'<w:rPr>%s</w:rPr>' % style)
+                if text.find(' ') != -1:
+                    outfile.write('r<w:t xml:space="preserve">')
+                else:
+                    outfile.write('r<w:t>')
+                outfile.write(text)
+                outfile.write(r'</w:t>')
+                outfile.write('</w:r>')
+            if lineno != len(lines):
+                outfile.write(r'<w:r><w:br /></w:r>')
+
 
 
 #--- PygmentsBridge
