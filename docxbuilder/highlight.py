@@ -68,12 +68,12 @@ class DocxFormatter(RtfFormatter):
                 if style:
                     outfile.write(r'<w:rPr>%s</w:rPr>' % style)
                 if text.find(' ') != -1:
-                    outfile.write('r<w:t xml:space="preserve">')
+                    outfile.write(r'<w:t xml:space="preserve">')
                 else:
-                    outfile.write('r<w:t>')
+                    outfile.write(r'<w:t>')
                 outfile.write(text)
                 outfile.write(r'</w:t>')
-                outfile.write('</w:r>')
+                outfile.write(r'</w:r>')
             if lineno != len(lines):
                 outfile.write(r'<w:r><w:br /></w:r>')
 
