@@ -1176,7 +1176,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._get_paragraph_width()
         colsize_list = [int(table_width * 1 / 4), int(table_width * 3 / 4)]
-        self._append_table('FieldList', colsize_list, True)
+        table = self._append_table('FieldList', colsize_list, True)
+        table.add_stub()
 
     def depart_field_list(self, node):
         self._pop_and_append_table()
