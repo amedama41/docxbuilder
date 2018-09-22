@@ -10,6 +10,7 @@ class DocxFormatter(RtfFormatter):
     def __init__(self, **options):
         RtfFormatter.__init__(self, **options)
         self.hl_lines = options.get('hl_lines', [])
+        self.trim_last_line_break = options.get('trim_last_line_break', False)
         self.color_mapping = {}
         for _, style in self.style:
             for color in style['color'], style['bgcolor'], style['border']:
@@ -60,6 +61,9 @@ class DocxFormatter(RtfFormatter):
                         lines.append([])
                         index = idx + 1
 
+        if self.trim_last_line_break and lines[-1] == []:
+            lines.pop()
+
         for lineno, tokens in enumerate(lines, 1):
             for text, style in tokens:
                 outfile.write(r'<w:r>')
@@ -85,3 +89,10 @@ class DocxPygmentsBridge(PygmentsBridge):
                  trim_doctest_flags=False):
         PygmentsBridge.__init__(self, dest, stylename, trim_doctest_flags)
         self.formatter = DocxFormatter
+
+    def highlight_block(self, source, lang, *args, **kwargs):
+        # highlight_block may append a line break to the tail of the code
+        kwargs['trim_last_line_break'] = not source.endswith('\n')
+        return super(DocxPygmentsBridge, self).highlight_block(
+                source, lang, *args, **kwargs)
+

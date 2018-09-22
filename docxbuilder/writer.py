@@ -382,13 +382,7 @@ class LiteralBlock(object):
                     text, self._language, lineos=lineos, **self._highlight_args)
             xml_text = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' + highlighted + '</w:p>'
             dummy_p = etree.fromstring(xml_text)
-            run_list = docx.get_elements(dummy_p, 'w:r')
-            # highlight_block may append a line break to the tail of the code
-            if (not text.endswith('\n') and
-                    run_list[-1][-1].tag == docx.norm_name('w:br')):
-                run_list[-1].remove(run_list[-1][-1])
-            for run in run_list:
-                p.append(run)
+            p.extend(dummy_p)
         return [p]
 
 class HyperLink(object):
