@@ -197,14 +197,20 @@ class DocxWriter(writers.Writer):
 #  DocxTranslator class for sphinx
 #
 
-def make_run(text, style):
+def make_run(text, style, preserve_space):
     run_tree = [['w:r']]
     if style:
         run_tree.append([['w:rPr'], [['w:rStyle', {'w:val': style}]]])
     attrs = {}
-    if text.find(' ') != -1:
-        attrs['xml:space'] = 'preserve'
-    run_tree.append([['w:t', text, attrs]])
+    if preserve_space:
+        lines = text.split('\n')
+        for index, line in enumerate(lines):
+            run_tree.append([['w:t', line, {'xml:space': 'preserve'}]])
+            if index != len(lines) - 1:
+                run_tree.append([['w:br']])
+    else:
+        text = re.sub(r'\n', ' ', text)
+        run_tree.append([['w:t', text]])
     return docx.make_element_tree(run_tree)
 
 def make_break_run():
@@ -301,19 +307,20 @@ class BookmarkEnd(object):
 class Paragraph(object):
     def __init__(self, indent=None, right_indent=None,
                  paragraph_style=None, align=None, keep_next=False,
-                 list_info=None):
+                 list_info=None, preserve_space=False):
         self._indent = indent
         self._right_indent = right_indent
         self._style = paragraph_style
         self._align = align
         self._keep_next = keep_next
         self._list_info = list_info
+        self._preserve_space = preserve_space
         self._run_list = []
         self._text_style_stack = [None]
 
     def add_text(self, text):
-        text = re.sub(r'\n', ' ', text)
-        self._run_list.append(make_run(text, self._text_style_stack[-1]))
+        self._run_list.append(make_run(
+            text, self._text_style_stack[-1], self._preserve_space))
 
     def add_break(self):
         self._run_list.append(make_break_run())
@@ -393,7 +400,7 @@ class HyperLink(object):
 
     def add_text(self, text):
         text = re.sub(r'\n', ' ', text)
-        self._run_list.append(make_run(text, self._text_style_stack[-1]))
+        self._run_list.append(make_run(text, self._text_style_stack[-1], False))
 
     def add_break(self):
         self._run_list.append(make_break_run())
@@ -860,6 +867,11 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_literal_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
+        if node.rawsource != node.astext(): # Maybe parsed-literal
+            self._doc_stack.append(Paragraph(
+                self._indent_stack[-1], self._right_indent_stack[-1],
+                'LiteralBlock', preserve_space=True))
+            return
         language = node.get('language', self._language)
         highlight_args = node.get('highlight_args', {})
         self._doc_stack.append(LiteralBlock(
