@@ -356,35 +356,6 @@ class Paragraph(object):
         p.extend(self._run_list)
         return [p]
 
-class LiteralBlock(object):
-    def __init__(self, language, highlight_args, highlighter,
-                 indent, right_indent):
-        self._indent = indent
-        self._right_indent = right_indent
-        self._language = language
-        self._highlight_args = highlight_args
-        self._highlighter = highlighter
-        self._text_list = []
-
-    def add_text(self, text):
-        self._text_list.append(text)
-
-    def append(self, contents):
-        raise RuntimeError('Can not append %s' % to_error_string(contents))
-
-    def to_xml(self):
-        p = make_paragraph(
-                self._indent, self._right_indent, 'LiteralBlock',
-                None, False, None)
-        for text in self._text_list:
-            lineos = 1
-            highlighted = self._highlighter.highlight_block(
-                    text, self._language, lineos=lineos, **self._highlight_args)
-            xml_text = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' + highlighted + '</w:p>'
-            dummy_p = etree.fromstring(xml_text)
-            p.extend(dummy_p)
-        return [p]
-
 class HyperLink(object):
     def __init__(self, rid, anchor):
         self._rid = rid
@@ -558,6 +529,18 @@ class Document(object):
     def append(self, contents):
         for xml in contents.to_xml():
             self._body.append(xml)
+
+class LiteralBlock(object):
+    def __init__(self, highlighted, indent, right_indent):
+        p = make_paragraph(
+                indent, right_indent, 'LiteralBlock', None, False, None)
+        xml_text = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' + highlighted + '</w:p>'
+        dummy_p = etree.fromstring(xml_text)
+        p.extend(dummy_p)
+        self._paragraph = p
+
+    def to_xml(self):
+        return [self._paragraph]
 
 class ContentsList(object):
     def __init__(self):
@@ -866,11 +849,15 @@ class DocxTranslator(nodes.NodeVisitor):
                 self._indent_stack[-1], self._right_indent_stack[-1],
                 'LiteralBlock', preserve_space=True))
             return
-        language = node.get('language', self._language)
-        highlight_args = node.get('highlight_args', {})
-        self._doc_stack.append(LiteralBlock(
-            language, highlight_args, self._highlighter,
-            self._indent_stack[-1], self._right_indent_stack[-1]))
+        else:
+            language = node.get('language', self._language)
+            highlight_args = node.get('highlight_args', {})
+            highlighted = self._highlighter.highlight_block(
+                    node.rawsource, language, lineos=1, **highlight_args)
+            self._doc_stack.append(LiteralBlock(
+                highlighted,
+                self._indent_stack[-1], self._right_indent_stack[-1]))
+            raise nodes.SkipChildren
 
     def depart_literal_block(self, node):
         self._pop_and_append()
