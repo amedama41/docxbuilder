@@ -225,7 +225,8 @@ def make_hyperlink(relationship_id, anchor):
     hyperlink_tree = [['w:hyperlink', attrs]]
     return docx.make_element_tree(hyperlink_tree)
 
-def make_paragraph(indent, right_indent, style, align, keep_next, list_info):
+def make_paragraph(
+        indent, right_indent, style, align, keep_lines, keep_next, list_info):
     if style is None:
         style = 'BodyText'
     style_tree = [
@@ -249,6 +250,8 @@ def make_paragraph(indent, right_indent, style, align, keep_next, list_info):
         style_tree.append([['w:ind', ind_attrs]])
     if align is not None:
         style_tree.append([['w:jc', {'w:val': align}]])
+    if keep_lines:
+        style_tree.append([['w:keepLines']])
     if keep_next:
         style_tree.append([['w:keepNext']])
 
@@ -306,12 +309,14 @@ class BookmarkEnd(object):
 
 class Paragraph(object):
     def __init__(self, indent=None, right_indent=None,
-                 paragraph_style=None, align=None, keep_next=False,
+                 paragraph_style=None, align=None,
+                 keep_lines=False, keep_next=False,
                  list_info=None, preserve_space=False):
         self._indent = indent
         self._right_indent = right_indent
         self._style = paragraph_style
         self._align = align
+        self._keep_lines = keep_lines
         self._keep_next = keep_next
         self._list_info = list_info
         self._preserve_space = preserve_space
@@ -352,7 +357,7 @@ class Paragraph(object):
     def to_xml(self):
         p = make_paragraph(
                 self._indent, self._right_indent, self._style, self._align,
-                self._keep_next, self._list_info)
+                self._keep_lines, self._keep_next, self._list_info)
         p.extend(self._run_list)
         return [p]
 
@@ -533,7 +538,7 @@ class Document(object):
 class LiteralBlock(object):
     def __init__(self, highlighted, indent, right_indent):
         p = make_paragraph(
-                indent, right_indent, 'LiteralBlock', None, False, None)
+                indent, right_indent, 'LiteralBlock', None, True, False, None)
         xml_text = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' + highlighted + '</w:p>'
         dummy_p = etree.fromstring(xml_text)
         p.extend(dummy_p)
@@ -774,7 +779,7 @@ class DocxTranslator(nodes.NodeVisitor):
             right_indent = self._right_indent_stack[-1]
             align = None
         self._doc_stack.append(
-                Paragraph(indent, right_indent, style, align, True))
+                Paragraph(indent, right_indent, style, align, keep_next=True))
         if title_num is not None:
             self._doc_stack[-1].add_text(title_num)
 
@@ -847,7 +852,7 @@ class DocxTranslator(nodes.NodeVisitor):
         if node.rawsource != node.astext(): # Maybe parsed-literal
             self._doc_stack.append(Paragraph(
                 self._indent_stack[-1], self._right_indent_stack[-1],
-                'LiteralBlock', preserve_space=True))
+                'LiteralBlock', keep_lines=True, preserve_space=True))
             return
         else:
             language = node.get('language', self._language)
@@ -1012,7 +1017,7 @@ class DocxTranslator(nodes.NodeVisitor):
             keep_next = True
         self._doc_stack.append(Paragraph(
             self._indent_stack[-1], self._right_indent_stack[-1], style,
-            align, keep_next))
+            align, keep_next=keep_next))
         caption_num = self._get_numfig(figtype, node.parent['ids'])
         if caption_num is not None:
             self._doc_stack[-1].add_text(caption_num)
