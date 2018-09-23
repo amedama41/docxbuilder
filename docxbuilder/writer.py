@@ -615,7 +615,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._list_id_stack = []
         self._bullet_list_id = (
                 docx.styleDocx.get_numbering_style_id('ListBullet'))
-        self._language = 'guess'
+        self._language = builder.config.highlight_language
         self._highlighter = DocxPygmentsBridge(
                 'html',
                 builder.config.pygments_style,
@@ -842,8 +842,12 @@ class DocxTranslator(nodes.NodeVisitor):
         else:
             language = node.get('language', self._language)
             highlight_args = node.get('highlight_args', {})
+            config = self._builder.config
+            opts = (config.highlight_options
+                    if language == config.highlight_language else {})
             highlighted = self._highlighter.highlight_block(
-                    node.rawsource, language, lineos=1, **highlight_args)
+                    node.rawsource, language,
+                    lineos=1, opts=opts, **highlight_args)
             self._doc_stack.append(LiteralBlock(
                 highlighted,
                 self._indent_stack[-1], self._right_indent_stack[-1]))
