@@ -307,21 +307,11 @@ class BookmarkEnd(object):
             ['w:bookmarkEnd', {'w:id': str(self._id)}]
         ])]
 
-class Paragraph(object):
-    def __init__(self, indent=None, right_indent=None,
-                 paragraph_style=None, align=None,
-                 keep_lines=False, keep_next=False,
-                 list_info=None, preserve_space=False):
-        self._indent = indent
-        self._right_indent = right_indent
-        self._style = paragraph_style
-        self._align = align
-        self._keep_lines = keep_lines
-        self._keep_next = keep_next
-        self._list_info = list_info
-        self._preserve_space = preserve_space
+class PContent(object):
+    def __init__(self, init_style, preserve_space):
         self._run_list = []
-        self._text_style_stack = [None]
+        self._text_style_stack = [init_style]
+        self._preserve_space = preserve_space
 
     def add_text(self, text):
         self._run_list.append(make_run(
@@ -346,6 +336,20 @@ class Paragraph(object):
     def pop_style(self):
         self._text_style_stack.pop()
 
+class Paragraph(PContent):
+    def __init__(self, indent=None, right_indent=None,
+                 paragraph_style=None, align=None,
+                 keep_lines=False, keep_next=False,
+                 list_info=None, preserve_space=False):
+        super(Paragraph, self).__init__(None, preserve_space)
+        self._indent = indent
+        self._right_indent = right_indent
+        self._style = paragraph_style
+        self._align = align
+        self._keep_lines = keep_lines
+        self._keep_next = keep_next
+        self._list_info = list_info
+
     def append(self, contents):
         if isinstance(contents, Paragraph): # for nested line_block
             self._run_list.extend(contents._run_list)
@@ -361,32 +365,11 @@ class Paragraph(object):
         p.extend(self._run_list)
         return [p]
 
-class HyperLink(object):
+class HyperLink(PContent):
     def __init__(self, rid, anchor):
+        super(HyperLink, self).__init__('HyperLink', False)
         self._rid = rid
         self._anchor = anchor
-        self._run_list = []
-        self._text_style_stack = ['HyperLink']
-
-    def add_text(self, text):
-        text = re.sub(r'\n', ' ', text)
-        self._run_list.append(make_run(text, self._text_style_stack[-1], False))
-
-    def add_break(self):
-        self._run_list.append(make_break_run())
-
-    def add_picture(self, rid, filename, width, height, alt):
-        self._run_list.append(docx.DocxComposer.make_inline_picture_run(
-            rid, filename, width, height, alt))
-
-    def add_footnote_reference(self, footnote_id):
-        self._run_list.append(make_footnote_reference(footnote_id))
-
-    def push_style(self, text_style):
-        self._text_style_stack.append(text_style)
-
-    def pop_style(self):
-        self._text_style_stack.pop()
 
     def append(self, contents):
         if isinstance(contents, (BookmarkStart, BookmarkEnd)):
