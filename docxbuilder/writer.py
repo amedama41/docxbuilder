@@ -201,7 +201,6 @@ def make_run(text, style, preserve_space):
     run_tree = [['w:r']]
     if style:
         run_tree.append([['w:rPr'], [['w:rStyle', {'w:val': style}]]])
-    attrs = {}
     if preserve_space:
         lines = text.split('\n')
         for index, line in enumerate(lines):
@@ -210,7 +209,10 @@ def make_run(text, style, preserve_space):
                 run_tree.append([['w:br']])
     else:
         text = re.sub(r'\n', ' ', text)
-        run_tree.append([['w:t', text]])
+        attrs = {}
+        if text.startswith(' ') or text.endswith(' '):
+            attrs['xml:space'] = 'preserve'
+        run_tree.append([['w:t', text, attrs]])
     return docx.make_element_tree(run_tree)
 
 def make_break_run():
