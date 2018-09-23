@@ -854,10 +854,15 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_doctest_block(self, node):
-        raise nodes.SkipNode # TODO
+        org_lang = self._language
+        self._language = 'python3'
+        try:
+            self.visit_literal_block(node)
+        finally:
+            self._language = org_lang
 
     def depart_doctest_block(self, node):
-        pass
+        self.depart_literal_block(node)
 
     def visit_math_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
