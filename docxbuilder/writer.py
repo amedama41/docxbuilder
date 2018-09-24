@@ -476,23 +476,26 @@ class Table(object):
         }
         look_attrs['w:firstRow'] = 'true' if self._head else 'false'
         look_attrs['w:firstColumn'] = 'true' if self._stub > 0 else 'false'
-        table_tree = [
-                ['w:tbl'],
-                [
-                    ['w:tblPr'],
-                    [['w:tblStyle', {'w:val': self._style}]],
-                    [['w:tblW', {'w:w': '0', 'w:type': 'auto'}]],
-                    [['w:tblInd', {'w:w': str(self._indent), 'w:type': 'dxa'}]],
-                    [['w:tblLook', look_attrs]],
-                ],
+        property_tree = [
+                ['w:tblPr'],
+                [['w:tblW', {'w:w': '0', 'w:type': 'auto'}]],
+                [['w:tblInd', {'w:w': str(self._indent), 'w:type': 'dxa'}]],
+                [['w:tblLook', look_attrs]],
         ]
+        if self._style is not None:
+            property_tree.insert(1, [['w:tblStyle', {'w:val': self._style}]])
         if self._align is not None:
-            table_tree[1].append([['w:jc', {'w:val': self._align}]])
+            property_tree.append([['w:jc', {'w:val': self._align}]])
+
         table_grid_tree = [['w:tblGrid']]
         for colsize in self._colsize_list:
             table_grid_tree.append([['w:gridCol', {'w:w': str(colsize)}]])
-        table_tree.append(table_grid_tree)
 
+        table_tree = [
+                ['w:tbl'],
+                property_tree,
+                table_grid_tree
+        ]
         table = docx.make_element_tree(table_tree)
         for index, row in enumerate(self._head):
             table.append(self.make_row(index, row, True))
@@ -1746,19 +1749,22 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_hlist(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass # TODO make table
+        table_width = self._get_paragraph_width()
+        numcols = len(node)
+        colsize_list = [int(table_width / numcols) for _ in range(numcols)]
+        t = self._append_table(None, colsize_list, True)
+        t.add_row()
 
     def depart_hlist(self, node):
+        self._pop_and_append_table()
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_hlistcol(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass # TODO
+        self._add_table_cell()
 
     def depart_hlistcol(self, node):
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_versionmodified(self, node):
         self._append_bookmark_start(node.get('ids', []))
