@@ -397,6 +397,8 @@ class Table(object):
         self._head = []
         self._body = []
         self._current_target = self._body
+        self._current_row_index = -1
+        self._current_cell_index = -1
 
     @property
     def style(self):
@@ -410,27 +412,62 @@ class Table(object):
 
     def start_head(self):
         self._current_target = self._head
+        self._current_row_index = -1
 
     def start_body(self):
         self._current_target = self._body
+        self._current_row_index = -1
 
     def add_row(self):
-        self._current_target.append([])
+        self._current_row_index += 1
+        if self._current_row_index < len(self._current_target):
+            row = self._current_target[self._current_row_index]
+            for index, cell in enumerate(row):
+                if cell is not None and cell[0] != 'continue':
+                    self._current_cell_index = index - 1
+                    break
+            else:
+                self._current_cell_index = index
+        else:
+            self._current_target.append([])
+            self._current_cell_index = -1
 
-    def add_cell(self):
-        self._current_target[-1].append([])
+    def add_cell(self, morerows, morecols):
+        row = self._current_target[self._current_row_index]
+        self._current_cell_index += (
+                self._get_grid_span(row, self._current_cell_index))
+        if not (self._current_cell_index < len(row)):
+            row.append([None if morerows == 0 else 'restart', []])
+
+        cell_index = self._current_cell_index
+        start = cell_index + 1
+        row[start:start + morecols] = (None for _ in range(morecols))
+
+        for i in range(1, morerows + 1):
+            if not (self._current_row_index + i < len(self._current_target)):
+                self._current_target.append([])
+            row = self._current_target[self._current_row_index + i]
+            if cell_index < len(row):
+                row[cell_index] = ['continue', []]
+            else:
+                row.extend([None, []] for _ in range(cell_index - len(row)))
+                row.append(['continue', []])
+            row[start:start + morecols] = (None for _ in range(morecols))
 
     def current_cell_width(self):
-        num_cell = len(self._current_target[-1])
         if self._colspec_list:
             self._reset_colsize_list()
             self._colspec_list = []
-        if len(self._colsize_list) < num_cell:
+        index = self._current_cell_index
+        if not (index < len(self._colsize_list)):
             return None
-        return self._colsize_list[num_cell - 1]
+        grid_span = self._get_grid_span(
+                self._current_target[self._current_row_index], index)
+        return sum(self._colsize_list[index:index + grid_span])
 
     def append(self, contents):
-        self._current_target[-1][-1].append(contents)
+        row = self._current_target[self._current_row_index]
+        row[self._current_cell_index][1].append(contents)
 
     def to_xml(self):
         look_attrs = {
@@ -477,25 +514,34 @@ class Table(object):
         if is_head:
             property_tree.append([['w:tblHeader']])
         tr_tree = docx.make_element_tree([['w:tr'], property_tree])
-        for index, cell in enumerate(row):
-            tr_tree.append(self.make_cell(index, cell))
+        for index, elem in enumerate(row):
+            if elem is None: # Merged with the previous cell
+                continue
+            vmerge, cell = elem
+            tr_tree.append(self.make_cell(index, vmerge, cell, row))
         return tr_tree
 
-    def make_cell(self, index, cell):
+    def make_cell(self, index, vmerge, cell, row):
         cell_style = {
                 'w:evenVBand': ('true' if index % 2 == 0 else 'false'),
                 'w:oddVBand': ('true' if index % 2 != 0 else 'false'),
                 'w:firstColumn': ('true' if index < self._stub else 'false'),
         }
-        cellsize = str(self._colsize_list[index])
+        cellsize = self._colsize_list[index]
+        grid_span = self._get_grid_span(row, index)
+        cellsize = sum(self._colsize_list[index:index + grid_span])
         tc_tree = [
                 ['w:tc'],
                 [
                     ['w:tcPr'],
                     [['w:cnfStyle', cell_style]],
-                    [['w:tcW', {'w:w': cellsize, 'w:type': 'dxa'}]]
+                    [['w:tcW', {'w:w': str(cellsize), 'w:type': 'dxa'}]]
                 ]
         ]
+        if grid_span > 1:
+            tc_tree[1].append([['w:gridSpan', {'w:val': str(grid_span)}]])
+        if vmerge is not None:
+            tc_tree[1].append([['w:vMerge', {'w:val': vmerge}]])
         elem = docx.make_element_tree(tc_tree)
 
         # The last element must be paragraph for Microsoft word
@@ -511,6 +557,14 @@ class Table(object):
         self._colsize_list = list(map(
             lambda colspec: int(table_width * colspec / total_colspec),
             self._colspec_list))
+
+    def _get_grid_span(self, row, cell_index):
+        grid_span = 1
+        for cell in row[cell_index + 1:]:
+            if cell is not None:
+                break
+            grid_span += 1
+        return grid_span
 
 class Document(object):
     def __init__(self, body):
@@ -670,9 +724,9 @@ class DocxTranslator(nodes.NodeVisitor):
         # Append a paragaph as a margin between the table and the next element
         self._doc_stack[-1].append(Paragraph())
 
-    def _add_table_cell(self):
+    def _add_table_cell(self, morerows=0, morecols=0):
         t = self._doc_stack[-1]
-        t.add_cell()
+        t.add_cell(morerows, morecols)
         width = t.current_cell_width()
         if width is not None:
             margin = self._docx.get_table_cell_margin(t.style)
@@ -968,7 +1022,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_entry(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._add_table_cell()
+        self._add_table_cell(node.get('morerows', 0), node.get('morecols', 0))
 
     def depart_entry(self, node):
         self._append_bookmark_end(node.get('ids', []))
