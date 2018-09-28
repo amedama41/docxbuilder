@@ -15,7 +15,7 @@ class DocxFormatter(RtfFormatter):
         for _, style in self.style:
             for color in style['color'], style['bgcolor'], style['border']:
                 if color and color not in self.color_mapping:
-                    self.color_mapping[color] = r'%x%x%x' % (
+                    self.color_mapping[color] = r'%02x%02x%02x' % (
                         int(color[0:2], 16),
                         int(color[2:4], 16),
                         int(color[4:6], 16)
