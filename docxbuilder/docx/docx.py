@@ -675,46 +675,51 @@ class DocxComposer:
         self.last_paragraph = para
         return para
 
-    def table_of_contents(self, toc_text='Contents:', maxlevel=3):
+    @classmethod
+    def make_table_of_contents(cls, toc_title, maxlevel):
         '''
-          Insert the Table of Content
+           Create the Table of Content
         '''
-        toc_tree = [['w:sdt'],
-                    [['w:sdtPr'],
-                     [['w:rPr'], [['w:long']]],
-                     [['w:docPartObj'], [['w:docPartGallery', {'w:val': 'Table of Contents'}]], [
-                         ['w:docPartUnique']]]
-                     ]
+        toc_tree = [
+                ['w:sdt'],
+                [['w:sdtPr'],
+                    [['w:rPr'], [['w:long']]],
+                    [['w:docPartObj'],
+                        [['w:docPartGallery', {'w:val': 'Table of Contents'}]],
+                        [['w:docPartUnique']]
                     ]
+                ]
+        ]
 
         sdtContent_tree = [['w:sdtContent']]
-
-        if toc_text:
-            p_tree = [['w:p'], [['w:pPr'], [['w:pStyle', {'w:val': 'TOC_Title'}]]], [
-                ['w:r'], [['w:rPr'], [['w:long']]], [['w:t', toc_text]]]]
-            sdtContent_tree.append(p_tree)
-
-        target_outline_range = ('"1-%d"' % maxlevel) if maxlevel > 0 else ''
-        p_tree = [['w:p'],
-                  [['w:pPr'],
-                   [['w:pStyle', {'w:val': 'TOC_Contents'}]],
-                   [['w:tabs'],
-                    [['w:tab', {'w:val': 'right',
-                                'w:leader': 'dot', 'w:pos': '8488'}]]
+        if toc_title is not None:
+            sdtContent_tree.append([
+                    ['w:p'],
+                    [['w:pPr'], [['w:pStyle', {'w:val': 'TOC_Title'}]]],
+                    [['w:r'], [['w:rPr'], [['w:long']]], [['w:t', toc_title]]]
+            ])
+        if maxlevel > 0:
+            instr = r' TOC \o 1-%d \h \z \u ' % maxlevel
+        else:
+            instr = r' TOC \o \h \z \u '
+        sdtContent_tree.append([
+                ['w:p'],
+                [['w:pPr'],
+                    [['w:pStyle', {'w:val': 'TOC_Contents'}]],
+                    [['w:tabs'],
+                        [['w:tab', {
+                            'w:val': 'right', 'w:leader': 'dot', 'w:pos': '8488'
+                        }]]
                     ],
-                   [['w:rPr'], [['w:b', {'w:val': '0'}]], [['w:noProof']]]
-                   ],
-                  [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
-                  [['w:r'], [['w:instrText', ' TOC \\o %s \\h \\z \\u ' %
-                              target_outline_range, {'xml:space': 'preserve'}]]],
-                  [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]]
-                  ]
-        sdtContent_tree.append(p_tree)
+                    [['w:rPr'], [['w:b', {'w:val': '0'}]], [['w:noProof']]]
+                ],
+                [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
+                [['w:r'], [['w:instrText', instr, {'xml:space': 'preserve'}]]],
+                [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]]
+        ])
 
         toc_tree.append(sdtContent_tree)
-        sdt = make_element_tree(toc_tree)
-
-        self.append(sdt)
+        return make_element_tree(toc_tree)
 
 #################
 # Output PageBreak

@@ -573,6 +573,10 @@ class Document(object):
     def __init__(self, body):
         self._body = body
 
+    def add_table_of_contents(self, toc_title, maxlevel):
+        self._body.append(
+                docx.DocxComposer.make_table_of_contents(toc_title, maxlevel))
+
     def append(self, contents):
         for xml in contents.to_xml():
             self._body.append(xml)
@@ -1598,7 +1602,7 @@ class DocxTranslator(nodes.NodeVisitor):
             return
         maxdepth = node.get('maxdepth', -1)
         caption = node.get('caption')
-        self._docx.table_of_contents(toc_text=caption, maxlevel=maxdepth)
+        self._doc_stack[-1].add_table_of_contents(caption, maxdepth)
         self._docx.pagebreak(type='page', orient='portrait')
 
     def depart_toctree(self, node):
