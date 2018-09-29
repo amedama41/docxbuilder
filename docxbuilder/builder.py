@@ -12,6 +12,7 @@
 
 from os import path
 
+from docutils import nodes
 from docutils.io import StringOutput
 
 from sphinx import addnodes
@@ -102,7 +103,9 @@ class DocxBuilder(Builder):
 def insert_all_toctrees(tree, env, traversed):
     tree = tree.deepcopy()
     for toctreenode in tree.traverse(addnodes.toctree):
-        newnodes = []
+        nodeid = 'docx_expanded_toctree%d' % id(toctreenode)
+        newnodes = nodes.container(ids=[nodeid])
+        toctreenode['docx_expanded_toctree_refid'] = nodeid
         includefiles = toctreenode['includefiles']
         for includefile in includefiles:
             if includefile in traversed:

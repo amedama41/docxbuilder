@@ -676,7 +676,7 @@ class DocxComposer:
         return para
 
     @classmethod
-    def make_table_of_contents(cls, toc_title, maxlevel):
+    def make_table_of_contents(cls, toc_title, maxlevel, bookmark):
         '''
            Create the Table of Content
         '''
@@ -698,10 +698,10 @@ class DocxComposer:
                     [['w:pPr'], [['w:pStyle', {'w:val': 'TOC_Title'}]]],
                     [['w:r'], [['w:rPr'], [['w:long']]], [['w:t', toc_title]]]
             ])
-        if maxlevel > 0:
-            instr = r' TOC \o 1-%d \h \z \u ' % maxlevel
+        if maxlevel is not None:
+            instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (bookmark, maxlevel)
         else:
-            instr = r' TOC \o \h \z \u '
+            instr = r' TOC \o \b "%s" \h \z \u ' % bookmark
         sdtContent_tree.append([
                 ['w:p'],
                 [['w:pPr'],

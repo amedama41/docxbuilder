@@ -573,9 +573,10 @@ class Document(object):
     def __init__(self, body):
         self._body = body
 
-    def add_table_of_contents(self, toc_title, maxlevel):
+    def add_table_of_contents(self, toc_title, maxlevel, bookmark):
         self._body.append(
-                docx.DocxComposer.make_table_of_contents(toc_title, maxlevel))
+                docx.DocxComposer.make_table_of_contents(
+                    toc_title, maxlevel, bookmark))
 
     def append(self, contents):
         for xml in contents.to_xml():
@@ -1600,9 +1601,18 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_toctree(self, node):
         if node.get('hidden', False):
             return
-        maxdepth = node.get('maxdepth', -1)
         caption = node.get('caption')
-        self._doc_stack[-1].add_table_of_contents(caption, maxdepth)
+        maxdepth = node.get('maxdepth', -1)
+        if maxdepth > 0:
+            maxlevel = self._section_level_stack[-1] + maxdepth
+        else:
+            maxlevel = None
+        refid = node.get('docx_expanded_toctree_refid')
+        if refid is None:
+            self.document.reporter.warning('No docx_expanded_toctree_refid')
+            return
+        bookmark = '%s/%s' % (self._docname_stack[-1], refid)
+        self._doc_stack[-1].add_table_of_contents(caption, maxlevel, bookmark)
         self._docx.pagebreak(type='page', orient='portrait')
 
     def depart_toctree(self, node):
