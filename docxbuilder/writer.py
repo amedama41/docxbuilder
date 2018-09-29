@@ -666,7 +666,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self.builder = self._builder # Needs for graphviz.render_dot
         self._doc_stack = [Document(docx.docbody)]
         self._docname_stack = [builder.config.master_doc]
-        self._section_level_stack = [0]
+        self._section_level = 0
         self._list_level_stack = [0]
         self._indent_stack = [0]
         self._right_indent_stack = [0]
@@ -785,10 +785,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._docname_stack.append(node['docname'])
         self._append_bookmark_start([''])
         self._append_bookmark_start(node.get('ids', []))
-        self._section_level_stack.append(0)
 
     def depart_start_of_file(self, node):
-        self._section_level_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
         self._append_bookmark_end([''])
         self._docname_stack.pop()
@@ -814,7 +812,7 @@ class DocxTranslator(nodes.NodeVisitor):
             right_indent = self._right_indent_stack[-1]
             align = node.parent.get('align')
         elif isinstance(node.parent, nodes.section):
-            style = 'Heading%d' % self._section_level_stack[-1]
+            style = 'Heading%d' % self._section_level
             title_num = self._get_numsec(node.parent['ids'])
             indent = None
             right_indent = None
@@ -845,10 +843,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_section(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._section_level_stack[-1] += 1
+        self._section_level += 1
 
     def depart_section(self, node):
-        self._section_level_stack[-1] -= 1
+        self._section_level -= 1
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_topic(self, node):
@@ -1603,10 +1601,7 @@ class DocxTranslator(nodes.NodeVisitor):
             return
         caption = node.get('caption')
         maxdepth = node.get('maxdepth', -1)
-        if maxdepth > 0:
-            maxlevel = self._section_level_stack[-1] + maxdepth
-        else:
-            maxlevel = None
+        maxlevel = self._section_level + maxdepth if maxdepth > 0 else None
         refid = node.get('docx_expanded_toctree_refid')
         if refid is None:
             self.document.reporter.warning('No docx_expanded_toctree_refid')
