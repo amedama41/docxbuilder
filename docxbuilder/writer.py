@@ -1579,7 +1579,10 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_image(self, node):
         self._append_bookmark_start(node.get('ids', []))
         uri = node.attributes['uri']
-        file_path = os.path.join(self._builder.env.srcdir, uri)
+        file_path = os.path.join(self._builder.srcdir, uri)
+        if not os.path.exists(file_path):
+            # Some extensions output images in outdir
+            file_path = os.path.join(self._builder.outdir, uri)
         try:
             width, height = self._get_image_scaled_size(node, file_path)
             self._append_picture(
