@@ -806,10 +806,10 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_document(self, node):
-        pass
+        self._append_bookmark_start([''])
 
     def depart_document(self, node):
-        pass
+        self._append_bookmark_end([''])
 
     def visit_title(self, node):
         self._append_bookmark_start(node.get('ids', []))
