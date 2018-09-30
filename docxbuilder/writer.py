@@ -1846,13 +1846,16 @@ class DocxTranslator(nodes.NodeVisitor):
         raise nodes.SkipNode
 
     def _get_bookmark_name(self, refuri):
-        hashindex = refuri.find('#')
+        # For such case that the target is in a different directory
+        refuri = os.path.normpath(
+                os.path.join(os.path.dirname(self._docname_stack[-1]), refuri))
+        if refuri in self._builder.env.all_docs:
+            return refuri + '/'
+        hashindex = refuri.rfind('#') # Use rfind because docname includes #.
+        if hashindex != -1 and refuri[:hashindex] in self._builder.env.all_docs:
+            return '%s/%s' % (refuri[:hashindex], refuri[hashindex+1:])
         if hashindex == 0:
             return '%s/%s' % (self._docname_stack[-1], refuri[1:])
-        if hashindex < 0 and refuri in self._builder.env.all_docs:
-            return refuri + '/'
-        if refuri[:hashindex] in self._builder.env.all_docs:
-            return refuri.replace('#', '/')
         return None
 
     def _get_additional_list_indent(self, list_level):
