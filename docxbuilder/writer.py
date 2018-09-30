@@ -352,6 +352,9 @@ class Paragraph(PContent):
         self._keep_next = keep_next
         self._list_info = list_info
 
+    def keep_next(self):
+        self._keep_next = True
+
     def append(self, contents):
         if isinstance(contents, Paragraph): # for nested line_block
             self._run_list.extend(contents._run_list)
@@ -606,6 +609,9 @@ class ContentsList(object):
 
     def __len__(self):
         return len(self._contents_list)
+
+    def __getitem__(self, key):
+        return self._contents_list[key]
 
 class FixedTopParagraphList(ContentsList):
     def __init__(self, top_paragraph):
@@ -1415,11 +1421,25 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_admonition(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass # TODO
+        self._doc_stack.append(ContentsList())
 
     def depart_admonition(self, node):
+        contents = self._doc_stack.pop()
+        table_width = self._ctx_stack[-1].width
+        t = self._append_table(
+                'GenericAdmonition', [table_width - 1000], False, 'center')
+        t.start_head()
+        t.add_row()
+        self._add_table_cell()
+        contents[0].keep_next()
+        t.append(contents[0])
+        t.start_body()
+        t.add_row()
+        self._add_table_cell()
+        for c in contents[1:]:
+            t.append(c)
+        self._pop_and_append_table()
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_substitution_definition(self, node):
         raise nodes.SkipNode # TODO
