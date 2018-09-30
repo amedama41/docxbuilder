@@ -324,29 +324,24 @@ class DocxDocument:
 
     def extract_files(self, to_dir, pprint=False):
         '''
-          Extract all files from docx 
+          Extract all files from docx
         '''
-        try:
-            if not os.access(to_dir, os.F_OK):
-                os.mkdir(to_dir)
+        if not os.access(to_dir, os.F_OK):
+            os.mkdir(to_dir)
 
-            filelist = self.docx.namelist()
-            for fname in filelist:
-                xmlcontent = self.docx.read(fname)
-                fname_ext = os.path.splitext(fname)[1]
-                if pprint and (fname_ext == '.xml' or fname_ext == '.rels'):
-                    document = etree.fromstring(xmlcontent)
-                    xmlcontent = etree.tostring(
-                        document, encoding='UTF-8', pretty_print=True)
-                file_name = os.path.join(to_dir, fname)
-                if not os.path.exists(os.path.dirname(file_name)):
-                    os.makedirs(os.path.dirname(file_name))
-                with open(file_name, 'wb') as f:
-                    f.write(xmlcontent)
-        except Exception as ex:
-            print("Error in extract_files ...", ex)
-            return False
-        return True
+        filelist = self.docx.namelist()
+        for fname in filelist:
+            xmlcontent = self.docx.read(fname)
+            fname_ext = os.path.splitext(fname)[1]
+            if pprint and (fname_ext == '.xml' or fname_ext == '.rels'):
+                document = etree.fromstring(xmlcontent)
+                xmlcontent = etree.tostring(
+                    document, encoding='UTF-8', pretty_print=True)
+            file_name = os.path.join(to_dir, fname)
+            if not os.path.exists(os.path.dirname(file_name)):
+                os.makedirs(os.path.dirname(file_name))
+            with open(file_name, 'wb') as f:
+                f.write(xmlcontent)
 
     def restruct_docx(self, docx_dir, docx_filename, files_to_skip=[]):
         '''
@@ -465,13 +460,11 @@ class DocxComposer:
         self.styleDocx = DocxDocument(stylefile)
 
         self.template_dir = tempfile.mkdtemp(prefix='docx-')
-        result = self.styleDocx.extract_files(self.template_dir)
-
-        if not result:
-            print("Unexpected error in copy_docx_to_tempfile")
+        try:
+            self.styleDocx.extract_files(self.template_dir)
+        except Exception:
             shutil.rmtree(self.template_dir, True)
-            self.template_dir = None
-            return
+            raise
 
         self.stylenames = self.styleDocx.extract_stylenames()
         self.max_table_width = self.styleDocx.contents_width
