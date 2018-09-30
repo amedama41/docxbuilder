@@ -109,7 +109,14 @@ class DocxWriter(writers.Writer):
     def __init__(self, builder):
         writers.Writer.__init__(self)
         self.builder = builder
-        self.docx = docx.DocxComposer()
+        stylefile = self.builder.config['docx_style']
+        if stylefile:
+            stylefile = os.path.join(
+                self.builder.confdir, os.path.join(stylefile))
+        else: # Use default style file
+            stylefile = os.path.join(
+                    os.path.dirname(__file__), 'docx/style.docx')
+        self.docx = docx.DocxComposer(stylefile)
         self.numsec_map = None
         self.numfig_map = None
 
@@ -124,15 +131,6 @@ class DocxWriter(writers.Writer):
             self.coverpage = self.builder.config['docx_coverpage']
         except:
             self.coverpage = True
-
-        stylefile = self.builder.config['docx_style']
-        if stylefile:
-            self.docx.new_document(os.path.join(
-                self.builder.confdir, os.path.join(stylefile)))
-        else:
-            default_style = os.path.join(
-                    os.path.dirname(__file__), 'docx/style.docx')
-            self.docx.new_document(default_style)
 
     def set_numsec_map(self, numsec_map):
         self.numsec_map = numsec_map

@@ -458,41 +458,9 @@ class DocxDocument:
 class DocxComposer:
     _picid = 100
 
-    def __init__(self, stylefile=None):
+    def __init__(self, stylefile):
         '''
            Constructor
-        '''
-        self.stylenames = {}
-        self.title = ""
-        self.subject = ""
-        self.creator = "Python:DocDocument"
-        self.company = ""
-        self.category = ""
-        self.descriptions = ""
-        self.keywords = []
-        self.max_table_width = 8000
-        self.table_margin_map = {}
-
-        self.abstractNums = []
-        self.numids = []
-
-        self.images = 0
-        self.nocoverpage = False
-
-        self._hyperlink_rid_map = {} # target => relationship id
-        self._image_rid_map = {} # imagepath => relationship id
-        self._footnote_id_map = {} # docname#id => footnote id
-        self._footnote_list = []
-        self._max_footnote_id = 0
-
-        if stylefile == None:
-            self.template_dir = None
-        else:
-            self.new_document(stylefile)
-
-    def set_style_file(self, stylefile):
-        '''
-           Set style file 
         '''
         self.styleDocx = DocxDocument(stylefile)
 
@@ -518,14 +486,31 @@ class DocxComposer:
         self.numids = get_elements(self.styleDocx.numbering, 'w:num')
         self.images = self.styleDocx.get_number_of_medias()
 
-        self._footnote_list.extend(
-                get_special_footnotes(self.styleDocx.footnotes))
+        self._hyperlink_rid_map = {} # target => relationship id
+        self._image_rid_map = {} # imagepath => relationship id
+
+        self._footnote_list = get_special_footnotes(self.styleDocx.footnotes)
+        self._footnote_id_map = {} # docname#id => footnote id
         norm_id = norm_name('w:id')
         self._max_footnote_id = max(
                 map(lambda f: int(f.get(norm_id)), self._footnote_list),
                 default=0)
 
-        return
+        self.title = ""
+        self.subject = ""
+        self.creator = "Python:DocDocument"
+        self.company = ""
+        self.category = ""
+        self.descriptions = ""
+        self.keywords = []
+
+        self.table_margin_map = {}
+
+        self.nocoverpage = False
+
+        self.document = make_element_tree([['w:document'], [['w:body']]])
+        self.docbody = get_elements(self.document, '/w:document/w:body')[0]
+        self.relationships = self.relationshiplist()
 
     def set_coverpage(self, flag=True):
         self.nocoverpage = not flag
@@ -557,19 +542,6 @@ class DocxComposer:
             return margin
         return self.table_margin_map.setdefault(
                 style_name, self.styleDocx.get_table_horizon_margin(style_name))
-
-    def new_document(self, stylefile):
-        '''
-           Preparing a new document
-        '''
-        self.set_style_file(stylefile)
-        self.document = make_element_tree([['w:document'], [['w:body']]])
-        self.docbody = get_elements(self.document, '/w:document/w:body')[0]
-        self.current_docbody = self.docbody
-
-        self.relationships = self.relationshiplist()
-
-        return self.document
 
     def set_props(self, title, subject, creator, company='', category='', descriptions='', keywords=[]):
         '''
