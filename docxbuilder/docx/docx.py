@@ -723,41 +723,23 @@ class DocxComposer:
 
 #################
 # Output PageBreak
-    def pagebreak(self, type='page', orient='portrait'):
-        '''
-          Insert a break, default 'page'.
-          See http://openxmldeveloper.org/forums/thread/4075.aspx
-          Return our page break element.
+    @classmethod
+    def make_pagebreak(cls):
+        return make_element_tree([
+            ['w:p'],
+            [['w:r'], [['w:br', {'w:type': 'page'}]]],
+        ])
 
-          This method is copied from 'python-docx' library
-        '''
-        # Need to enumerate different types of page breaks.
-        validtypes = ['page', 'section']
-
-        pagebreak_tree = [['w:p']]
-
-        if type not in validtypes:
-            raise ValueError(
-                'Page break style "%s" not implemented. Valid styles: %s.' % (type, validtypes))
-
-        if type == 'page':
-            run_tree = [['w:r'], [['w:br', {'w:type': 'page'}]]]
-        elif type == 'section':
-            if orient == 'portrait':
-                attrs = {'w:w': '12240', 'w:h': '15840'}
-            elif orient == 'landscape':
-                attrs = {'w:h': '12240', 'w:w': '15840',
-                         'w:orient': 'landscape'}
-            run_tree = [['w:pPr'], [['w:sectPr'], [['w:pgSz', attrs]]]]
-
-        pagebreak_tree.append(run_tree)
-
-        pagebreak = make_element_tree(pagebreak_tree)
-
-        self.append(pagebreak)
-
-        self.breakbrefore = True
-        return pagebreak
+    @classmethod
+    def make_sectionbreak(cls, orient='portrait'):
+        if orient == 'portrait':
+            attrs = {'w:w': '12240', 'w:h': '15840'}
+        elif orient == 'landscape':
+            attrs = {'w:h': '12240', 'w:w': '15840', 'w:orient': 'landscape'}
+        return make_element_tree([
+            ['w:p'],
+            [['w:pPr'], [['w:sectPr'], [['w:pgSz', attrs]]]],
+        ])
 
 #################
 # Output Paragraph

@@ -581,6 +581,9 @@ class Document(object):
                 docx.DocxComposer.make_table_of_contents(
                     toc_title, maxlevel, bookmark))
 
+    def add_pagebreak(self):
+        self._body.append(docx.DocxComposer.make_pagebreak())
+
     def append(self, contents):
         for xml in contents.to_xml():
             self._body.append(xml)
@@ -1637,7 +1640,7 @@ class DocxTranslator(nodes.NodeVisitor):
             return
         bookmark = '%s/%s' % (self._docname_stack[-1], refid)
         self._doc_stack[-1].add_table_of_contents(caption, maxlevel, bookmark)
-        self._docx.pagebreak(type='page', orient='portrait')
+        self._doc_stack[-1].add_pagebreak()
 
     def depart_toctree(self, node):
         pass
