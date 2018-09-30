@@ -508,26 +508,12 @@ class DocxComposer:
     def set_coverpage(self, flag=True):
         self.nocoverpage = not flag
 
-    def get_numbering_ids(self):
-        '''
-
-        '''
-        result = []
-        for num_elem in self.numids:
-            nid = num_elem.attrib[norm_name('w:numId')]
-            result.append(nid)
-        return result
-
     def get_max_numbering_id(self):
         '''
-
+           Get the maximum numId among the numbering num elements
         '''
-        max_id = 0
-        num_ids = self.get_numbering_ids()
-        for x in num_ids:
-            if int(x) > max_id:
-                max_id = int(x)
-        return max_id
+        num_id = norm_name('w:numId')
+        return max(map(lambda e: int(e.get(num_id)), self.numids), default=0)
 
     def get_table_cell_margin(self, style_name):
         margin = self.table_margin_map.get(style_name)
