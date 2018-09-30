@@ -462,11 +462,6 @@ class DocxComposer:
         '''
            Constructor
         '''
-        self._coreprops = None
-        self._appprops = None
-        self._contenttypes = None
-        self._websettings = None
-        self._wordrelationships = None
         self.stylenames = {}
         self.title = ""
         self.subject = ""
@@ -511,7 +506,6 @@ class DocxComposer:
             return
 
         self.stylenames = self.styleDocx.extract_stylenames()
-        self.paper_info = self.styleDocx.get_paper_info()
         self.max_table_width = self.styleDocx.contents_width
         self.bullet_list_indents = self.get_numbering_left('ListBullet')
         self.bullet_list_numId = self.styleDocx.get_numbering_style_id(
@@ -522,7 +516,6 @@ class DocxComposer:
         self.abstractNums = get_elements(
             self.styleDocx.numbering, 'w:abstractNum')
         self.numids = get_elements(self.styleDocx.numbering, 'w:num')
-        self.numbering = make_element_tree(['w:numbering'])
         self.images = self.styleDocx.get_number_of_medias()
 
         self._footnote_list.extend(
@@ -596,17 +589,18 @@ class DocxComposer:
         '''
         assert os.path.isdir(self.template_dir)
 
-        self.coreproperties()
-        self.appproperties()
-        self.contenttypes()
-        self.websettings()
+        coreproperties = self.coreproperties()
+        appproperties = self.appproperties()
+        contenttypes = self.contenttypes()
+        websettings = self.websettings()
 
-        self.wordrelationships()
+        wordrelationships = self.wordrelationships()
 
+        numbering = make_element_tree(['w:numbering'])
         for x in self.abstractNums:
-            self.numbering.append(x)
+            numbering.append(x)
         for x in self.numids:
-            self.numbering.append(x)
+            numbering.append(x)
 
         coverpage = self.styleDocx.get_coverpage()
 
@@ -614,21 +608,21 @@ class DocxComposer:
             print("output Coverpage")
             self.docbody.insert(0, coverpage)
 
-        self.docbody.append(self.paper_info)
+        self.docbody.append(self.styleDocx.get_paper_info())
 
         footnotes = make_element_tree([['w:footnotes']])
         footnotes.extend(self._footnote_list)
 
         # Serialize our trees into out zip file
         treesandfiles = {self.document: 'word/document.xml',
-                         self._coreprops: 'docProps/core.xml',
-                         self._appprops: 'docProps/app.xml',
-                         self._contenttypes: '[Content_Types].xml',
+                         coreproperties: 'docProps/core.xml',
+                         appproperties: 'docProps/app.xml',
+                         contenttypes: '[Content_Types].xml',
                          footnotes: 'word/footnotes.xml',
-                         self.numbering: 'word/numbering.xml',
+                         numbering: 'word/numbering.xml',
                          self.styleDocx.styles: 'word/styles.xml',
-                         self._websettings: 'word/webSettings.xml',
-                         self._wordrelationships: 'word/_rels/document.xml.rels'}
+                         websettings: 'word/webSettings.xml',
+                         wordrelationships: 'word/_rels/document.xml.rels'}
 
         docxfile = self.styleDocx.restruct_docx(
             self.template_dir, docxfilename, treesandfiles.values())
@@ -977,9 +971,7 @@ class DocxComposer:
             types_tree.append(
                 [['Default', {'Extension': extension, 'ContentType': filetypes[extension]}]])
 
-        types = make_element_tree(types_tree, nsprefixes['ct'])
-        self._contenttypes = types
-        return types
+        return make_element_tree(types_tree, nsprefixes['ct'])
 
     def coreproperties(self, lastmodifiedby=None):
         '''
@@ -1008,10 +1000,7 @@ class DocxComposer:
                 [['dcterms:'+doctime, {'xsi:type': 'dcterms:W3CDTF'}, currenttime]])
             pass
 
-        coreprops = make_element_tree(coreprops_tree)
-
-        self._coreprops = coreprops
-        return coreprops
+        return make_element_tree(coreprops_tree)
 
     def appproperties(self):
         '''
@@ -1037,9 +1026,7 @@ class DocxComposer:
                          [['Company', self.company]]
                          ]
 
-        appprops = make_element_tree(appprops_tree, nsprefixes['ep'])
-        self._appprops = appprops
-        return appprops
+        return make_element_tree(appprops_tree, nsprefixes['ep'])
 
     def websettings(self):
         '''
@@ -1048,10 +1035,7 @@ class DocxComposer:
         '''
         web_tree = [['w:webSettings'], [['w:allowPNG']],
                     [['w:doNotSaveAsSingleFile']]]
-        web = make_element_tree(web_tree)
-        self._websettings = web
-
-        return web
+        return make_element_tree(web_tree)
 
     def relationshiplist(self):
         filename = 'word/_rels/document.xml.rels'
@@ -1075,6 +1059,4 @@ class DocxComposer:
         for attributes in self.relationships:
             rel_tree.append([['Relationship', attributes]])
 
-        relationships = make_element_tree(rel_tree, nsprefixes['pr'])
-        self._wordrelationships = relationships
-        return relationships
+        return make_element_tree(rel_tree, nsprefixes['pr'])
