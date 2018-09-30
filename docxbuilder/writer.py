@@ -24,13 +24,12 @@
 import itertools
 import os
 import re
-import six
-import sys
 
 from docutils import nodes, writers
 from lxml import etree
 from sphinx.ext import graphviz
 from sphinx.locale import admonitionlabels, _
+from sphinx.util import logging
 
 from docxbuilder import docx
 from docxbuilder.highlight import DocxPygmentsBridge
@@ -42,34 +41,7 @@ try:
 except ImportError as exp:
     Image = None
 
-#
-#  Logging for debugging
-#
-import logging
-logging.basicConfig(filename='docx.log', filemode='w', level=logging.INFO,
-                    format="%(asctime)-15s  %(message)s")
-logger = logging.getLogger('docx')
-
-
-def dprint(_func=None, **kw):
-    f = sys._getframe(1)
-    if kw:
-        text = ', '.join('%s = %s' % (k, v) for k, v in kw.items())
-    else:
-        try:
-            text = dict((k, repr(v)) for k, v in f.f_locals.items()
-                        if k != 'self')
-            text = six.text_type(text)
-        except:
-            text = ''
-
-    if _func is None:
-        _func = f.f_code.co_name
-
-    logger.info(' '.join([_func, text]))
-
 # Utility functions
-
 
 def get_image_size(filename):
     if Image is None:
@@ -698,6 +670,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._numfig_map = numfig_map
         self._bookmark_id = 0
         self._bookmark_id_map = {} # bookmark name => BookmarkStart id
+        self._logger = logging.getLogger('docxbuilder')
 
     def _pop_and_append(self):
         contents = self._doc_stack.pop()
@@ -798,7 +771,7 @@ class DocxTranslator(nodes.NodeVisitor):
             filename = os.path.basename(filepath)
             self._doc_stack[-1].add_picture(rid, filename, width, height, alt)
         except Exception as e:
-            self.document.reporter.warning(e)
+            self._logger.warning(e, location=node)
             self._doc_stack[-1].add_text(alt)
 
         if needs_pop:
@@ -1631,7 +1604,8 @@ class DocxTranslator(nodes.NodeVisitor):
         maxlevel = self._section_level + maxdepth if maxdepth > 0 else None
         refid = node.get('docx_expanded_toctree_refid')
         if refid is None:
-            self.document.reporter.warning('No docx_expanded_toctree_refid')
+            self._logger.warning(
+                    'No docx_expanded_toctree_refid', location=node)
             return
         bookmark = '%s/%s' % (self._docname_stack[-1], refid)
         self._doc_stack[-1].add_table_of_contents(caption, maxlevel, bookmark)
@@ -1916,5 +1890,5 @@ class DocxTranslator(nodes.NodeVisitor):
             return convert_to_cm_size(
                     convert_to_twip_size(node.get(attr), max_width))
         except Exception as e:
-            self.document.reporter.warning(e)
+            self._logger.warning(e, location=node)
             return None
