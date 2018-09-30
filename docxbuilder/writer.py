@@ -741,19 +741,6 @@ class DocxTranslator(nodes.NodeVisitor):
             margin = self._docx.get_table_cell_margin(t.style)
             self._ctx_stack[-1].width = width - margin
 
-    def _append_picture(self, filepath, width, height, alt, parent):
-        rid = self._docx.add_image_relationship(filepath)
-        filename = os.path.basename(filepath)
-        if not isinstance(self._doc_stack[-1], (Paragraph, HyperLink)):
-            p = Paragraph(
-                    self._ctx_stack[-1].indent,
-                    self._ctx_stack[-1].right_indent,
-                    align=parent.get('align'))
-            p.add_picture(rid, filename, width, height, alt)
-            self._doc_stack[-1].append(p)
-        else:
-            self._doc_stack[-1].add_picture(rid, filename, width, height, alt)
-
     def _append_new_ctx(
             self, indent=None, right_indent=None, width=None):
         if indent is None:
@@ -788,6 +775,33 @@ class DocxTranslator(nodes.NodeVisitor):
             if num:
                 return prefix % ('.'.join(map(str, num)) + ' ')
         return None
+
+    def _visit_image_node(self, node, alt, get_filepath):
+        self._append_bookmark_start(node.get('ids', []))
+
+        if not isinstance(self._doc_stack[-1], (Paragraph, HyperLink)):
+            self._doc_stack.append(Paragraph(
+                self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
+                align=node.parent.get('align')))
+            needs_pop = True
+        else:
+            needs_pop = False
+
+        try:
+            filepath = get_filepath(self, node)
+            width, height = self._get_image_scaled_size(node, filepath)
+            rid = self._docx.add_image_relationship(filepath)
+            filename = os.path.basename(filepath)
+            self._doc_stack[-1].add_picture(rid, filename, width, height, alt)
+        except Exception as e:
+            self.document.reporter.warning(e)
+            self._doc_stack[-1].add_text(alt)
+
+        if needs_pop:
+            self._pop_and_append()
+
+        self._append_bookmark_end(node.get('ids', []))
+        raise nodes.SkipNode
 
     def visit_start_of_file(self, node):
         self._docname_stack.append(node['docname'])
@@ -1577,31 +1591,15 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_image(self, node):
-        self._append_bookmark_start(node.get('ids', []))
-        uri = node.attributes['uri']
-        file_path = os.path.join(self._builder.srcdir, uri)
-        if not os.path.exists(file_path):
-            # Some extensions output images in outdir
-            file_path = os.path.join(self._builder.outdir, uri)
-        try:
-            width, height = self._get_image_scaled_size(node, file_path)
-            self._append_picture(
-                    file_path, width, height, node.get('alt', ''), node.parent)
-        except Exception as e:
-            self.document.reporter.warning(e)
-            alt_text = node.get('alt', uri)
-            if isinstance(self._doc_stack[-1], (Paragraph, HyperLink)):
-                self._doc_stack[-1].add_text(alt_text)
-            else:
-                p = Paragraph(
-                        self._ctx_stack[-1].indent,
-                        self._ctx_stack[-1].right_indent,
-                        align=node.parent.get('align'))
-                p.add_text(alt_text)
-                self._doc_stack[-1].append(p)
-
-    def depart_image(self, node):
-        self._append_bookmark_end(node.get('ids', []))
+        def get_filepath(self, node):
+            uri = node['uri']
+            filepath = os.path.join(self._builder.srcdir, uri)
+            if not os.path.exists(filepath):
+                # Some extensions output images in outdir
+                filepath = os.path.join(self._builder.outdir, uri)
+            return filepath
+        self._visit_image_node(
+                node, node.get('alt', node['uri']), get_filepath)
 
     def visit_raw(self, node):
         raise nodes.SkipNode # TODO
@@ -1828,14 +1826,14 @@ class DocxTranslator(nodes.NodeVisitor):
         raise nodes.SkipNode
 
     def visit_graphviz(self, node):
-        self._append_bookmark_start(node.get('ids', []))
-        fname, filename = graphviz.render_dot(
-            self, node['code'], node['options'], 'png')
-        width, height = self._get_image_scaled_size(node, filename)
-        self._append_picture(
-                filename, width, height, node.get('alt', ''), node.parent)
-        self._append_bookmark_end(node.get('ids', []))
-        raise nodes.SkipNode
+        def get_filepath(self, node):
+            fname, filepath = graphviz.render_dot(
+                self, node['code'], node['options'], 'png')
+            if filepath is None:
+                raise RuntimeError('Failed to generate a graphviz image')
+            return filepath
+        self._visit_image_node(
+                node, node.get('alt', node['code']), get_filepath)
 
     def visit_refcount(self, node):
         raise nodes.SkipNode # TODO
