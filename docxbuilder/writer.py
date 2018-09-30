@@ -22,23 +22,18 @@
 """
 
 import itertools
+import os
 import re
+import six
+import sys
 
 from docutils import nodes, writers
-
-from sphinx import addnodes
-from sphinx import highlighting
-from sphinx.locale import admonitionlabels, versionlabels, _
-
-from sphinx.ext import graphviz
-
-import docxbuilder.docx as docx
-import sys
-import os
-import six
 from lxml import etree
-from docxbuilder.highlight import DocxPygmentsBridge
+from sphinx.ext import graphviz
+from sphinx.locale import admonitionlabels, _
 
+from docxbuilder import docx
+from docxbuilder.highlight import DocxPygmentsBridge
 
 #
 # Is the PIL imaging library installed?

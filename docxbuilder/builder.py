@@ -10,15 +10,15 @@
     :license: BSD, see LICENSE for details.
 """
 
-from os import path
+import os
 
 from docutils import nodes
 from docutils.io import StringOutput
-
 from sphinx import addnodes
 from sphinx.builders import Builder
-from sphinx.util.osutil import ensuredir, os_path
 from sphinx.util.console import bold
+from sphinx.util.osutil import ensuredir, os_path
+
 from docxbuilder.writer import DocxWriter
 
 
@@ -88,9 +88,9 @@ class DocxBuilder(Builder):
     def write_doc(self, docname, doctree):
         destination = StringOutput(encoding='utf-8')
         self.writer.write(doctree, destination)
-        outfilename = path.join(
+        outfilename = os.path.join(
             self.outdir, os_path(docname) + self.out_suffix)
-        ensuredir(path.dirname(outfilename))
+        ensuredir(os.path.dirname(outfilename))
         try:
             self.writer.save(outfilename)
         except (IOError, OSError) as err:

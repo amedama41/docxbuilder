@@ -1,7 +1,6 @@
 
-from sphinx.highlighting import PygmentsBridge
-
 from pygments.formatters import RtfFormatter
+from sphinx.highlighting import PygmentsBridge
 
 #--- Formatter
 

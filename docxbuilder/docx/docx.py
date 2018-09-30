@@ -15,17 +15,13 @@ from __future__ import print_function
   See LICENSE for licensing information.
 '''
 
-from lxml import etree
-import zipfile
-import shutil
-import re
-import six
-import time
 import os
-from os.path import join
+import shutil
+import six
 import tempfile
-import sys
-
+import time
+import zipfile
+from lxml import etree
 
 # All Word prefixes / namespace matches used in document.xml & core.xml.
 # LXML doesn't actually use prefixes (just the real namespace) , but these
@@ -342,7 +338,7 @@ class DocxDocument:
                     document = etree.fromstring(xmlcontent)
                     xmlcontent = etree.tostring(
                         document, encoding='UTF-8', pretty_print=True)
-                file_name = join(to_dir, fname)
+                file_name = os.path.join(to_dir, fname)
                 if not os.path.exists(os.path.dirname(file_name)):
                     os.makedirs(os.path.dirname(file_name))
                 with open(file_name, 'wb') as f:
@@ -373,7 +369,7 @@ class DocxDocument:
             for filename in filenames:
                 if filename in files_to_ignore:
                     continue
-                templatefile = join(dirpath, filename)
+                templatefile = os.path.join(dirpath, filename)
                 archivename = os.path.normpath(templatefile)
                 archivename = '/'.join(archivename.split(os.sep))
                 if archivename in files_to_skip:
