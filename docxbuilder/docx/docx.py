@@ -476,8 +476,6 @@ class DocxComposer:
         self.stylenames = self.styleDocx.extract_stylenames()
         self.max_table_width = self.styleDocx.contents_width
         self.bullet_list_indents = self.get_numbering_left('ListBullet')
-        self.bullet_list_numId = self.styleDocx.get_numbering_style_id(
-            'ListBullet')
         self.number_list_indent = self.get_numbering_left('ListNumber')[0]
         self._abstract_nums = get_elements(
             self.styleDocx.numbering, 'w:abstractNum')
@@ -514,6 +512,9 @@ class DocxComposer:
 
     def set_coverpage(self, flag=True):
         self.nocoverpage = not flag
+
+    def get_bullet_list_num_id(self):
+        return self.styleDocx.get_numbering_style_id('ListBullet')
 
     def get_table_cell_margin(self, style_name):
         margin = self.table_margin_map.get(style_name)

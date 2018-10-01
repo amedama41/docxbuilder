@@ -656,8 +656,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._line_block_level = 0
         self._docx = docx
         self._list_id_stack = []
-        self._bullet_list_id = (
-                docx.styleDocx.get_numbering_style_id('ListBullet'))
+        self._bullet_list_id = docx.get_bullet_list_num_id()
         self._language = builder.config.highlight_language
         self._highlighter = DocxPygmentsBridge(
                 'html',
