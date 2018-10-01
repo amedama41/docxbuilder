@@ -237,6 +237,13 @@ def get_special_footnotes(footnotes_xml):
             footnotes_xml,
             '/w:footnotes/w:footnote[@w:type and not(@w:type="normal")]')
 
+def get_max_attribute(elems, attribute):
+    '''
+       Get the maximum integer attribute among the specified elems
+    '''
+    num_id = norm_name('w:numId')
+    return max(map(lambda e: int(e.get(attribute)), elems), default=0)
+
 #
 #  DocxDocument class
 #   This class for analizing docx-file
@@ -472,11 +479,12 @@ class DocxComposer:
         self.bullet_list_numId = self.styleDocx.get_numbering_style_id(
             'ListBullet')
         self.number_list_indent = self.get_numbering_left('ListNumber')[0]
-        self.number_list_numId = self.styleDocx.get_numbering_style_id(
-            'ListNumber')
-        self.abstractNums = get_elements(
+        self._abstract_nums = get_elements(
             self.styleDocx.numbering, 'w:abstractNum')
-        self.numids = get_elements(self.styleDocx.numbering, 'w:num')
+        self._max_abstract_num_id = get_max_attribute(
+                self._abstract_nums, norm_name('w:abstractNumId'))
+        self._numids = get_elements(self.styleDocx.numbering, 'w:num')
+        self._max_num_id = get_max_attribute(self._numids, norm_name('w:numId'))
         self.images = self.styleDocx.get_number_of_medias()
 
         self._hyperlink_rid_map = {} # target => relationship id
@@ -485,9 +493,8 @@ class DocxComposer:
         self._footnote_list = get_special_footnotes(self.styleDocx.footnotes)
         self._footnote_id_map = {} # docname#id => footnote id
         norm_id = norm_name('w:id')
-        self._max_footnote_id = max(
-                map(lambda f: int(f.get(norm_id)), self._footnote_list),
-                default=0)
+        self._max_footnote_id = get_max_attribute(
+                self._footnote_list, norm_name('w:id'))
 
         self.title = ""
         self.subject = ""
@@ -507,13 +514,6 @@ class DocxComposer:
 
     def set_coverpage(self, flag=True):
         self.nocoverpage = not flag
-
-    def get_max_numbering_id(self):
-        '''
-           Get the maximum numId among the numbering num elements
-        '''
-        num_id = norm_name('w:numId')
-        return max(map(lambda e: int(e.get(num_id)), self.numids), default=0)
 
     def get_table_cell_margin(self, style_name):
         margin = self.table_margin_map.get(style_name)
@@ -548,9 +548,9 @@ class DocxComposer:
         wordrelationships = self.wordrelationships()
 
         numbering = make_element_tree(['w:numbering'])
-        for x in self.abstractNums:
+        for x in self._abstract_nums:
             numbering.append(x)
-        for x in self.numids:
+        for x in self._numids:
             numbering.append(x)
 
         coverpage = self.styleDocx.get_coverpage()
@@ -681,52 +681,39 @@ class DocxComposer:
 
         return result
 
-    def create_dummy_nums(self, val):
-        orig_numid = self.number_list_numId
-        num_tree = [['w:num', {'w:numId': str(val)}],
-                    [['w:abstractNumId', {'w:val': orig_numid}]],
-                    ]
-        num = make_element_tree(num_tree)
-        self.numids.append(num)
-        return
-
-    def new_ListNumber_style(self, nId, start_val=1, lvl_txt='%1.', typ=None):
+    def add_numbering_style(self, start_val, lvl_txt, typ):
         '''
-          create new List Number style 
+           Create a new numbering definition
         '''
-        newid = nId
-        abstnewid = int(nId)
-
-        cmaxid = self.get_max_numbering_id()
-
-        if newid > cmaxid + 1:
-            for x in range(newid - cmaxid-1):
-                self.create_dummy_nums(cmaxid + x + 1)
-
+        self._max_abstract_num_id += 1
+        abstract_num_id = self._max_abstract_num_id
         typ = get_enumerate_type(typ)
-
         ind = self.number_list_indent
-        abstnum_tree = [['w:abstractNum', {'w:abstractNumId': str(abstnewid)}],
-                        [['w:multiLevelType', {'w:val': 'singleLevel'}]],
-                        [['w:lvl', {'w:ilvl': '0'}],
-                            [['w:start', {'w:val': str(start_val)}]],
-                            [['w:lvlText', {'w:val': lvl_txt}]],
-                            [['w:lvlJc', {'w:val': 'left'}]],
-                            [['w:numFmt', {'w:val': typ}]],
-                         [['w:pPr'], [
-                             ['w:ind', {'w:left': str(ind), 'w:hanging': str(ind)}]]]
-                         ]
-                        ]
-
-        num_tree = [['w:num', {'w:numId': str(newid)}],
-                    [['w:abstractNumId', {'w:val': str(abstnewid)}]],
+        abstnum_tree = [
+                ['w:abstractNum', {'w:abstractNumId': str(abstract_num_id)}],
+                [['w:multiLevelType', {'w:val': 'singleLevel'}]],
+                [['w:lvl', {'w:ilvl': '0'}],
+                    [['w:start', {'w:val': str(start_val)}]],
+                    [['w:lvlText', {'w:val': lvl_txt}]],
+                    [['w:lvlJc', {'w:val': 'left'}]],
+                    [['w:numFmt', {'w:val': typ}]],
+                    [['w:pPr'],
+                        [['w:ind', {'w:left': str(ind), 'w:hanging': str(ind)}]]
                     ]
-
+                 ]
+        ]
         abstnum = make_element_tree(abstnum_tree)
+        self._abstract_nums.append(abstnum)
+
+        self._max_num_id += 1
+        num_id = self._max_num_id
+        num_tree = [
+                ['w:num', {'w:numId': str(num_id)}],
+                [['w:abstractNumId', {'w:val': str(abstract_num_id)}]],
+        ]
         num = make_element_tree(num_tree)
-        self.abstractNums.append(abstnum)
-        self.numids.append(num)
-        return newid
+        self._numids.append(num)
+        return num_id
 
 ##########
 # Create New Style

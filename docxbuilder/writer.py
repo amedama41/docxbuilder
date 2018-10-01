@@ -655,7 +655,6 @@ class DocxTranslator(nodes.NodeVisitor):
         self._ctx_stack = [Contenxt(0, 0, docx.max_table_width, 0)]
         self._line_block_level = 0
         self._docx = docx
-        self._max_list_id = docx.get_max_numbering_id()
         self._list_id_stack = []
         self._bullet_list_id = (
                 docx.styleDocx.get_numbering_style_id('ListBullet'))
@@ -1143,15 +1142,12 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_enumerated_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._ctx_stack[-1].indent += self._docx.number_list_indent
-        self._max_list_id += 1
-        self._list_id_stack.append(self._max_list_id)
         enumtype = node.get('enumtype', 'arabic')
         prefix = node.get('prefix', '')
         suffix = node.get('suffix', '')
         start = node.get('start', 1)
-        self._docx.new_ListNumber_style(
-                self._list_id_stack[-1], start,
-                '{}%1{}'.format(prefix, suffix), enumtype)
+        self._list_id_stack.append(self._docx.add_numbering_style(
+            start, '{}%1{}'.format(prefix, suffix), enumtype))
 
     def depart_enumerated_list(self, node):
         self._ctx_stack[-1].indent -= self._docx.number_list_indent
