@@ -1844,11 +1844,10 @@ class DocxTranslator(nodes.NodeVisitor):
         return None
 
     def _get_additional_list_indent(self, list_level):
-        indent = self._docx.get_numbering_indent('ListBullet', list_level)
+        indent = self._docx.get_list_indent(list_level)
         if list_level == 0:
             return indent
-        return indent - self._docx.get_numbering_indent(
-                'ListBullet', list_level - 1)
+        return indent - self._docx.get_list_indent(list_level - 1)
 
     def _get_image_scaled_size(self, node, filename):
         paragraph_width = self._ctx_stack[-1].paragraph_width

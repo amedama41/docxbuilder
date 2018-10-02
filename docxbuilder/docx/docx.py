@@ -665,21 +665,14 @@ class DocxComposer:
         '''
         return self.styleDocx.get_numbering_left(style)
 
-    def get_numbering_indent(self, style='ListBullet', lvl=0, nId=0):
+    def get_list_indent(self, list_level):
         '''
-           Get indenent value
+           Get list indenent value
         '''
-        result = 0
-
-        if style == 'ListBullet' or nId == 0:
-            if len(self.bullet_list_indents) > lvl:
-                result = self.bullet_list_indents[lvl]
-            else:
-                result = self.bullet_list_indents[-1]
+        if len(self.bullet_list_indents) > list_level:
+            return self.bullet_list_indents[list_level]
         else:
-            result = self.number_list_indent * (lvl+1)
-
-        return result
+            return self.bullet_list_indents[-1]
 
     def add_numbering_style(self, start_val, lvl_txt, typ):
         '''
