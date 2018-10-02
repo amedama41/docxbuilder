@@ -599,7 +599,6 @@ class DocxComposer:
         toc_tree = [
                 ['w:sdt'],
                 [['w:sdtPr'],
-                    [['w:rPr'], [['w:long']]],
                     [['w:docPartObj'],
                         [['w:docPartGallery', {'w:val': 'Table of Contents'}]],
                         [['w:docPartUnique']]
@@ -612,7 +611,7 @@ class DocxComposer:
             sdtContent_tree.append([
                     ['w:p'],
                     [['w:pPr'], [['w:pStyle', {'w:val': 'TOC_Title'}]]],
-                    [['w:r'], [['w:rPr'], [['w:long']]], [['w:t', toc_title]]]
+                    [['w:r'], [['w:t', toc_title]]]
             ])
         if maxlevel is not None:
             instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (maxlevel, bookmark)
