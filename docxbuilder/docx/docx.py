@@ -615,7 +615,7 @@ class DocxComposer:
                     [['w:r'], [['w:rPr'], [['w:long']]], [['w:t', toc_title]]]
             ])
         if maxlevel is not None:
-            instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (bookmark, maxlevel)
+            instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (maxlevel, bookmark)
         else:
             instr = r' TOC \o \b "%s" \h \z \u ' % bookmark
         sdtContent_tree.append([
