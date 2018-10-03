@@ -24,6 +24,7 @@
 import itertools
 import os
 import re
+import urllib.parse
 
 from docutils import nodes, writers
 from lxml import etree
@@ -93,6 +94,10 @@ def convert_to_cm_size(twip_size):
     twipperin = 1440.0
     cmperin = 2.54
     return twip_size / twipperin * cmperin
+
+def make_bookmark_name(docname, id):
+    # Office could not handle bookmark names including hash characters
+    return '%s/%s' % (urllib.parse.quote(docname), id)
 
 #
 #  DocxWriter class for sphinx
@@ -679,7 +684,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def _append_bookmark_start(self, ids):
         docname = self._docname_stack[-1]
         for id in ids:
-            name = '%s/%s' % (docname, id)
+            name = make_bookmark_name(docname, id)
             self._bookmark_id += 1
             self._bookmark_id_map[name] = self._bookmark_id
             self._doc_stack[-1].append(BookmarkStart(self._bookmark_id, name))
@@ -687,7 +692,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def _append_bookmark_end(self, ids):
         docname = self._docname_stack[-1]
         for id in ids:
-            name = '%s/%s' % (docname, id)
+            name = make_bookmark_name(docname, id)
             bookmark_id = self._bookmark_id_map.pop(name, None)
             if bookmark_id is None:
                 continue
@@ -1463,7 +1468,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 anchor = None
         else:
             rid = None
-            anchor = '%s/%s' % (self._docname_stack[-1], refid)
+            anchor = make_bookmark_name(self._docname_stack[-1], refid)
         self._doc_stack.append(HyperLink(rid, anchor))
 
     def depart_reference(self, node):
@@ -1600,7 +1605,7 @@ class DocxTranslator(nodes.NodeVisitor):
             self._logger.warning(
                     'No docx_expanded_toctree_refid', location=node)
             return
-        bookmark = '%s/%s' % (self._docname_stack[-1], refid)
+        bookmark = make_bookmark_name(self._docname_stack[-1], refid)
         self._doc_stack[-1].add_table_of_contents(caption, maxlevel, bookmark)
         self._doc_stack[-1].add_pagebreak()
 
@@ -1835,12 +1840,12 @@ class DocxTranslator(nodes.NodeVisitor):
         refuri = os.path.normpath(
                 os.path.join(os.path.dirname(self._docname_stack[-1]), refuri))
         if refuri in self._builder.env.all_docs:
-            return refuri + '/'
+            return make_bookmark_name(refuri, '')
         hashindex = refuri.rfind('#') # Use rfind because docname includes #.
         if hashindex != -1 and refuri[:hashindex] in self._builder.env.all_docs:
-            return '%s/%s' % (refuri[:hashindex], refuri[hashindex+1:])
+            return make_bookmark_name(refuri[:hashindex], refuri[hashindex+1:])
         if hashindex == 0:
-            return '%s/%s' % (self._docname_stack[-1], refuri[1:])
+            return make_bookmark_name(self._docname_stack[-1], refuri[1:])
         return None
 
     def _get_additional_list_indent(self, list_level):
