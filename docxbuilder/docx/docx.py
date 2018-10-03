@@ -57,14 +57,6 @@ nsprefixes = {
     'xml': 'http://www.w3.org/XML/1998/namespace'
 }
 
-Enum_Types = {
-    'arabic': 'decimal',
-    'loweralpha': 'lowerLetter',
-    'upperalpha': 'upperLetter',
-    'lowerroman': 'lowerRoman',
-    'upperroman': 'upperRoman'
-}
-
 #####################
 
 
@@ -106,18 +98,6 @@ def append_element(elem, xml, path=None, index=0, ns=nsprefixes):
         print("Error  in append_element")
 
     return False
-
-
-def get_enumerate_type(typ):
-    '''
-
-    '''
-    try:
-        typ = Enum_Types[typ]
-    except:
-        typ = "decimal"
-        pass
-    return typ
 
 
 def parse_tag_list(tag):
@@ -674,13 +654,21 @@ class DocxComposer:
         else:
             return self.bullet_list_indents[-1]
 
+    num_format_map = {
+        'arabic': 'decimal',
+        'loweralpha': 'lowerLetter',
+        'upperalpha': 'upperLetter',
+        'lowerroman': 'lowerRoman',
+        'upperroman': 'upperRoman'
+    }
+
     def add_numbering_style(self, start_val, lvl_txt, typ):
         '''
            Create a new numbering definition
         '''
         self._max_abstract_num_id += 1
         abstract_num_id = self._max_abstract_num_id
-        typ = get_enumerate_type(typ)
+        typ = self.__class__.num_format_map.get(typ, 'decimal')
         ind = self.number_list_indent
         abstnum_tree = [
                 ['w:abstractNum', {'w:abstractNumId': str(abstract_num_id)}],
