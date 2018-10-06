@@ -401,20 +401,28 @@ class Table(object):
 class Document(object):
     def __init__(self, body):
         self._body = body
+        self._no_pagebreak = True # To avoid continuous page breaks
 
     def add_table_of_contents(self, toc_title, maxlevel, bookmark):
         self._body.append(
                 docx.make_table_of_contents(toc_title, maxlevel, bookmark))
+        self._no_pagebreak = False
 
     def add_pagebreak(self):
+        if self._no_pagebreak:
+            return
         self._body.append(docx.make_pagebreak())
+        self._no_pagebreak = True
 
     def add_transition(self):
         self._body.append(docx.make_bottom_border_paragraph())
+        self._no_pagebreak = False
 
     def append(self, contents):
         for xml in contents.to_xml():
             self._body.append(xml)
+        if not isinstance(contents, (BookmarkStart, BookmarkEnd)):
+            self._no_pagebreak = False
 
 class LiteralBlock(object):
     def __init__(self, highlighted, indent, right_indent):
