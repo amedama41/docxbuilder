@@ -590,6 +590,15 @@ class DocxComposer:
             [['w:pPr'], [['w:sectPr'], [['w:pgSz', attrs]]]],
         ])
 
+    @classmethod
+    def make_bottom_border_paragraph(cls):
+        bottom_attrs = {'w:val': 'single', 'w:sz': '8', 'w:space': '1'}
+        paragraph_tree = [
+                ['w:p'],
+                [['w:pPr'], [['w:pBdr'], [['w:bottom', bottom_attrs]]]]
+        ]
+        return make_element_tree(paragraph_tree)
+
 ########
 # Numbering Style
 

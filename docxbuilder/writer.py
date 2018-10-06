@@ -554,6 +554,9 @@ class Document(object):
     def add_pagebreak(self):
         self._body.append(docx.DocxComposer.make_pagebreak())
 
+    def add_transition(self):
+        self._body.append(docx.DocxComposer.make_bottom_border_paragraph())
+
     def append(self, contents):
         for xml in contents.to_xml():
             self._body.append(xml)
@@ -866,7 +869,7 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_transition(self, node):
-        pass # TODO
+        self._doc_stack[-1].add_transition()
 
     def depart_transition(self, node):
         pass
