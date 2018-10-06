@@ -1476,7 +1476,8 @@ class DocxTranslator(nodes.NodeVisitor):
             return
         bookmark = make_bookmark_name(self._docname_stack[-1], refid)
         self._doc_stack[-1].add_table_of_contents(caption, maxlevel, bookmark)
-        if self._builder.config.docx_pagebreak_after_table_of_contents:
+        config = self._builder.config
+        if self._section_level <= config.docx_pagebreak_after_table_of_contents:
             self._doc_stack[-1].add_pagebreak()
 
     def depart_toctree(self, node):

@@ -5,7 +5,7 @@ def setup(app):
     app.add_builder(DocxBuilder)
     app.add_config_value('docx_style', '', 'env')
     app.add_config_value('docx_pagebreak_before_section', 0, 'env')
-    app.add_config_value('docx_pagebreak_after_table_of_contents', False, 'env')
+    app.add_config_value('docx_pagebreak_after_table_of_contents', 0, 'env')
     app.add_config_value('docx_title', 'SphinxDocx', 'env')
     app.add_config_value('docx_subject', 'Sphinx Document', 'env')
     app.add_config_value('docx_creator', 'sphinx-docxbuilder', 'env')
