@@ -16,9 +16,7 @@ from __future__ import print_function
 '''
 
 import os
-import shutil
 import six
-import tempfile
 import time
 import zipfile
 from lxml import etree
@@ -560,58 +558,11 @@ class DocxDocument:
                             self.docx.namelist())
         return len(list(media_list))
 
-    def extract_files(self, to_dir, pprint=False):
-        '''
-          Extract all files from docx
-        '''
-        if not os.access(to_dir, os.F_OK):
-            os.mkdir(to_dir)
-
-        filelist = self.docx.namelist()
-        for fname in filelist:
-            xmlcontent = self.docx.read(fname)
-            fname_ext = os.path.splitext(fname)[1]
-            if pprint and (fname_ext == '.xml' or fname_ext == '.rels'):
-                document = etree.fromstring(xmlcontent)
-                xmlcontent = etree.tostring(
-                    document, encoding='UTF-8', pretty_print=True)
-            file_name = os.path.join(to_dir, fname)
-            if not os.path.exists(os.path.dirname(file_name)):
-                os.makedirs(os.path.dirname(file_name))
-            with open(file_name, 'wb') as f:
-                f.write(xmlcontent)
-
-    def restruct_docx(self, docx_dir, docx_filename, files_to_skip=[]):
-        '''
-           This function is copied and modified the 'savedocx' function contained 'python-docx' library
-          Restruct docx file from files in 'doxc_dir'
-        '''
-        if not os.access(docx_dir, os.F_OK):
-            print("Can't found docx directory: %s" % docx_dir)
-            return
-
-        docxfile = zipfile.ZipFile(
-            docx_filename, mode='w', compression=zipfile.ZIP_DEFLATED)
-
-        prev_dir = os.path.abspath('.')
-        os.chdir(docx_dir)
-
+    def collect_items(self, zip_docxfile, files_to_skip=[]):
         # Add & compress support files
-        files_to_ignore = ['.DS_Store']  # nuisance from some os's
-        for dirpath, dirnames, filenames in os.walk('.'):
-            for filename in filenames:
-                if filename in files_to_ignore:
-                    continue
-                templatefile = os.path.join(dirpath, filename)
-                archivename = os.path.normpath(templatefile)
-                archivename = '/'.join(archivename.split(os.sep))
-                if archivename in files_to_skip:
-                    continue
-                # print 'Saving: '+archivename
-                docxfile.write(templatefile, archivename)
-
-        os.chdir(prev_dir)  # restore previous working dir
-        return docxfile
+        filelist = self.docx.namelist()
+        for fname in filter(lambda f: f not in files_to_skip, filelist):
+            zip_docxfile.writestr(fname, self.docx.read(fname))
 
 ############
 # Numbering
@@ -697,13 +648,6 @@ class DocxComposer:
         '''
         self.styleDocx = DocxDocument(stylefile)
 
-        self.template_dir = tempfile.mkdtemp(prefix='docx-')
-        try:
-            self.styleDocx.extract_files(self.template_dir)
-        except Exception:
-            shutil.rmtree(self.template_dir, True)
-            raise
-
         self.stylenames = self.styleDocx.extract_stylenames()
         self.max_table_width = self.styleDocx.contents_width
         self.bullet_list_indents = self.get_numbering_left('ListBullet')
@@ -717,7 +661,7 @@ class DocxComposer:
         self.images = self.styleDocx.get_number_of_medias()
 
         self._hyperlink_rid_map = {} # target => relationship id
-        self._image_rid_map = {} # imagepath => relationship id
+        self._image_info_map = {} # imagepath => (relationship id, imagename)
 
         self._footnote_list = get_special_footnotes(self.styleDocx.footnotes)
         self._footnote_id_map = {} # docname#id => footnote id
@@ -770,8 +714,6 @@ class DocxComposer:
         '''
           Save the composed document to the docx file 'docxfilename'.
         '''
-        assert os.path.isdir(self.template_dir)
-
         coreproperties = self.coreproperties()
         appproperties = self.appproperties()
         contenttypes = self.contenttypes()
@@ -807,18 +749,20 @@ class DocxComposer:
                          websettings: 'word/webSettings.xml',
                          wordrelationships: 'word/_rels/document.xml.rels'}
 
-        docxfile = self.styleDocx.restruct_docx(
-            self.template_dir, docxfilename, treesandfiles.values())
+        docxfile = zipfile.ZipFile(
+            docxfilename, mode='w', compression=zipfile.ZIP_DEFLATED)
 
-        for tree in treesandfiles:
-            if tree != None:
-                # print 'Saving: '+treesandfiles[tree]
-                treestring = etree.tostring(
-                    tree, xml_declaration=True, encoding='UTF-8', standalone='yes')
-                docxfile.writestr(treesandfiles[tree], treestring)
+        self.styleDocx.collect_items(docxfile, treesandfiles.values())
 
-        print('Saved new file to: '+docxfilename)
-        shutil.rmtree(self.template_dir)
+        for tree, xmlpath in treesandfiles.items():
+            treestring = etree.tostring(
+                tree, xml_declaration=True, encoding='UTF-8', standalone='yes')
+            docxfile.writestr(xmlpath, treestring)
+
+        for imgpath, (_, picname) in self._image_info_map.items():
+            docxfile.write(imgpath, 'word/media/' + picname)
+
+        print('Saved new file to:', docxfilename)
         return
 
  ##################
@@ -935,20 +879,15 @@ class DocxComposer:
     def add_image_relationship(self, imagepath):
         imagepath = os.path.abspath(imagepath)
 
-        rid = self._image_rid_map.get(imagepath)
+        rid, _ = self._image_info_map.get(imagepath, (None, None))
         if rid is not None:
             return rid
 
-        # Copy the file into the media dir
-        media_dir = os.path.join(self.template_dir, 'word', 'media')
-        if not os.path.isdir(media_dir):
-            os.mkdir(media_dir)
         picext = os.path.splitext(imagepath)
         if (picext[1] == '.jpg'):
             picext[1] = '.jpeg'
         self.images += 1
         picname = 'image%d%s' % (self.images, picext[1])
-        shutil.copyfile(imagepath, os.path.join(media_dir, picname))
 
         # Calculate relationship ID to the first available
         rid = 'rId%d' % (len(self.relationships) + 1)
@@ -957,7 +896,7 @@ class DocxComposer:
             'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
             'Target': 'media/' + picname
         })
-        self._image_rid_map[imagepath] = rid
+        self._image_info_map[imagepath] = (rid, picname)
         return rid
 
     @classmethod
@@ -993,16 +932,11 @@ class DocxComposer:
            This function copied from 'python-docx' library
         '''
         filename = '[Content_Types].xml'
-        filepath = os.path.join(self.template_dir, filename)
-        if not os.path.exists(filepath):
-            raise RuntimeError('You need %r file in template' % filename)
+        content_types = self.styleDocx.get_xmltree(filename)
 
-        with open(filepath, 'rb') as f:
-            parts = dict([
+        parts = dict(
                 (x.attrib['PartName'], x.attrib['ContentType'])
-                for x in etree.fromstring(f.read()).xpath('*')
-                if 'PartName' in x.attrib
-            ])
+                for x in content_types.xpath('*') if 'PartName' in x.attrib)
 
         # Add support for filetypes
         filetypes = {'rels': 'application/vnd.openxmlformats-package.relationships+xml',
@@ -1090,12 +1024,8 @@ class DocxComposer:
 
     def relationshiplist(self):
         filename = 'word/_rels/document.xml.rels'
-        filepath = os.path.join(self.template_dir, filename)
-        if not os.path.exists(filepath):
-            raise RuntimeError('You need %r file in template' % filename)
+        relationships = self.styleDocx.get_xmltree(filename)
 
-        with open(filepath, 'rb') as f:
-            relationships = etree.fromstring(f.read())
         relationshiplist = [x.attrib for x in relationships.xpath('*')]
 
         return relationshiplist
