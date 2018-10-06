@@ -404,14 +404,13 @@ class Document(object):
 
     def add_table_of_contents(self, toc_title, maxlevel, bookmark):
         self._body.append(
-                docx.DocxComposer.make_table_of_contents(
-                    toc_title, maxlevel, bookmark))
+                docx.make_table_of_contents(toc_title, maxlevel, bookmark))
 
     def add_pagebreak(self):
-        self._body.append(docx.DocxComposer.make_pagebreak())
+        self._body.append(docx.make_pagebreak())
 
     def add_transition(self):
-        self._body.append(docx.DocxComposer.make_bottom_border_paragraph())
+        self._body.append(docx.make_bottom_border_paragraph())
 
     def append(self, contents):
         for xml in contents.to_xml():

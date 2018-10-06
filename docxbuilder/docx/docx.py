@@ -219,6 +219,30 @@ def make_paragraph(
     paragraph_tree = [['w:p'], style_tree]
     return make_element_tree(paragraph_tree)
 
+def make_bottom_border_paragraph():
+    bottom_attrs = {'w:val': 'single', 'w:sz': '8', 'w:space': '1'}
+    paragraph_tree = [
+            ['w:p'],
+            [['w:pPr'], [['w:pBdr'], [['w:bottom', bottom_attrs]]]]
+    ]
+    return make_element_tree(paragraph_tree)
+
+def make_pagebreak():
+    return make_element_tree([
+        ['w:p'],
+        [['w:r'], [['w:br', {'w:type': 'page'}]]],
+    ])
+
+def make_sectionbreak(orient='portrait'):
+    if orient == 'portrait':
+        attrs = {'w:w': '12240', 'w:h': '15840'}
+    elif orient == 'landscape':
+        attrs = {'w:h': '12240', 'w:w': '15840', 'w:orient': 'landscape'}
+    return make_element_tree([
+        ['w:p'],
+        [['w:pPr'], [['w:sectPr'], [['w:pgSz', attrs]]]],
+    ])
+
 def make_run(text, style, preserve_space):
     run_tree = [['w:r']]
     if style:
@@ -239,6 +263,75 @@ def make_run(text, style, preserve_space):
 
 def make_break_run():
     return make_element_tree([['w:r'], [['w:br']]])
+
+def make_inline_picture_run(
+        rid, picid, picname, width, height, picdescription,
+        nochangeaspect=True, nochangearrowheads=True):
+    '''
+      Take a relationship id, picture file name, and return a run element
+      containing the image
+
+      This function is based on 'python-docx' library
+    '''
+    non_visual_pic_prop_attrs = {
+            'id': str(picid), 'name': picname, 'descr': picdescription
+    }
+    ext_attrs = {'cx': str(width), 'cy': str(height)}
+
+    # There are 3 main elements inside a picture
+    pic_tree = [
+            ['pic:pic'],
+            [['pic:nvPicPr'],  # The non visual picture properties
+                [['pic:cNvPr', non_visual_pic_prop_attrs]],
+                [['pic:cNvPicPr'],
+                    [['a:picLocks', {
+                        'noChangeAspect': str(int(nochangeaspect)),
+                        'noChangeArrowheads': str(int(nochangearrowheads))}]
+                    ]
+                ]
+            ],
+            # The Blipfill - specifies how the image fills the picture
+            # area (stretch, tile, etc.)
+            [['pic:blipFill'],
+                [['a:blip', {'r:embed': rid}]],
+                [['a:srcRect']],
+                [['a:stretch'], [['a:fillRect']]]
+            ],
+            [['pic:spPr', {'bwMode': 'auto'}],  # The Shape properties
+                [['a:xfrm'],
+                    [['a:off', {'x': '0', 'y': '0'}]],
+                    [['a:ext', ext_attrs]]
+                ],
+                [['a:prstGeom', {'prst': 'rect'}], ['a:avLst']],
+                [['a:noFill']]
+            ]
+    ]
+
+    graphic_tree = [
+            ['a:graphic'],
+            [['a:graphicData', {
+                'uri': 'http://schemas.openxmlformats.org/drawingml/2006/picture'}],
+                pic_tree
+            ]
+    ]
+
+    inline_tree = [
+            ['wp:inline', {'distT': "0", 'distB': "0", 'distL': "0", 'distR': "0"}],
+            [['wp:extent', ext_attrs]],
+            [['wp:effectExtent', {'l': '25400', 't': '0', 'r': '0', 'b': '0'}]],
+            [['wp:docPr', non_visual_pic_prop_attrs]],
+            [['wp:cNvGraphicFramePr'],
+                [['a:graphicFrameLocks', {'noChangeAspect': '1'}]]
+            ],
+            graphic_tree
+    ]
+
+    run_tree = [
+            ['w:r'],
+            [['w:rPr'], [['w:noProof']]],
+            [['w:drawing'], inline_tree]
+    ]
+    return make_element_tree(run_tree)
 
 
 # Tables
@@ -342,6 +435,51 @@ def make_hyperlink(relationship_id, anchor):
         attrs['w:anchor'] = anchor
     hyperlink_tree = [['w:hyperlink', attrs]]
     return make_element_tree(hyperlink_tree)
+
+# Structured Document Tags
+
+def make_table_of_contents(toc_title, maxlevel, bookmark):
+    '''
+       Create the Table of Content
+    '''
+    sdtContent_tree = [['w:sdtContent']]
+    if toc_title is not None:
+        sdtContent_tree.append([
+                ['w:p'],
+                [['w:pPr'], [['w:pStyle', {'w:val': 'TOC_Title'}]]],
+                [['w:r'], [['w:t', toc_title]]]
+        ])
+    if maxlevel is not None:
+        instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (maxlevel, bookmark)
+    else:
+        instr = r' TOC \o \b "%s" \h \z \u ' % bookmark
+    sdtContent_tree.append([
+            ['w:p'],
+            [['w:pPr'],
+                [['w:pStyle', {'w:val': 'TOC_Contents'}]],
+                [['w:tabs'],
+                    [['w:tab', {
+                        'w:val': 'right', 'w:leader': 'dot', 'w:pos': '8488'
+                    }]]
+                ],
+                [['w:rPr'], [['w:b', {'w:val': '0'}]], [['w:noProof']]]
+            ],
+            [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
+            [['w:r'], [['w:instrText', instr, {'xml:space': 'preserve'}]]],
+            [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]]
+    ])
+
+    toc_tree = [
+            ['w:sdt'],
+            [['w:sdtPr'],
+                [['w:docPartObj'],
+                    [['w:docPartGallery', {'w:val': 'Table of Contents'}]],
+                    [['w:docPartUnique']]
+                ]
+            ],
+            sdtContent_tree
+    ]
+    return make_element_tree(toc_tree)
 
 class DocxDocument:
     def __init__(self, docxfile):
@@ -684,80 +822,6 @@ class DocxComposer:
         return
 
  ##################
-    @classmethod
-    def make_table_of_contents(cls, toc_title, maxlevel, bookmark):
-        '''
-           Create the Table of Content
-        '''
-        toc_tree = [
-                ['w:sdt'],
-                [['w:sdtPr'],
-                    [['w:docPartObj'],
-                        [['w:docPartGallery', {'w:val': 'Table of Contents'}]],
-                        [['w:docPartUnique']]
-                    ]
-                ]
-        ]
-
-        sdtContent_tree = [['w:sdtContent']]
-        if toc_title is not None:
-            sdtContent_tree.append([
-                    ['w:p'],
-                    [['w:pPr'], [['w:pStyle', {'w:val': 'TOC_Title'}]]],
-                    [['w:r'], [['w:t', toc_title]]]
-            ])
-        if maxlevel is not None:
-            instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (maxlevel, bookmark)
-        else:
-            instr = r' TOC \o \b "%s" \h \z \u ' % bookmark
-        sdtContent_tree.append([
-                ['w:p'],
-                [['w:pPr'],
-                    [['w:pStyle', {'w:val': 'TOC_Contents'}]],
-                    [['w:tabs'],
-                        [['w:tab', {
-                            'w:val': 'right', 'w:leader': 'dot', 'w:pos': '8488'
-                        }]]
-                    ],
-                    [['w:rPr'], [['w:b', {'w:val': '0'}]], [['w:noProof']]]
-                ],
-                [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
-                [['w:r'], [['w:instrText', instr, {'xml:space': 'preserve'}]]],
-                [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]]
-        ])
-
-        toc_tree.append(sdtContent_tree)
-        return make_element_tree(toc_tree)
-
-#################
-# Output PageBreak
-    @classmethod
-    def make_pagebreak(cls):
-        return make_element_tree([
-            ['w:p'],
-            [['w:r'], [['w:br', {'w:type': 'page'}]]],
-        ])
-
-    @classmethod
-    def make_sectionbreak(cls, orient='portrait'):
-        if orient == 'portrait':
-            attrs = {'w:w': '12240', 'w:h': '15840'}
-        elif orient == 'landscape':
-            attrs = {'w:h': '12240', 'w:w': '15840', 'w:orient': 'landscape'}
-        return make_element_tree([
-            ['w:p'],
-            [['w:pPr'], [['w:sectPr'], [['w:pgSz', attrs]]]],
-        ])
-
-    @classmethod
-    def make_bottom_border_paragraph(cls):
-        bottom_attrs = {'w:val': 'single', 'w:sz': '8', 'w:space': '1'}
-        paragraph_tree = [
-                ['w:p'],
-                [['w:pPr'], [['w:pBdr'], [['w:bottom', bottom_attrs]]]]
-        ]
-        return make_element_tree(paragraph_tree)
-
 ########
 # Numbering Style
 
@@ -898,69 +962,15 @@ class DocxComposer:
 
     @classmethod
     def make_inline_picture_run(
-            cls, rid, picname, cmwidth, cmheight, picdescription,
-            nochangeaspect=True, nochangearrowheads=True):
-        '''
-          Take a relationship id, picture file name, and return a run element
-          containing the image
-
-          This function is based on 'python-docx' library
-        '''
+            cls, rid, picname, cmwidth, cmheight, picdescription):
         # OpenXML measures on-screen objects in English Metric Units
         emupercm = 360000
         width = str(int(cmwidth * emupercm))
         height = str(int(cmheight * emupercm))
 
         cls._picid += 1
-        picid = str(cls._picid)
-        # There are 3 main elements inside a picture
-        pic_tree = [['pic:pic'],
-                    [['pic:nvPicPr'],  # The non visual picture properties
-                     [['pic:cNvPr', {'id': picid,
-                                     'name': picname, 'descr': picdescription}]],
-                     [['pic:cNvPicPr'], [['a:picLocks', {
-                         'noChangeAspect': str(int(nochangeaspect)),
-                         'noChangeArrowheads': str(int(nochangearrowheads))}]]]
-                     ],
-                    # The Blipfill - specifies how the image fills the picture
-                    # area (stretch, tile, etc.)
-                    [['pic:blipFill'],
-                     [['a:blip', {'r:embed': rid}]],
-                     [['a:srcRect']],
-                     [['a:stretch'], [['a:fillRect']]]
-                     ],
-                    [['pic:spPr', {'bwMode': 'auto'}],  # The Shape properties
-                     [['a:xfrm'], [['a:off', {'x': '0', 'y': '0'}]], [
-                         ['a:ext', {'cx': width, 'cy': height}]]],
-                     [['a:prstGeom', {'prst': 'rect'}], ['a:avLst']],
-                     [['a:noFill']]
-                     ]
-                    ]
-
-        graphic_tree = [['a:graphic'],
-                        [['a:graphicData', {
-                            'uri': 'http://schemas.openxmlformats.org/drawingml/2006/picture'}], pic_tree]
-
-                        ]
-
-        inline_tree = [['wp:inline', {'distT': "0", 'distB': "0", 'distL': "0", 'distR': "0"}],
-                       [['wp:extent', {'cx': width, 'cy': height}]],
-                       [['wp:effectExtent', {'l': '25400',
-                                             't': '0', 'r': '0', 'b': '0'}]],
-                       [['wp:docPr', {
-                           'id': picid,
-                           'name': picname, 'descr': picdescription}]],
-                       [['wp:cNvGraphicFramePr'], [
-                           ['a:graphicFrameLocks', {'noChangeAspect': '1'}]]],
-                       graphic_tree
-                       ]
-
-        run_tree = [
-                ['w:r'],
-                [['w:rPr'], [['w:noProof']]],
-                [['w:drawing'], inline_tree]
-        ]
-        return make_element_tree(run_tree)
+        return make_inline_picture_run(
+                rid, cls._picid, picname, width, height, picdescription)
 
     def set_default_footnote_id(self, key, default_fid=None):
         fid = self._footnote_id_map.get(key)
