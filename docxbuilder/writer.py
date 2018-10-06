@@ -167,93 +167,6 @@ class DocxWriter(writers.Writer):
 #  DocxTranslator class for sphinx
 #
 
-def make_run(text, style, preserve_space):
-    run_tree = [['w:r']]
-    if style:
-        run_tree.append([['w:rPr'], [['w:rStyle', {'w:val': style}]]])
-    if preserve_space:
-        lines = text.split('\n')
-        for index, line in enumerate(lines):
-            run_tree.append([['w:t', line, {'xml:space': 'preserve'}]])
-            if index != len(lines) - 1:
-                run_tree.append([['w:br']])
-    else:
-        text = re.sub(r'\n', ' ', text)
-        attrs = {}
-        if text.startswith(' ') or text.endswith(' '):
-            attrs['xml:space'] = 'preserve'
-        run_tree.append([['w:t', text, attrs]])
-    return docx.make_element_tree(run_tree)
-
-def make_break_run():
-    return docx.make_element_tree([['w:r'], [['w:br']]])
-
-def make_hyperlink(relationship_id, anchor):
-    attrs = {}
-    if relationship_id is not None:
-        attrs['r:id'] = relationship_id
-    if anchor is not None:
-        attrs['w:anchor'] = anchor
-    hyperlink_tree = [['w:hyperlink', attrs]]
-    return docx.make_element_tree(hyperlink_tree)
-
-def make_paragraph(
-        indent, right_indent, style, align, keep_lines, keep_next, list_info):
-    if style is None:
-        style = 'BodyText'
-    style_tree = [
-            ['w:pPr'],
-            [['w:pStyle', {'w:val': style}]],
-    ]
-    ind_attrs = {}
-    if list_info is not None:
-        num_id, list_level = list_info
-        style_tree.append([
-            ['w:numPr'],
-            [['w:ilvl', {'w:val': str(list_level)}]],
-            [['w:numId', {'w:val': str(num_id)}]],
-        ])
-    if indent is not None:
-        ind_attrs['w:leftChars'] = '0'
-        ind_attrs['w:left'] = str(indent)
-    if right_indent is not None:
-        ind_attrs['w:right'] = str(right_indent)
-    if ind_attrs:
-        style_tree.append([['w:ind', ind_attrs]])
-    if align is not None:
-        style_tree.append([['w:jc', {'w:val': align}]])
-    if keep_lines:
-        style_tree.append([['w:keepLines']])
-    if keep_next:
-        style_tree.append([['w:keepNext']])
-
-    paragraph_tree = [['w:p'], style_tree]
-    return docx.make_element_tree(paragraph_tree)
-
-def make_footnote_reference(footnote_id):
-    return docx.make_element_tree([
-        ['w:r'],
-        [
-            ['w:rPr'],
-            [['w:rStyle', {'w:val': 'FootnoteReference'}]],
-        ],
-        [
-            ['w:footnoteReference', {'w:id': str(footnote_id)}],
-        ],
-    ])
-
-def make_footnote_ref():
-    return docx.make_element_tree([
-        ['w:r'],
-        [
-            ['w:rPr'],
-            [['w:rStyle', {'w:val': 'FootnoteReference'}]],
-        ],
-        [
-            ['w:footnoteRef'],
-        ],
-    ])
-
 def to_error_string(contents):
     from xml.etree.ElementTree import tostring
     func = lambda xml: tostring(xml, encoding='utf8').decode('utf8')
@@ -266,18 +179,14 @@ class BookmarkStart(object):
         self._name = name
 
     def to_xml(self):
-        return [docx.make_element_tree([
-            ['w:bookmarkStart', {'w:id': str(self._id), 'w:name': self._name}]
-        ])]
+        return [docx.make_bookmark_start(self._id, self._name)]
 
 class BookmarkEnd(object):
     def __init__(self, id):
         self._id = id
 
     def to_xml(self):
-        return [docx.make_element_tree([
-            ['w:bookmarkEnd', {'w:id': str(self._id)}]
-        ])]
+        return [docx.make_bookmark_end(self._id)]
 
 class PContent(object):
     def __init__(self, init_style, preserve_space):
@@ -286,21 +195,21 @@ class PContent(object):
         self._preserve_space = preserve_space
 
     def add_text(self, text):
-        self._run_list.append(make_run(
+        self._run_list.append(docx.make_run(
             text, self._text_style_stack[-1], self._preserve_space))
 
     def add_break(self):
-        self._run_list.append(make_break_run())
+        self._run_list.append(docx.make_break_run())
 
     def add_picture(self, rid, filename, width, height, alt):
         self._run_list.append(docx.DocxComposer.make_inline_picture_run(
             rid, filename, width, height, alt))
 
     def add_footnote_reference(self, footnote_id):
-        self._run_list.append(make_footnote_reference(footnote_id))
+        self._run_list.append(docx.make_footnote_reference(footnote_id))
 
     def add_footnote_ref(self):
-        self._run_list.append(make_footnote_ref())
+        self._run_list.append(docx.make_footnote_ref())
 
     def push_style(self, text_style):
         self._text_style_stack.append(text_style)
@@ -334,7 +243,7 @@ class Paragraph(PContent):
             raise RuntimeError('Can not append %s' % to_error_string(contents))
 
     def to_xml(self):
-        p = make_paragraph(
+        p = docx.make_paragraph(
                 self._indent, self._right_indent, self._style, self._align,
                 self._keep_lines, self._keep_next, self._list_info)
         p.extend(self._run_list)
@@ -355,7 +264,7 @@ class HyperLink(PContent):
     def to_xml(self):
         if self._rid is None and self._anchor is None:
             return self._run_list
-        h = make_hyperlink(self._rid, self._anchor)
+        h = docx.make_hyperlink(self._rid, self._anchor)
         h.extend(self._run_list)
         return [h]
 
@@ -443,33 +352,9 @@ class Table(object):
         row[self._current_cell_index][1].append(contents)
 
     def to_xml(self):
-        look_attrs = {
-                'w:noHBand': 'false', 'w:noVBand': 'false',
-                'w:lastRow': 'false', 'w:lastColumn': 'false'
-        }
-        look_attrs['w:firstRow'] = 'true' if self._head else 'false'
-        look_attrs['w:firstColumn'] = 'true' if self._stub > 0 else 'false'
-        property_tree = [
-                ['w:tblPr'],
-                [['w:tblW', {'w:w': '0', 'w:type': 'auto'}]],
-                [['w:tblInd', {'w:w': str(self._indent), 'w:type': 'dxa'}]],
-                [['w:tblLook', look_attrs]],
-        ]
-        if self._style is not None:
-            property_tree.insert(1, [['w:tblStyle', {'w:val': self._style}]])
-        if self._align is not None:
-            property_tree.append([['w:jc', {'w:val': self._align}]])
-
-        table_grid_tree = [['w:tblGrid']]
-        for colsize in self._colsize_list:
-            table_grid_tree.append([['w:gridCol', {'w:w': str(colsize)}]])
-
-        table_tree = [
-                ['w:tbl'],
-                property_tree,
-                table_grid_tree
-        ]
-        table = docx.make_element_tree(table_tree)
+        table = docx.make_table(
+                self._style, self._indent, self._align,
+                self._colsize_list, self._head, self._stub > 0)
         for index, row in enumerate(self._head):
             table.append(self.make_row(index, row, True))
         for index, row in enumerate(self._body):
@@ -477,55 +362,26 @@ class Table(object):
         return [table]
 
     def make_row(self, index, row, is_head):
-        row_style_attrs = {
-                'w:evenHBand': ('true' if index % 2 == 0 else 'false'),
-                'w:oddHBand': ('true' if index % 2 != 0 else 'false'),
-                'w:firstRow': ('true' if is_head else 'false'),
-        }
-        property_tree = [
-                ['w:trPr'],
-                [['w:cnfStyle', row_style_attrs]],
-                [['w:cantSplit']],
-        ]
-        if is_head:
-            property_tree.append([['w:tblHeader']])
-        tr_tree = docx.make_element_tree([['w:tr'], property_tree])
+        row_elem = docx.make_row(index, is_head)
         for index, elem in enumerate(row):
             if elem is None: # Merged with the previous cell
                 continue
             vmerge, cell = elem
-            tr_tree.append(self.make_cell(index, vmerge, cell, row))
-        return tr_tree
+            row_elem.append(self.make_cell(index, vmerge, cell, row))
+        return row_elem
 
     def make_cell(self, index, vmerge, cell, row):
-        cell_style = {
-                'w:evenVBand': ('true' if index % 2 == 0 else 'false'),
-                'w:oddVBand': ('true' if index % 2 != 0 else 'false'),
-                'w:firstColumn': ('true' if index < self._stub else 'false'),
-        }
-        cellsize = self._colsize_list[index]
         grid_span = self._get_grid_span(row, index)
         cellsize = sum(self._colsize_list[index:index + grid_span])
-        tc_tree = [
-                ['w:tc'],
-                [
-                    ['w:tcPr'],
-                    [['w:cnfStyle', cell_style]],
-                    [['w:tcW', {'w:w': str(cellsize), 'w:type': 'dxa'}]]
-                ]
-        ]
-        if grid_span > 1:
-            tc_tree[1].append([['w:gridSpan', {'w:val': str(grid_span)}]])
-        if vmerge is not None:
-            tc_tree[1].append([['w:vMerge', {'w:val': vmerge}]])
-        elem = docx.make_element_tree(tc_tree)
+        cell_elem = docx.make_cell(
+                index, index < self._stub, cellsize, grid_span, vmerge)
 
         # The last element must be paragraph for Microsoft word
         if not cell or isinstance(cell[-1], Table):
             cell.append(Paragraph())
-        elem.extend(
+        cell_elem.extend(
                 itertools.chain.from_iterable(map(lambda c: c.to_xml(), cell)))
-        return elem
+        return cell_elem
 
     def _reset_colsize_list(self):
         table_width = sum(self._colsize_list)
@@ -563,7 +419,7 @@ class Document(object):
 
 class LiteralBlock(object):
     def __init__(self, highlighted, indent, right_indent):
-        p = make_paragraph(
+        p = docx.make_paragraph(
                 indent, right_indent, 'LiteralBlock', None, True, False, None)
         xml_text = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' + highlighted + '</w:p>'
         dummy_p = etree.fromstring(xml_text)

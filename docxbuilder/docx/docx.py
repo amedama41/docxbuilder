@@ -184,6 +184,165 @@ def get_max_attribute(elems, attribute):
 #
 
 
+# Paragraphs and Runs
+
+def make_paragraph(
+        indent, right_indent, style, align, keep_lines, keep_next, list_info):
+    if style is None:
+        style = 'BodyText'
+    style_tree = [
+            ['w:pPr'],
+            [['w:pStyle', {'w:val': style}]],
+    ]
+    ind_attrs = {}
+    if list_info is not None:
+        num_id, list_level = list_info
+        style_tree.append([
+            ['w:numPr'],
+            [['w:ilvl', {'w:val': str(list_level)}]],
+            [['w:numId', {'w:val': str(num_id)}]],
+        ])
+    if indent is not None:
+        ind_attrs['w:leftChars'] = '0'
+        ind_attrs['w:left'] = str(indent)
+    if right_indent is not None:
+        ind_attrs['w:right'] = str(right_indent)
+    if ind_attrs:
+        style_tree.append([['w:ind', ind_attrs]])
+    if align is not None:
+        style_tree.append([['w:jc', {'w:val': align}]])
+    if keep_lines:
+        style_tree.append([['w:keepLines']])
+    if keep_next:
+        style_tree.append([['w:keepNext']])
+
+    paragraph_tree = [['w:p'], style_tree]
+    return make_element_tree(paragraph_tree)
+
+def make_run(text, style, preserve_space):
+    run_tree = [['w:r']]
+    if style:
+        run_tree.append([['w:rPr'], [['w:rStyle', {'w:val': style}]]])
+    if preserve_space:
+        lines = text.split('\n')
+        for index, line in enumerate(lines):
+            run_tree.append([['w:t', line, {'xml:space': 'preserve'}]])
+            if index != len(lines) - 1:
+                run_tree.append([['w:br']])
+    else:
+        text = text.replace(r'\n', ' ')
+        attrs = {}
+        if text.startswith(' ') or text.endswith(' '):
+            attrs['xml:space'] = 'preserve'
+        run_tree.append([['w:t', text, attrs]])
+    return make_element_tree(run_tree)
+
+def make_break_run():
+    return make_element_tree([['w:r'], [['w:br']]])
+
+
+# Tables
+
+def make_table(style, indent, align, grid_col_list, has_head, has_first_column):
+    look_attrs = {
+            'w:noHBand': 'false', 'w:noVBand': 'false',
+            'w:lastRow': 'false', 'w:lastColumn': 'false'
+    }
+    look_attrs['w:firstRow'] = 'true' if has_head else 'false'
+    look_attrs['w:firstColumn'] = 'true' if has_first_column else 'false'
+    property_tree = [
+            ['w:tblPr'],
+            [['w:tblW', {'w:w': '0', 'w:type': 'auto'}]],
+            [['w:tblInd', {'w:w': str(indent), 'w:type': 'dxa'}]],
+            [['w:tblLook', look_attrs]],
+    ]
+    if style is not None:
+        property_tree.insert(1, [['w:tblStyle', {'w:val': style}]])
+    if align is not None:
+        property_tree.append([['w:jc', {'w:val': align}]])
+
+    table_grid_tree = [['w:tblGrid']]
+    for grid_col in grid_col_list:
+        table_grid_tree.append([['w:gridCol', {'w:w': str(grid_col)}]])
+
+    table_tree = [
+            ['w:tbl'],
+            property_tree,
+            table_grid_tree
+    ]
+    return make_element_tree(table_tree)
+
+def make_row(index, is_head):
+    row_style_attrs = {
+            'w:evenHBand': ('true' if index % 2 == 0 else 'false'),
+            'w:oddHBand': ('true' if index % 2 != 0 else 'false'),
+            'w:firstRow': ('true' if is_head else 'false'),
+    }
+    property_tree = [
+            ['w:trPr'],
+            [['w:cnfStyle', row_style_attrs]],
+            [['w:cantSplit']],
+    ]
+    if is_head:
+        property_tree.append([['w:tblHeader']])
+    return make_element_tree([['w:tr'], property_tree])
+
+def make_cell(index, is_first_column, cellsize, grid_span, vmerge):
+    cell_style = {
+            'w:evenVBand': ('true' if index % 2 == 0 else 'false'),
+            'w:oddVBand': ('true' if index % 2 != 0 else 'false'),
+            'w:firstColumn': ('true' if is_first_column else 'false'),
+    }
+    property_tree = [
+            ['w:tcPr'],
+            [['w:cnfStyle', cell_style]],
+            [['w:tcW', {'w:w': str(cellsize), 'w:type': 'dxa'}]]
+    ]
+    if grid_span > 1:
+        property_tree.append([['w:gridSpan', {'w:val': str(grid_span)}]])
+    if vmerge is not None:
+        property_tree.append([['w:vMerge', {'w:val': vmerge}]])
+    return make_element_tree([['w:tc'], property_tree])
+
+# Footnotes
+
+def make_footnote_reference(footnote_id):
+    return make_element_tree([
+        ['w:r'],
+        [['w:rPr'], [['w:rStyle', {'w:val': 'FootnoteReference'}]]],
+        [['w:footnoteReference', {'w:id': str(footnote_id)}]],
+    ])
+
+def make_footnote_ref():
+    return make_element_tree([
+        ['w:r'],
+        [['w:rPr'], [['w:rStyle', {'w:val': 'FootnoteReference'}]]],
+        [['w:footnoteRef']],
+    ])
+
+
+# Annotations
+
+def make_bookmark_start(id, name):
+    return make_element_tree([
+        ['w:bookmarkStart', {'w:id': str(id), 'w:name': name}]
+    ])
+
+def make_bookmark_end(id):
+    return make_element_tree([['w:bookmarkEnd', {'w:id': str(id)}]])
+
+
+# Hyperlinks
+
+def make_hyperlink(relationship_id, anchor):
+    attrs = {}
+    if relationship_id is not None:
+        attrs['r:id'] = relationship_id
+    if anchor is not None:
+        attrs['w:anchor'] = anchor
+    hyperlink_tree = [['w:hyperlink', attrs]]
+    return make_element_tree(hyperlink_tree)
+
 class DocxDocument:
     def __init__(self, docxfile):
         '''
