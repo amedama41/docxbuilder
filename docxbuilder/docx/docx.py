@@ -84,22 +84,6 @@ def get_elements(xml, path, ns=nsprefixes):
     return result
 
 
-def append_element(elem, xml, path=None, index=0, ns=nsprefixes):
-    '''
-       Append an Element
-    '''
-    try:
-        dist = xml
-        if path:
-            dist = xml.xpath(path, namespaces=ns)
-        dist[index].append(elem)
-        return True
-    except:
-        print("Error  in append_element")
-
-    return False
-
-
 def parse_tag_list(tag):
     '''
 
@@ -171,36 +155,6 @@ def make_element_tree(arg, _xmlns=None):
             newele.append(chld)
 
     return newele
-
-
-def get_child_element(xml, p):
-    '''
-
-    '''
-    elems = get_elements(xml, p)
-    if elems == []:
-        ele = make_element_tree([p])
-        xml.append(ele)
-        return ele
-    return elems[0]
-
-
-def set_attributes(xml, path, attributes):
-    '''
-
-    '''
-    elems = get_elements(xml, path)
-    if elems == []:
-        pathes = path.split('/')
-        elem = xml
-        for p in pathes:
-            elem = get_child_element(elem, p)
-    else:
-        elem = elems[0]
-
-    for attr in attributes:
-        elem.set(norm_name(attr), attributes[attr])
-    return elem
 
 
 def get_attribute(xml, path, name):
