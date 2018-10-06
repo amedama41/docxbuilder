@@ -700,6 +700,9 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_section(self, node):
+        config = self._builder.config
+        if self._section_level < config.docx_pagebreak_before_section:
+            self._doc_stack[-1].add_pagebreak()
         self._append_bookmark_start(node.get('ids', []))
         self._section_level += 1
 
