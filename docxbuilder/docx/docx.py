@@ -73,12 +73,7 @@ def get_elements(xml, path, ns=nsprefixes):
     '''
        Get elements from a Element tree with 'path'.
     '''
-    result = []
-    try:
-        result = xml.xpath(path, namespaces=ns)
-    except:
-        pass
-    return result
+    return xml.xpath(path, namespaces=ns)
 
 
 def parse_tag_list(tag):
@@ -504,10 +499,7 @@ class DocxDocument:
         '''
           Extract a document tree from the docx file
         '''
-        try:
-            return etree.fromstring(self.docx.read(fname))
-        except:
-            return None
+        return etree.fromstring(self.docx.read(fname))
 
     def extract_stylenames(self):
         '''
@@ -569,18 +561,15 @@ class DocxDocument:
         '''
 
         '''
-        try:
-            style_elems = get_elements(self.styles, '/w:styles/w:style')
-            for style_elem in style_elems:
-                name_elem = get_elements(style_elem, 'w:name')[0]
-                name = name_elem.attrib[norm_name('w:val')]
-                if name == style:
-                    numPr = get_elements(
-                        style_elem, 'w:pPr/w:numPr/w:numId')[0]
-                    value = numPr.attrib[norm_name('w:val')]
-                    return value
-        except:
-            pass
+        style_elems = get_elements(self.styles, '/w:styles/w:style')
+        for style_elem in style_elems:
+            name_elem = get_elements(style_elem, 'w:name')[0]
+            name = name_elem.attrib[norm_name('w:val')]
+            if name == style:
+                numPr = get_elements(
+                    style_elem, 'w:pPr/w:numPr/w:numId')[0]
+                value = numPr.attrib[norm_name('w:val')]
+                return value
         return '0'
 
     def get_numbering_left(self, style):
