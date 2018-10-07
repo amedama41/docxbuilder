@@ -17,7 +17,8 @@ from docutils.io import StringOutput
 from sphinx import addnodes
 from sphinx.builders import Builder
 from sphinx.util.console import bold
-from sphinx.util.osutil import ensuredir, os_path
+from sphinx.util.docutils import new_document
+from sphinx.util.osutil import ensuredir
 
 from docxbuilder.writer import DocxWriter
 
@@ -28,7 +29,7 @@ class DocxBuilder(Builder):
     out_suffix = '.docx'
 
     def init(self):
-        pass
+        self._docx_documents = []
 
     def get_outdated_docs(self):
         return 'pass'
@@ -37,14 +38,31 @@ class DocxBuilder(Builder):
         return docname
 
     def prepare_writing(self, docnames):
+        for entry in self.config.docx_documents:
+            if entry[0] not in self.env.all_docs:
+                self.warn('unknown document %s is found '
+                          'in docx_documents' % entry[0])
+                continue
+            if not entry[1]:
+                self.warn('invalid filename %s s found for %s '
+                          'in docx_documents' % (entry[1]. entry[0]))
+                continue
+            self._docx_documents.append(entry)
+        if not self._docx_documents:
+            self.warn('no valid entry is found in docx_documents')
         self.writer = DocxWriter(self)
 
-    def assemble_doctree(self):
-        master = self.config.master_doc
+    def assemble_doctree(self, master, toctree_only):
         tree = self.env.get_doctree(master)
+        if toctree_only:
+            doc = new_document('docxbuilder/builder.py')
+            for toctree in tree.traverse(addnodes.toctree):
+                doc.append(toctree)
+            tree = doc
         tree = insert_all_toctrees(tree, self.env, [])
         tree['docname'] = master
         self.env.resolve_references(tree, master, self)
+        # TODO: Support cross references
         return tree
 
     def make_numfig_map(self):
@@ -75,21 +93,24 @@ class DocxBuilder(Builder):
         self.prepare_writing(docnames)
         self.info('done')
 
-        self.info(bold('assembling single document... '), nonl=True)
-        doctree = self.assemble_doctree()
-        self.writer.set_numsec_map(self.make_numsec_map())
-        self.writer.set_numfig_map(self.make_numfig_map())
-        self.info()
-        self.info(bold('writing... '), nonl=True)
-        docname = "%s-%s" % (self.config.project, self.config.version)
-        self.write_doc(docname, doctree)
-        self.info('done')
+        for entry in self._docx_documents:
+            start_doc, docname, title, author, props = entry[:5]
+            toctree_only = entry[5] if len(entry) > 5 else False
+
+            self.info(bold('processing %s... ' % docname), nonl=True)
+            doctree = self.assemble_doctree(start_doc, toctree_only)
+            self.writer.set_numsec_map(self.make_numsec_map())
+            self.writer.set_numfig_map(self.make_numfig_map())
+            self.writer.set_doc_properties(title, author, props)
+            self.info()
+            self.info(bold('writing... '), nonl=True)
+            self.write_doc(docname, doctree)
+            self.info('done')
 
     def write_doc(self, docname, doctree):
         destination = StringOutput(encoding='utf-8')
         self.writer.write(doctree, destination)
-        outfilename = os.path.join(
-            self.outdir, os_path(docname) + self.out_suffix)
+        outfilename = os.path.join(self.outdir, docname)
         ensuredir(os.path.dirname(outfilename))
         try:
             self.writer.save(outfilename)

@@ -116,22 +116,18 @@ class DocxWriter(writers.Writer):
         self.builder = builder
         stylefile = self.builder.config['docx_style']
         if stylefile:
-            stylefile = os.path.join(
+            self.stylefile = os.path.join(
                 self.builder.confdir, os.path.join(stylefile))
         else: # Use default style file
-            stylefile = os.path.join(
+            self.stylefile = os.path.join(
                     os.path.dirname(__file__), 'docx/style.docx')
-        self.docx = docx.DocxComposer(stylefile)
+        self.docx = None
         self.numsec_map = None
         self.numfig_map = None
 
-        self.title = self.builder.config['docx_title']
-        self.subject = self.builder.config['docx_subject']
-        self.creator = self.builder.config['docx_creator']
-        self.company = self.builder.config['docx_company']
-        self.category = self.builder.config['docx_category']
-        self.descriptions = self.builder.config['docx_descriptions']
-        self.keywords = self.builder.config['docx_keywords']
+        self._title = ''
+        self._author = ''
+        self._props = {}
         try:
             self.coverpage = self.builder.config['docx_coverpage']
         except:
@@ -143,20 +139,26 @@ class DocxWriter(writers.Writer):
     def set_numfig_map(self, numfig_map):
         self.numfig_map = numfig_map
 
+    def set_doc_properties(self, title, author, props):
+        self._title = title
+        self._author = author
+        self._props = props
+
     def save(self, filename):
         self.docx.set_coverpage(self.coverpage)
 
-        self.docx.set_props(title=self.title,
-                            subject=self.subject,
-                            creator=self.creator,
-                            company=self.company,
-                            category=self.category,
-                            descriptions=self.descriptions,
-                            keywords=self.keywords)
+        self.docx.set_props(title=self._title,
+                            subject=self._props.get('subject', ''),
+                            creator=self._author,
+                            company=self._props.get('company', ''),
+                            category=self._props.get('category', ''),
+                            descriptions=self._props.get('description', ''),
+                            keywords=self._props.get('keywords', []))
 
         self.docx.save(filename)
 
     def translate(self):
+        self.docx = docx.DocxComposer(self.stylefile)
         visitor = DocxTranslator(
                 self.document, self.builder, self.docx,
                 self.numsec_map, self.numfig_map)
@@ -521,7 +523,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._builder = builder
         self.builder = self._builder # Needs for graphviz.render_dot
         self._doc_stack = [Document(docx.docbody)]
-        self._docname_stack = [builder.config.master_doc]
+        self._docname_stack = []
         self._section_level = 0
         self._ctx_stack = [Contenxt(0, 0, docx.max_table_width, 0)]
         self._line_block_level = 0
@@ -664,10 +666,12 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_document(self, node):
+        self._docname_stack.append(node['docname'])
         self._append_bookmark_start([''])
 
     def depart_document(self, node):
         self._append_bookmark_end([''])
+        self._docname_stack.pop()
 
     def visit_title(self, node):
         self._append_bookmark_start(node.get('ids', []))
