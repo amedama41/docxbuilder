@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
 '''
   Microsoft Word 2007 Document Composer
 
@@ -106,7 +105,7 @@ def parse_tag_list(tag):
             else:
                 attributes = tag[2]
     else:
-        print("Invalid tag:", tag)
+        raise RuntimeError("Invalid tag: %s" % tag)
 
     return tagname, attributes, tagtext
 
@@ -730,7 +729,6 @@ class DocxComposer:
         coverpage = self.styleDocx.get_coverpage()
 
         if not self.nocoverpage and coverpage is not None:
-            print("output Coverpage")
             self.docbody.insert(0, coverpage)
 
         self.docbody.append(self.styleDocx.get_paper_info())
@@ -761,9 +759,6 @@ class DocxComposer:
 
         for imgpath, (_, picname) in self._image_info_map.items():
             docxfile.write(imgpath, 'word/media/' + picname)
-
-        print('Saved new file to:', docxfilename)
-        return
 
  ##################
 ########
