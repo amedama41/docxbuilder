@@ -960,6 +960,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_footnote(self, node):
         p = Paragraph(None, None, 'FootnoteText')
         p.add_footnote_ref()
+        p.add_text(' ')
         self._doc_stack.append(FixedTopParagraphList(p))
         self._append_bookmark_start(node.get('ids', []))
 
