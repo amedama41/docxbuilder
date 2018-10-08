@@ -1604,13 +1604,13 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_productionlist(self, node):
         pass
 
+    @admonition('SeealsoAdmonition')
     def visit_seealso(self, node):
-        self._append_bookmark_start(node.get('ids', []))
-        pass # TODO
+        pass
 
     def depart_seealso(self, node):
+        self._pop_and_append_table()
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_tabular_col_spec(self, node):
         raise nodes.SkipNode # Do nothing
