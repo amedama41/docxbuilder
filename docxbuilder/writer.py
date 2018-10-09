@@ -24,10 +24,10 @@
 import itertools
 import os
 import re
-import urllib.parse
 
 from docutils import nodes, writers
 from lxml import etree
+from six.moves.urllib import parse
 from sphinx.ext import graphviz
 from sphinx.locale import admonitionlabels, _
 from sphinx.util import logging
@@ -97,7 +97,7 @@ def convert_to_cm_size(twip_size):
 
 def make_bookmark_name(docname, id):
     # Office could not handle bookmark names including hash characters
-    return '%s/%s' % (urllib.parse.quote(docname), id)
+    return '%s/%s' % (parse.quote(docname), id)
 
 #
 #  DocxWriter class for sphinx
@@ -845,7 +845,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         p = Paragraph(
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent)
-        p.add_text('— ')
+        p.add_text(u'— ')
         self._doc_stack.append(p)
 
     def depart_attribution(self, node):

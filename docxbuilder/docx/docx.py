@@ -167,8 +167,10 @@ def get_max_attribute(elems, attribute):
     '''
        Get the maximum integer attribute among the specified elems
     '''
+    if not elems:
+        return 0
     num_id = norm_name('w:numId')
-    return max(map(lambda e: int(e.get(attribute)), elems), default=0)
+    return max(map(lambda e: int(e.get(attribute)), elems))
 
 #
 #  DocxDocument class
