@@ -271,7 +271,7 @@ class HyperLink(PContent):
         return [h]
 
 class Table(object):
-    def __init__(self, table_style, colsize_list, indent, align):
+    def __init__(self, table_style, colsize_list, indent, align, keep_next):
         self._style = table_style
         self._colspec_list = []
         self._colsize_list = colsize_list
@@ -283,10 +283,18 @@ class Table(object):
         self._current_target = self._body
         self._current_row_index = -1
         self._current_cell_index = -1
+         # 0: not set, 1: set header, 2: set first row, 3: set all rows
+        self._keep_next = keep_next
 
     @property
     def style(self):
         return self._style
+
+    def keep_next(self):
+        '''Set keep_next to set first row. This method is supposed to be
+           called from only Table.make_cell.
+        '''
+        self._keep_next = 2
 
     def add_colspec(self, colspec):
         self._colspec_list.append(colspec)
@@ -365,14 +373,15 @@ class Table(object):
 
     def make_row(self, index, row, is_head):
         row_elem = docx.make_row(index, is_head)
+        keep_next = self._set_keep_next(is_head, index)
         for index, elem in enumerate(row):
             if elem is None: # Merged with the previous cell
                 continue
             vmerge, cell = elem
-            row_elem.append(self.make_cell(index, vmerge, cell, row))
+            row_elem.append(self.make_cell(index, vmerge, cell, row, keep_next))
         return row_elem
 
-    def make_cell(self, index, vmerge, cell, row):
+    def make_cell(self, index, vmerge, cell, row, keep_next):
         grid_span = self._get_grid_span(row, index)
         cellsize = sum(self._colsize_list[index:index + grid_span])
         cell_elem = docx.make_cell(
@@ -384,6 +393,10 @@ class Table(object):
                 None)
         if not isinstance(last, Paragraph):
             cell.append(Paragraph())
+
+        if keep_next:
+            first = next(e for e in cell if isinstance(e, (Paragraph, Table)))
+            first.keep_next()
         cell_elem.extend(
                 itertools.chain.from_iterable(map(lambda c: c.to_xml(), cell)))
         return cell_elem
@@ -402,6 +415,17 @@ class Table(object):
                 break
             grid_span += 1
         return grid_span
+
+    def _set_keep_next(self, is_head, index):
+        if self._keep_next == 0:
+            return False
+        if self._keep_next == 1:
+            return is_head
+        if self._keep_next == 2:
+            return (is_head or not self._head) and index == 0
+        if self._keep_next == 3:
+            return True
+        return False
 
 class Document(object):
     def __init__(self, body):
@@ -500,7 +524,7 @@ def admonition(table_style):
             t.start_head()
             t.add_row()
             self._add_table_cell()
-            p = Paragraph(keep_next=True)
+            p = Paragraph()
             p.add_text(admonitionlabels[node.tagname] + ':')
             t.append(p)
             t.start_body()
@@ -571,7 +595,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _append_table(self, table_style, colsize_list, is_indent, align=None):
         indent = self._ctx_stack[-1].indent if is_indent else 0
-        t = Table(table_style, colsize_list, indent, align)
+        t = Table(table_style, colsize_list, indent, align, 1)
         self._doc_stack.append(t)
         self._append_new_ctx(indent=0, right_indent=0, width=sum(colsize_list))
         return t
@@ -1277,7 +1301,6 @@ class DocxTranslator(nodes.NodeVisitor):
         t.start_head()
         t.add_row()
         self._add_table_cell()
-        contents[0].keep_next()
         t.append(contents[0])
         t.start_body()
         t.add_row()
