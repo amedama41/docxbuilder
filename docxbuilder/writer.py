@@ -379,7 +379,10 @@ class Table(object):
                 index, index < self._stub, cellsize, grid_span, vmerge)
 
         # The last element must be paragraph for Microsoft word
-        if not cell or isinstance(cell[-1], Table):
+        last = next(
+                (e for e in reversed(cell) if isinstance(e, (Paragraph, Table))),
+                None)
+        if not isinstance(last, Paragraph):
             cell.append(Paragraph())
         cell_elem.extend(
                 itertools.chain.from_iterable(map(lambda c: c.to_xml(), cell)))
