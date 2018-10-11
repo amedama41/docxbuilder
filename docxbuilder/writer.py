@@ -145,17 +145,9 @@ class DocxWriter(writers.Writer):
         self._props = props
 
     def save(self, filename):
-        self.docx.set_coverpage(self.coverpage)
-
-        self.docx.set_props(title=self._title,
-                            subject=self._props.get('subject', ''),
-                            creator=self._author,
-                            company=self._props.get('company', ''),
-                            category=self._props.get('category', ''),
-                            descriptions=self._props.get('description', ''),
-                            keywords=self._props.get('keywords', []))
-
-        self.docx.save(filename)
+        self.docx.save(
+                filename, self.coverpage,
+                self._title, self._author, self._props)
 
     def translate(self):
         self.docx = docx.DocxComposer(self.stylefile)

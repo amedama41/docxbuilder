@@ -659,24 +659,11 @@ class DocxComposer:
         self._max_footnote_id = get_max_attribute(
                 self._footnote_list, norm_name('w:id'))
 
-        self.title = ""
-        self.subject = ""
-        self.creator = "Python:DocDocument"
-        self.company = ""
-        self.category = ""
-        self.descriptions = ""
-        self.keywords = []
-
         self.table_margin_map = {}
-
-        self.nocoverpage = False
 
         self.document = make_element_tree([['w:document'], [['w:body']]])
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
         self.relationships = self.relationshiplist()
-
-    def set_coverpage(self, flag=True):
-        self.nocoverpage = not flag
 
     def get_bullet_list_num_id(self):
         return self.styleDocx.get_numbering_style_id('ListBullet')
@@ -688,24 +675,12 @@ class DocxComposer:
         return self.table_margin_map.setdefault(
                 style_name, self.styleDocx.get_table_horizon_margin(style_name))
 
-    def set_props(self, title, subject, creator, company='', category='', descriptions='', keywords=[]):
-        '''
-          Set document's properties: title, subject, creatro, company, category, descriptions, keywrods.
-        '''
-        self.title = title
-        self.subject = subject
-        self.creator = creator
-        self.company = company
-        self.category = category
-        self.descriptions = descriptions
-        self.keywords = keywords
-
-    def save(self, docxfilename):
+    def save(self, docxfilename, has_coverpage, title, creator, props):
         '''
           Save the composed document to the docx file 'docxfilename'.
         '''
-        coreproperties = self.coreproperties()
-        appproperties = self.appproperties()
+        coreproperties = self.coreproperties(title, creator, props)
+        appproperties = self.appproperties(props.get('company', ''))
         contenttypes = self.contenttypes()
         websettings = self.websettings()
 
@@ -719,7 +694,7 @@ class DocxComposer:
 
         coverpage = self.styleDocx.get_coverpage()
 
-        if not self.nocoverpage and coverpage is not None:
+        if has_coverpage and coverpage is not None:
             self.docbody.insert(0, coverpage)
 
         self.docbody.append(self.styleDocx.get_paper_info())
@@ -944,24 +919,24 @@ class DocxComposer:
 
         return make_element_tree(types_tree, nsprefixes['ct'])
 
-    def coreproperties(self, lastmodifiedby=None):
+    def coreproperties(self, title, creator, props, lastmodifiedby=None):
         '''
-          Create core properties (common document properties referred to in the 'Dublin Core' specification).
+           Create core properties (common document properties referred to in the 'Dublin Core' specification).
           See appproperties() for other stuff.
            This function copied from 'python-docx' library
         '''
         if not lastmodifiedby:
-            lastmodifiedby = self.creator
+            lastmodifiedby = creator
 
         coreprops_tree = [['cp:coreProperties'],
-                          [['dc:title', self.title]],
-                          [['dc:subject', self.subject]],
-                          [['dc:creator', self.creator]],
-                          [['cp:keywords', ','.join(self.keywords)]],
+                          [['dc:title', title]],
+                          [['dc:subject', props.get('subject', '')]],
+                          [['dc:creator', creator]],
+                          [['cp:keywords', ','.join(props.get('keywords', []))]],
                           [['cp:lastModifiedBy', lastmodifiedby]],
                           [['cp:revision', '1']],
-                          [['cp:category', self.category]],
-                          [['dc:description', self.descriptions]]
+                          [['cp:category', props.get('category', '')]],
+                          [['dc:description', props.get('description', '')]]
                           ]
 
         currenttime = time.strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -973,7 +948,7 @@ class DocxComposer:
 
         return make_element_tree(coreprops_tree)
 
-    def appproperties(self):
+    def appproperties(self, company):
         '''
            Create app-specific properties. See docproperties() for more common document properties.
            This function copied from 'python-docx' library
@@ -994,7 +969,7 @@ class DocxComposer:
                          [['SharedDoc', 'false']],
                          [['HyperlinksChanged', 'false']],
                          [['AppVersion', '12.0000']],
-                         [['Company', self.company]]
+                         [['Company', company]]
                          ]
 
         return make_element_tree(appprops_tree, nsprefixes['ep'])
