@@ -14,9 +14,9 @@
   See LICENSE for licensing information.
 '''
 
+import datetime
 import os
 import six
-import time
 import zipfile
 from lxml import etree
 
@@ -939,8 +939,7 @@ class DocxComposer:
                           [['dc:description', props.get('description', '')]]
                           ]
 
-        currenttime = time.strftime('%Y-%m-%dT%H:%M:%SZ')
-
+        currenttime = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
         for doctime in ['created', 'modified']:
             coreprops_tree.append(
                 [['dcterms:'+doctime, {'xsi:type': 'dcterms:W3CDTF'}, currenttime]])
