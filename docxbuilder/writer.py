@@ -145,9 +145,15 @@ class DocxWriter(writers.Writer):
         self._props = props
 
     def save(self, filename):
+        language = self._props.get(
+                'language', self.builder.config.language or 'en')
+        invalid_props = docx.normalize_coreproperties(self._props)
+        for p in invalid_props:
+            self.builder._logger.warning(
+                    'invalid value is found in docx_documents "%s"' % p)
         self.docx.save(
                 filename, self.coverpage,
-                self._title, self._author, self._props)
+                self._title, self._author, language, self._props)
 
     def translate(self):
         self.docx = docx.DocxComposer(self.stylefile)

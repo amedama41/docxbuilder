@@ -16,6 +16,7 @@
 
 import datetime
 import os
+import time
 import six
 import zipfile
 from lxml import etree
@@ -172,11 +173,72 @@ def get_max_attribute(elems, attribute):
     num_id = norm_name('w:numId')
     return max(map(lambda e: int(e.get(attribute)), elems))
 
+def local_to_utc(value):
+    utc = datetime.datetime.utcfromtimestamp(time.mktime(value.timetuple()))
+    return utc.replace(microsecond=value.microsecond)
+
+def convert_to_W3CDTF_string(value):
+    if isinstance(value, datetime.datetime):
+        if value.tzinfo is not None:
+            offset = value.utcoffset()
+            value = value.replace(tzinfo=None) - offset
+        else:
+            value = local_to_utc(value)
+        return value.strftime('%Y-%m-%dT%H:%M:%SZ')
+    if isinstance(value, datetime.date):
+        return value.strftime('%Y-%m-%d')
+    if isinstance(value, six.string_types):
+        for date_format in ('%Y', '%Y-%m', '%Y-%m-%d'):
+            try:
+                datetime.datetime.strptime(value, date_format)
+            except ValueError:
+                continue
+            return value
+        datetime_formats = [
+                ('%Y-%m-%dT%H', '%Y-%m-%dT%H:%MZ'),
+                ('%Y-%m-%dT%H:%M', '%Y-%m-%dT%H:%MZ'),
+                ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%SZ'),
+                ('%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S.%fZ'),
+        ]
+        for from_format, to_format in datetime_formats:
+            try:
+                d = local_to_utc(datetime.datetime.strptime(value, from_format))
+            except ValueError:
+                continue
+            return d.strftime(to_format)
+    return None
+
 #
 #  DocxDocument class
 #   This class for analizing docx-file
 #
 
+def normalize_coreproperties(props):
+    invalid_props = []
+
+    last_printed = props.get('lastPrinted', None)
+    if last_printed is not None:
+        if isinstance(last_printed, datetime.datetime):
+            props['lastPrinted'] = last_printed.strftime('%Y-%m-%dT%H:%M:%S')
+        else:
+            try:
+                datetime.datetime.strptime(last_printed, '%Y-%m-%dT%H:%M:%S')
+            except ValueError:
+                invalid_props.append('lastPrinted')
+
+    for doctime in ['created', 'modified']:
+        value = props.get(doctime, None)
+        if value is None:
+            continue
+        value = convert_to_W3CDTF_string(value)
+        if value is None:
+            invalid_props.append(doctime)
+        else:
+            props[doctime] = value
+
+    for p in invalid_props:
+        del props[p]
+    return invalid_props
 
 # Paragraphs and Runs
 
@@ -675,11 +737,11 @@ class DocxComposer:
         return self.table_margin_map.setdefault(
                 style_name, self.styleDocx.get_table_horizon_margin(style_name))
 
-    def save(self, docxfilename, has_coverpage, title, creator, props):
+    def save(self, docxfilename, has_coverpage, title, creator, language, props):
         '''
           Save the composed document to the docx file 'docxfilename'.
         '''
-        coreproperties = self.coreproperties(title, creator, props)
+        coreproperties = self.coreproperties(title, creator, language, props)
         appproperties = self.appproperties(props.get('company', ''))
         contenttypes = self.contenttypes()
         websettings = self.websettings()
@@ -919,31 +981,47 @@ class DocxComposer:
 
         return make_element_tree(types_tree, nsprefixes['ct'])
 
-    def coreproperties(self, title, creator, props, lastmodifiedby=None):
+    def coreproperties(self, title, creator, language, props):
         '''
-           Create core properties (common document properties referred to in the 'Dublin Core' specification).
-          See appproperties() for other stuff.
-           This function copied from 'python-docx' library
+           Create core properties (common document properties referred to in 
+           the 'Dublin Core' specification).
+           See appproperties() for other stuff.
         '''
-        if not lastmodifiedby:
-            lastmodifiedby = creator
+        coreprops_tree = [
+                ['cp:coreProperties'],
+                [['dc:title', title]],
+                [['dc:creator', creator]],
+                [['dc:language', language]],
+        ]
+        properties = [
+                ('cp', 'category'),
+                ('cp', 'contentStatus'),
+                ('dc', 'description'),
+                ('dc', 'identifier'),
+                ('cp', 'lastModifiedBy'),
+                ('cp', 'lastPrinted'),
+                ('cp', 'revision'),
+                ('dc', 'subject'),
+                ('cp', 'version'),
+        ]
+        for ns, prop in properties:
+            value = props.get(prop, None)
+            if value is None:
+                continue
+            coreprops_tree.append([['%s:%s' % (ns, prop), value]])
 
-        coreprops_tree = [['cp:coreProperties'],
-                          [['dc:title', title]],
-                          [['dc:subject', props.get('subject', '')]],
-                          [['dc:creator', creator]],
-                          [['cp:keywords', ','.join(props.get('keywords', []))]],
-                          [['cp:lastModifiedBy', lastmodifiedby]],
-                          [['cp:revision', '1']],
-                          [['cp:category', props.get('category', '')]],
-                          [['dc:description', props.get('description', '')]]
-                          ]
+        keywords = props.get('keywords', None)
+        if keywords is not None:
+            if isinstance(keywords, (list, tuple)):
+                keywords = ','.join(keywords)
+            coreprops_tree.append([['cp:keywords', keywords]])
 
-        currenttime = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
         for doctime in ['created', 'modified']:
+            value = props.get(doctime, None)
+            if value is None:
+                continue
             coreprops_tree.append(
-                [['dcterms:'+doctime, {'xsi:type': 'dcterms:W3CDTF'}, currenttime]])
-            pass
+                [['dcterms:' + doctime, {'xsi:type': 'dcterms:W3CDTF'}, value]])
 
         return make_element_tree(coreprops_tree)
 
