@@ -310,7 +310,7 @@ def make_run(text, style, preserve_space):
             if index != len(lines) - 1:
                 run_tree.append([['w:br']])
     else:
-        text = text.replace(r'\n', ' ')
+        text = text.replace('\n', ' ')
         attrs = {}
         if text.startswith(' ') or text.endswith(' '):
             attrs['xml:space'] = 'preserve'
