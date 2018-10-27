@@ -1587,6 +1587,14 @@ class DocxTranslator(nodes.NodeVisitor):
         self._doc_stack[-1].pop_style()
         self._append_bookmark_end(node.get('ids', []))
 
+    def visit_literal_strong(self, node):
+        self._append_bookmark_start(node.get('ids', []))
+        self._doc_stack[-1].push_style('LiteralStrong')
+
+    def depart_literal_strong(self, node):
+        self._doc_stack[-1].pop_style()
+        self._append_bookmark_end(node.get('ids', []))
+
     def visit_highlightlang(self, node):
         self._language = node.get('lang', 'guess')
         raise nodes.SkipNode
