@@ -426,30 +426,72 @@ class Table(object):
         return False
 
 class Document(object):
-    def __init__(self, body):
+    def __init__(self, body, sect_prop):
         self._body = body
         self._no_pagebreak = True # To avoid continuous page breaks
+        self._sect_prop = sect_prop
+        self._current_orient = docx.get_orient(sect_prop)
+        self._last_orient = None
 
     def add_table_of_contents(self, toc_title, maxlevel, bookmark):
+        self._add_section_prop_if_necessary()
         self._body.append(
                 docx.make_table_of_contents(toc_title, maxlevel, bookmark))
         self._no_pagebreak = False
 
     def add_pagebreak(self):
+        self._add_section_prop_if_necessary()
         if self._no_pagebreak:
             return
         self._body.append(docx.make_pagebreak())
         self._no_pagebreak = True
 
     def add_transition(self):
+        self._add_section_prop_if_necessary()
         self._body.append(docx.make_bottom_border_paragraph())
         self._no_pagebreak = False
 
+    def add_last_section_property(self):
+        if self._last_orient is not None:
+            docx.set_orient(self._sect_prop, self._last_orient)
+        else:
+            docx.set_orient(self._sect_prop, self._current_orient)
+        self._body.append(self._sect_prop)
+
+    def set_page_oriented(self, orient=None):
+        if orient is None:
+            orient = docx.get_orient(self._sect_prop)
+        if self._current_orient != orient:
+            if self._last_orient is not None:
+                # last_orient must be equal to orient, then addition of section
+                # property is enable to be postponed
+                self._last_orient = None
+            else:
+                self._last_orient = self._current_orient
+            self._current_orient = orient
+
+    def get_current_page_width(self):
+        w, h, o, wmargin, hmargin = docx.get_contents_area_info(self._sect_prop)
+        if o == self._current_orient:
+            return w - wmargin
+        else:
+            return h - wmargin
+
     def append(self, contents):
+        is_bookmark = isinstance(contents, (BookmarkStart, BookmarkEnd))
+        if not is_bookmark:
+            self._add_section_prop_if_necessary()
         for xml in contents.to_xml():
             self._body.append(xml)
-        if not isinstance(contents, (BookmarkStart, BookmarkEnd)):
+        if not is_bookmark:
             self._no_pagebreak = False
+
+    def _add_section_prop_if_necessary(self):
+        if self._last_orient is not None:
+            self._body.append(docx.make_section_prop_paragraph(
+                self._sect_prop, self._last_orient))
+            self._last_orient = None
+            self._no_pagebreak = True
 
 class LiteralBlock(object):
     def __init__(self, highlighted, indent, right_indent):
@@ -547,10 +589,12 @@ class DocxTranslator(nodes.NodeVisitor):
         nodes.NodeVisitor.__init__(self, document)
         self._builder = builder
         self.builder = self._builder # Needs for graphviz.render_dot
-        self._doc_stack = [Document(docx.docbody)]
+        self._doc_stack = [Document(docx.docbody, docx.get_section_property())]
         self._docname_stack = []
         self._section_level = 0
-        self._ctx_stack = [Contenxt(0, 0, docx.max_table_width, 0)]
+        self._ctx_stack = [
+                Contenxt(0, 0, self._doc_stack[-1].get_current_page_width(), 0)
+        ]
         self._line_block_level = 0
         self._docx = docx
         self._list_id_stack = []
@@ -647,6 +691,14 @@ class DocxTranslator(nodes.NodeVisitor):
                 return prefix % ('.'.join(map(str, num)) + ' ')
         return None
 
+    def _is_landscape_table(self, node):
+        if not isinstance(self._doc_stack[-1], Document):
+            return False
+        landscape_columns = self._builder.config.docx_landscape_table_columns
+        if landscape_columns < 1:
+            return False
+        return landscape_columns <= len(node.traverse(nodes.colspec))
+
     def _visit_image_node(self, node, alt, get_filepath):
         self._append_bookmark_start(node.get('ids', []))
 
@@ -697,6 +749,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_document(self, node):
         self._append_bookmark_end([''])
         self._docname_stack.pop()
+        self._doc_stack[-1].add_last_section_property()
 
     def visit_title(self, node):
         self._append_bookmark_start(node.get('ids', []))
@@ -875,10 +928,18 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_table(self, node):
+        if self._is_landscape_table(node):
+            self._doc_stack[-1].set_page_oriented('landscape')
+            self._append_new_ctx(
+                    indent=0, right_indent=0,
+                    width=self._doc_stack[-1].get_current_page_width())
         self._append_bookmark_start(node.get('ids', []))
 
     def depart_table(self, node):
         self._append_bookmark_end(node.get('ids', []))
+        if self._is_landscape_table(node):
+            self._ctx_stack.pop()
+            self._doc_stack[-1].set_page_oriented()
 
     def visit_tgroup(self, node):
         self._append_bookmark_start(node.get('ids', []))

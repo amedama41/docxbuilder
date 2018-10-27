@@ -14,6 +14,7 @@
   See LICENSE for licensing information.
 '''
 
+import copy
 import datetime
 import os
 import time
@@ -240,6 +241,37 @@ def normalize_coreproperties(props):
         del props[p]
     return invalid_props
 
+def get_orient(section_prop):
+    page_size = get_elements(section_prop, 'w:pgSz')[0]
+    return page_size.attrib.get(norm_name('w:orient'), 'portrait')
+
+def set_orient(section_prop, orient):
+    page_size = get_elements(section_prop, 'w:pgSz')[0]
+    orient_attr = norm_name('w:orient')
+    if page_size.attrib.get(orient_attr, 'portrait') == orient:
+        return
+    w_attr = norm_name('w:w')
+    h_attr = norm_name('w:h')
+    w = page_size.attrib.get(w_attr)
+    h = page_size.attrib.get(h_attr)
+    page_size.attrib[w_attr] = h
+    page_size.attrib[h_attr] = w
+    page_size.attrib[orient_attr] = orient
+
+def get_contents_area_info(section_property):
+    paper_size = get_elements(section_property, 'w:pgSz')[0]
+    width = int(paper_size.get(norm_name('w:w')))
+    height = int(paper_size.get(norm_name('w:h')))
+    orient = paper_size.get(norm_name('w:orient'), 'portrait')
+    paper_margin = get_elements(section_property, 'w:pgMar')[0]
+    width_margin = (
+            int(paper_margin.get(norm_name('w:right'))) +
+            int(paper_margin.get(norm_name('w:left'))))
+    height_margin = (
+            int(paper_margin.get(norm_name('w:top'))) +
+            int(paper_margin.get(norm_name('w:bottom'))))
+    return width, height, orient, width_margin, height_margin
+
 # Paragraphs and Runs
 
 def make_paragraph(
@@ -289,15 +321,13 @@ def make_pagebreak():
         [['w:r'], [['w:br', {'w:type': 'page'}]]],
     ])
 
-def make_sectionbreak(orient='portrait'):
-    if orient == 'portrait':
-        attrs = {'w:w': '12240', 'w:h': '15840'}
-    elif orient == 'landscape':
-        attrs = {'w:h': '12240', 'w:w': '15840', 'w:orient': 'landscape'}
-    return make_element_tree([
-        ['w:p'],
-        [['w:pPr'], [['w:sectPr'], [['w:pgSz', attrs]]]],
-    ])
+def make_section_prop_paragraph(section_prop, orient=None):
+    section_prop = copy.deepcopy(section_prop)
+    if orient is not None and get_orient(section_prop) != orient:
+        set_orient(section_prop, orient)
+    p = make_element_tree([['w:p'], [['w:pPr']]])
+    p[0].append(section_prop)
+    return p
 
 def make_run(text, style, preserve_space):
     run_tree = [['w:r']]
@@ -551,9 +581,6 @@ class DocxDocument:
         stylenames = self.extract_stylenames()
         self.paragraph_style_id = stylenames['Normal']
         self.character_style_id = stylenames['Default Paragraph Font']
-        width, height = self.get_contents_area_size()
-        self.contents_width = width
-        self.contents_height = height
 
     @property
     def footnotes(self):
@@ -583,19 +610,7 @@ class DocxDocument:
             stylenames[name] = value
         return stylenames
 
-    def get_contents_area_size(self):
-        paper_info = self.get_paper_info()
-        paper_size = get_elements(
-            self.document, '/w:document/w:body/w:sectPr/w:pgSz')[0]
-        paper_margin = get_elements(
-            self.document, '/w:document/w:body/w:sectPr/w:pgMar')[0]
-        width = int(paper_size.get(norm_name('w:w'))) - int(paper_margin.get(
-            norm_name('w:right'))) - int(paper_margin.get(norm_name('w:left')))
-        height = int(paper_size.get(norm_name('w:h'))) - int(paper_margin.get(
-            norm_name('w:top'))) - int(paper_margin.get(norm_name('w:bottom')))
-        return width, height
-
-    def get_paper_info(self):
+    def get_section_property(self):
         return get_elements(self.document, '/w:document/w:body/w:sectPr')[0]
 
     def get_coverpage(self):
@@ -701,7 +716,6 @@ class DocxComposer:
         self.styleDocx = DocxDocument(stylefile)
 
         self.stylenames = self.styleDocx.extract_stylenames()
-        self.max_table_width = self.styleDocx.contents_width
         self.bullet_list_indents = self.get_numbering_left('ListBullet')
         self.number_list_indent = self.get_numbering_left('ListNumber')[0]
         self._abstract_nums = get_elements(
@@ -726,6 +740,9 @@ class DocxComposer:
         self.document = make_element_tree([['w:document'], [['w:body']]])
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
         self.relationships = self.relationshiplist()
+
+    def get_section_property(self):
+        return self.styleDocx.get_section_property()
 
     def get_bullet_list_num_id(self):
         return self.styleDocx.get_numbering_style_id('ListBullet')
@@ -758,8 +775,6 @@ class DocxComposer:
 
         if has_coverpage and coverpage is not None:
             self.docbody.insert(0, coverpage)
-
-        self.docbody.append(self.styleDocx.get_paper_info())
 
         footnotes = make_element_tree([['w:footnotes']])
         footnotes.extend(self._footnote_list)
