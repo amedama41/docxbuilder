@@ -1606,90 +1606,116 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_desc(self, node):
-        raise nodes.SkipNode # TODO
+        self._append_bookmark_start(node.get('ids', []))
+        table_width = self._ctx_stack[-1].paragraph_width
+        style_name = '%sDescriptions' % node.get('desctype', '').capitalize()
+        table = self._append_table(style_name, [table_width - 500], True)
+        table.start_head()
+        table.add_row()
+        self._add_table_cell()
 
     def depart_desc(self, node):
-        pass
+        self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_desc_signature(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass # TODO
+        self._doc_stack.append(Paragraph())
 
     def depart_desc_signature(self, node):
+        self._pop_and_append()
         self._append_bookmark_end(node.get('ids', []))
-        pass
+
+    def visit_desc_signature_line(self, node):
+        self._append_bookmark_start(node.get('ids', []))
+        parent = node.parent
+        first_option_index = parent.first_child_matching_class(node.__class__)
+        if parent[first_option_index] is not node:
+            self._doc_stack[-1].add_break()
+
+    def depart_desc_signature_line(self, node):
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_desc_name(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass
+        self._doc_stack[-1].push_style('Strong')
 
     def depart_desc_name(self, node):
+        self._doc_stack[-1].pop_style()
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_desc_addname(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass
+        self._doc_stack[-1].push_style('Literal')
 
     def depart_desc_addname(self, node):
+        self._doc_stack[-1].pop_style()
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_desc_type(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass
 
     def depart_desc_type(self, node):
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_desc_returns(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass
+        self._doc_stack[-1].add_text(' → ')
 
     def depart_desc_returns(self, node):
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_desc_parameterlist(self, node):
+        self._doc_stack[-1].add_text('(')
         self._append_bookmark_start(node.get('ids', []))
-        pass
 
     def depart_desc_parameterlist(self, node):
+        self._doc_stack[-1].add_text(')')
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_desc_parameter(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass
+        parent = node.parent
+        if parent.children[0] is not node:
+            self._doc_stack[-1].add_text(parent.child_text_separator)
+        if not node.get('noemph', False):
+            self._doc_stack[-1].push_style('Emphasis')
 
     def depart_desc_parameter(self, node):
+        if not node.get('noemph', False):
+            self._doc_stack[-1].pop_style()
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_desc_optional(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass
+        self._doc_stack[-1].add_text('[')
+        parent = node.parent
+        if parent.children[0] is not node:
+            self._doc_stack[-1].add_text(parent.child_text_separator)
 
     def depart_desc_optional(self, node):
+        self._doc_stack[-1].add_text(']')
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_desc_annotation(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass
+        self._doc_stack[-1].push_style('Emphasis')
 
     def depart_desc_annotation(self, node):
+        self._doc_stack[-1].pop_style()
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_desc_content(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass
+        if len(node) == 0:
+            return
+        table = self._doc_stack[-1]
+        table.start_body()
+        table.add_row()
+        self._add_table_cell()
 
     def depart_desc_content(self, node):
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_productionlist(self, node):
         raise nodes.SkipNode # TODO
