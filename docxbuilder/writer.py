@@ -192,7 +192,7 @@ class Paragraph(object):
                  keep_lines=False, keep_next=False,
                  list_info=None, preserve_space=False):
         self._contents_stack = [[]]
-        self._text_style_stack = [None]
+        self._text_style_stack = []
         self._preserve_space = preserve_space
         self._indent = indent
         self._right_indent = right_indent
@@ -203,8 +203,11 @@ class Paragraph(object):
         self._list_info = list_info
 
     def add_text(self, text):
-        self._contents_stack[-1].append(docx.make_run(
-            text, self._text_style_stack[-1], self._preserve_space))
+        style = {}
+        for s in self._text_style_stack:
+            style.update(s)
+        self._contents_stack[-1].append(
+                docx.make_run(text, style, self._preserve_space))
 
     def add_break(self):
         self._contents_stack[-1].append(docx.make_break_run())
@@ -227,9 +230,9 @@ class Paragraph(object):
     def pop_style(self):
         self._text_style_stack.pop()
 
-    def begin_hyperlink(self):
+    def begin_hyperlink(self, hyperlink_style):
         self._contents_stack.append([])
-        self._text_style_stack.append('Hyperlink')
+        self._text_style_stack.append(hyperlink_style)
 
     def end_hyperlink(self, rid, anchor):
         self._text_style_stack.pop()
@@ -644,6 +647,10 @@ class DocxTranslator(nodes.NodeVisitor):
         if width is not None:
             margin = self._docx.get_table_cell_margin(t.style)
             self._ctx_stack[-1].width = width - margin
+
+    def _push_style(self, style_id):
+        self._doc_stack[-1].push_style(
+                self._docx.get_run_style_property(style_id))
 
     def _append_new_ctx(
             self, indent=None, right_indent=None, width=None):
@@ -1370,7 +1377,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_emphasis(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Emphasis')
+        self._push_style('Emphasis')
 
     def depart_emphasis(self, node):
         self._doc_stack[-1].pop_style()
@@ -1378,7 +1385,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_strong(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Strong')
+        self._push_style('Strong')
 
     def depart_strong(self, node):
         self._doc_stack[-1].pop_style()
@@ -1386,7 +1393,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_literal(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Literal')
+        self._push_style('Literal')
 
     def depart_literal(self, node):
         self._doc_stack[-1].pop_style()
@@ -1408,7 +1415,8 @@ class DocxTranslator(nodes.NodeVisitor):
             self._doc_stack.append(Paragraph(
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
                 align=node.parent.get('align')))
-        self._doc_stack[-1].begin_hyperlink()
+        self._doc_stack[-1].begin_hyperlink(
+                self._docx.get_run_style_property('Hyperlink'))
 
     def depart_reference(self, node):
         refuri = node.get('refuri', None)
@@ -1457,7 +1465,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_title_reference(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('TitleReference')
+        self._push_style('TitleReference')
 
     def depart_title_reference(self, node):
         self._doc_stack[-1].pop_style()
@@ -1465,7 +1473,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_abbreviation(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Abbreviation') # TODO
+        self._push_style('Abbreviation') # TODO
 
     def depart_abbreviation(self, node):
         self._doc_stack[-1].pop_style()
@@ -1481,7 +1489,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_subscript(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Subscript')
+        self._push_style('Subscript')
 
     def depart_subscript(self, node):
         self._doc_stack[-1].pop_style()
@@ -1489,7 +1497,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_superscript(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Superscript')
+        self._push_style('Superscript')
 
     def depart_superscript(self, node):
         self._doc_stack[-1].pop_style()
@@ -1503,7 +1511,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_problematic(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Problematic')
+        self._push_style('Problematic')
 
     def depart_problematic(self, node):
         self._doc_stack[-1].pop_style()
@@ -1566,17 +1574,21 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_literal_emphasis(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('LiteralEmphasis')
+        self._push_style('Literal')
+        self._push_style('Emphasis')
 
     def depart_literal_emphasis(self, node):
+        self._doc_stack[-1].pop_style()
         self._doc_stack[-1].pop_style()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_literal_strong(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('LiteralStrong')
+        self._push_style('Literal')
+        self._push_style('Strong')
 
     def depart_literal_strong(self, node):
+        self._doc_stack[-1].pop_style()
         self._doc_stack[-1].pop_style()
         self._append_bookmark_end(node.get('ids', []))
 
@@ -1623,7 +1635,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_name(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Strong')
+        self._push_style('Strong')
 
     def depart_desc_name(self, node):
         self._doc_stack[-1].pop_style()
@@ -1631,7 +1643,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_addname(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Literal')
+        self._push_style('Literal')
 
     def depart_desc_addname(self, node):
         self._doc_stack[-1].pop_style()
@@ -1664,7 +1676,7 @@ class DocxTranslator(nodes.NodeVisitor):
         if parent.children[0] is not node:
             self._doc_stack[-1].add_text(parent.child_text_separator)
         if not node.get('noemph', False):
-            self._doc_stack[-1].push_style('Emphasis')
+            self._push_style('Emphasis')
 
     def depart_desc_parameter(self, node):
         if not node.get('noemph', False):
@@ -1684,7 +1696,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_annotation(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].push_style('Emphasis')
+        self._push_style('Emphasis')
 
     def depart_desc_annotation(self, node):
         self._doc_stack[-1].pop_style()

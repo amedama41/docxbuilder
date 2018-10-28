@@ -65,6 +65,8 @@ def norm_name(tagname, namespaces=nsprefixes):
           'ns:tag' --> '{namespace}tag'
           'tag' --> 'tag'
     '''
+    if tagname.startswith('{'):
+        return tagname
     ns_name = tagname.split(':', 1)
     if len(ns_name) > 1:
         tagname = "{%s}%s" % (namespaces[ns_name[0]], ns_name[1])
@@ -111,12 +113,12 @@ def extract_nsmap(tag, attributes):
     '''
     '''
     result = {}
-    ns_name = tag.split(':', 1)
+    ns_name = tag.split(':', 1) if not tag.startswith('{') else []
     if len(ns_name) > 1 and nsprefixes.get(ns_name[0]):
         result[ns_name[0]] = nsprefixes[ns_name[0]]
 
     for x in attributes:
-        ns_name = x.split(':', 1)
+        ns_name = x.split(':', 1) if not x.startswith('{') else []
         if len(ns_name) > 1 and nsprefixes.get(ns_name[0]):
             result[ns_name[0]] = nsprefixes[ns_name[0]]
 
@@ -331,8 +333,11 @@ def make_section_prop_paragraph(section_prop, orient=None):
 
 def make_run(text, style, preserve_space):
     run_tree = [['w:r']]
-    if style:
-        run_tree.append([['w:rPr'], [['w:rStyle', {'w:val': style}]]])
+    run_prop = [['w:rPr']]
+    for tagname, attrib in style.items():
+        run_prop.append([[tagname, attrib]])
+    if len(run_prop) != 1:
+        run_tree.append(run_prop)
     if preserve_space:
         lines = text.split('\n')
         for index, line in enumerate(lines):
@@ -636,6 +641,15 @@ class DocxDocument:
 
 ############
 # Numbering
+    def get_run_style_property(self, style_id):
+        props = get_elements(
+                self.styles,
+                '/w:styles/w:style[@w:styleId="%s"]/w:rPr' % style_id)
+        if not props:
+            return {}
+        return [(prop.tag, prop.attrib)
+                for prop in props[0] if not prop.tag.endswith('rPrChange')]
+
     def get_numbering_style_id(self, style):
         '''
 
@@ -735,6 +749,7 @@ class DocxComposer:
         self._max_footnote_id = get_max_attribute(
                 self._footnote_list, norm_name('w:id'))
 
+        self._run_style_property_cache = {}
         self.table_margin_map = {}
 
         self.document = make_element_tree([['w:document'], [['w:body']]])
@@ -743,6 +758,13 @@ class DocxComposer:
 
     def get_section_property(self):
         return self.styleDocx.get_section_property()
+
+    def get_run_style_property(self, style_id):
+        style = self._run_style_property_cache.get(style_id)
+        if style is not None:
+            return style
+        return self._run_style_property_cache.setdefault(
+                style_id, self.styleDocx.get_run_style_property(style_id))
 
     def get_bullet_list_num_id(self):
         return self.styleDocx.get_numbering_style_id('ListBullet')
