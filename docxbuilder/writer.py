@@ -21,7 +21,6 @@
     :license: BSD, see LICENSE for details.
 """
 
-import itertools
 import os
 import re
 
@@ -170,8 +169,7 @@ class DocxWriter(writers.Writer):
 def to_error_string(contents):
     from xml.etree.ElementTree import tostring
     func = lambda xml: tostring(xml, encoding='utf8').decode('utf8')
-    xml_list = contents.to_xml()
-    return type(contents).__name__ + '\n' + '\n'.join(map(func, xml_list))
+    return type(contents).__name__ + '\n' + func(contents.to_xml())
 
 class BookmarkStart(object):
     def __init__(self, id, name):
@@ -179,14 +177,14 @@ class BookmarkStart(object):
         self._name = name
 
     def to_xml(self):
-        return [docx.make_bookmark_start(self._id, self._name)]
+        return docx.make_bookmark_start(self._id, self._name)
 
 class BookmarkEnd(object):
     def __init__(self, id):
         self._id = id
 
     def to_xml(self):
-        return [docx.make_bookmark_end(self._id)]
+        return docx.make_bookmark_end(self._id)
 
 class Paragraph(object):
     def __init__(self, indent=None, right_indent=None,
@@ -250,7 +248,7 @@ class Paragraph(object):
         if isinstance(contents, Paragraph): # for nested line_block
             self._contents_stack[-1].extend(contents._contents_stack[0])
         elif isinstance(contents, (BookmarkStart, BookmarkEnd)):
-            self._contents_stack[-1].extend(contents.to_xml())
+            self._contents_stack[-1].append(contents.to_xml())
         else:
             raise RuntimeError('Can not append %s' % to_error_string(contents))
 
@@ -259,7 +257,7 @@ class Paragraph(object):
                 self._indent, self._right_indent, self._style, self._align,
                 self._keep_lines, self._keep_next, self._list_info)
         p.extend(self._contents_stack[0])
-        return [p]
+        return p
 
 class Table(object):
     def __init__(self, table_style, colsize_list, indent, align, keep_next):
@@ -360,7 +358,7 @@ class Table(object):
             table.append(self.make_row(index, row, True))
         for index, row in enumerate(self._body):
             table.append(self.make_row(index, row, False))
-        return [table]
+        return table
 
     def make_row(self, index, row, is_head):
         row_elem = docx.make_row(index, is_head)
@@ -388,8 +386,7 @@ class Table(object):
         if keep_next:
             first = next(e for e in cell if isinstance(e, (Paragraph, Table)))
             first.keep_next()
-        cell_elem.extend(
-                itertools.chain.from_iterable(map(lambda c: c.to_xml(), cell)))
+        cell_elem.extend(c.to_xml() for c in cell)
         return cell_elem
 
     def _reset_colsize_list(self):
@@ -474,8 +471,7 @@ class Document(object):
         is_bookmark = isinstance(contents, (BookmarkStart, BookmarkEnd))
         if not is_bookmark:
             self._add_section_prop_if_necessary()
-        for xml in contents.to_xml():
-            self._body.append(xml)
+        self._body.append(contents.to_xml())
         if not is_bookmark:
             self._no_pagebreak = False
 
@@ -496,7 +492,7 @@ class LiteralBlock(object):
         self._paragraph = p
 
     def to_xml(self):
-        return [self._paragraph]
+        return self._paragraph
 
 class ContentsList(object):
     def __init__(self):
@@ -1051,10 +1047,7 @@ class DocxTranslator(nodes.NodeVisitor):
             fid = self._docx.set_default_footnote_id(
                     '%s#%s' % (self._docname_stack[-1], id), prev_fid)
             if fid != prev_fid:
-                self._docx.append_footnote(
-                        fid,
-                        itertools.chain.from_iterable(
-                            map(lambda c: c.to_xml(), footnote)))
+                self._docx.append_footnote(fid, (c.to_xml() for c in footnote))
                 prev_fid = fid
 
     def visit_citation(self, node):
