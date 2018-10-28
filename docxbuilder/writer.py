@@ -188,41 +188,14 @@ class BookmarkEnd(object):
     def to_xml(self):
         return [docx.make_bookmark_end(self._id)]
 
-class PContent(object):
-    def __init__(self, init_style, preserve_space):
-        self._run_list = []
-        self._text_style_stack = [init_style]
-        self._preserve_space = preserve_space
-
-    def add_text(self, text):
-        self._run_list.append(docx.make_run(
-            text, self._text_style_stack[-1], self._preserve_space))
-
-    def add_break(self):
-        self._run_list.append(docx.make_break_run())
-
-    def add_picture(self, rid, filename, width, height, alt):
-        self._run_list.append(docx.DocxComposer.make_inline_picture_run(
-            rid, filename, width, height, alt))
-
-    def add_footnote_reference(self, footnote_id):
-        self._run_list.append(docx.make_footnote_reference(footnote_id))
-
-    def add_footnote_ref(self):
-        self._run_list.append(docx.make_footnote_ref())
-
-    def push_style(self, text_style):
-        self._text_style_stack.append(text_style)
-
-    def pop_style(self):
-        self._text_style_stack.pop()
-
-class Paragraph(PContent):
+class Paragraph(object):
     def __init__(self, indent=None, right_indent=None,
                  paragraph_style=None, align=None,
                  keep_lines=False, keep_next=False,
                  list_info=None, preserve_space=False):
-        super(Paragraph, self).__init__(None, preserve_space)
+        self._contents_stack = [[]]
+        self._text_style_stack = [None]
+        self._preserve_space = preserve_space
         self._indent = indent
         self._right_indent = right_indent
         self._style = paragraph_style
@@ -231,14 +204,53 @@ class Paragraph(PContent):
         self._keep_next = keep_next
         self._list_info = list_info
 
+    def add_text(self, text):
+        self._contents_stack[-1].append(docx.make_run(
+            text, self._text_style_stack[-1], self._preserve_space))
+
+    def add_break(self):
+        self._contents_stack[-1].append(docx.make_break_run())
+
+    def add_picture(self, rid, filename, width, height, alt):
+        self._contents_stack[-1].append(
+                docx.DocxComposer.make_inline_picture_run(
+                    rid, filename, width, height, alt))
+
+    def add_footnote_reference(self, footnote_id):
+        self._contents_stack[-1].append(
+                docx.make_footnote_reference(footnote_id))
+
+    def add_footnote_ref(self):
+        self._contents_stack[-1].append(docx.make_footnote_ref())
+
+    def push_style(self, text_style):
+        self._text_style_stack.append(text_style)
+
+    def pop_style(self):
+        self._text_style_stack.pop()
+
+    def begin_hyperlink(self):
+        self._contents_stack.append([])
+        self._text_style_stack.append('Hyperlink')
+
+    def end_hyperlink(self, rid, anchor):
+        self._text_style_stack.pop()
+        if rid is not None or anchor is not None:
+            h = docx.make_hyperlink(rid, anchor)
+            h.extend(self._contents_stack.pop())
+            self._contents_stack[-1].append(h)
+        else:
+            run_list = self._contents_stack.pop()
+            self._contents_stack[-1].extend(run_list)
+
     def keep_next(self):
         self._keep_next = True
 
     def append(self, contents):
         if isinstance(contents, Paragraph): # for nested line_block
-            self._run_list.extend(contents._run_list)
-        elif isinstance(contents, (BookmarkStart, BookmarkEnd, HyperLink)):
-            self._run_list.extend(contents.to_xml())
+            self._contents_stack[-1].extend(contents._contents_stack[0])
+        elif isinstance(contents, (BookmarkStart, BookmarkEnd)):
+            self._contents_stack[-1].extend(contents.to_xml())
         else:
             raise RuntimeError('Can not append %s' % to_error_string(contents))
 
@@ -246,27 +258,8 @@ class Paragraph(PContent):
         p = docx.make_paragraph(
                 self._indent, self._right_indent, self._style, self._align,
                 self._keep_lines, self._keep_next, self._list_info)
-        p.extend(self._run_list)
+        p.extend(self._contents_stack[0])
         return [p]
-
-class HyperLink(PContent):
-    def __init__(self, rid, anchor):
-        super(HyperLink, self).__init__('HyperLink', False)
-        self._rid = rid
-        self._anchor = anchor
-
-    def append(self, contents):
-        if isinstance(contents, (BookmarkStart, BookmarkEnd)):
-            self._run_list.extend(contents.to_xml())
-        else:
-            raise RuntimeError('Can not append %s' % to_error_string(contents))
-
-    def to_xml(self):
-        if self._rid is None and self._anchor is None:
-            return self._run_list
-        h = docx.make_hyperlink(self._rid, self._anchor)
-        h.extend(self._run_list)
-        return [h]
 
 class Table(object):
     def __init__(self, table_style, colsize_list, indent, align, keep_next):
@@ -702,7 +695,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def _visit_image_node(self, node, alt, get_filepath):
         self._append_bookmark_start(node.get('ids', []))
 
-        if not isinstance(self._doc_stack[-1], (Paragraph, HyperLink)):
+        if not isinstance(self._doc_stack[-1], Paragraph):
             self._doc_stack.append(Paragraph(
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
                 align=node.parent.get('align')))
@@ -1416,8 +1409,16 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_reference(self, node):
         self._append_bookmark_start(node.get('ids', []))
+        if not isinstance(self._doc_stack[-1], Paragraph):
+            self._doc_stack.append(None) # Marker for depart_reference to pop
+            # Get align because parent may be a figure element
+            self._doc_stack.append(Paragraph(
+                self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
+                align=node.parent.get('align')))
+        self._doc_stack[-1].begin_hyperlink()
+
+    def depart_reference(self, node):
         refuri = node.get('refuri', None)
-        refid = node.get('refid')
         if refuri:
             if node.get('internal', False):
                 rid = None
@@ -1427,21 +1428,12 @@ class DocxTranslator(nodes.NodeVisitor):
                 anchor = None
         else:
             rid = None
-            anchor = make_bookmark_name(self._docname_stack[-1], refid)
-        self._doc_stack.append(HyperLink(rid, anchor))
-
-    def depart_reference(self, node):
-        hyperlink = self._doc_stack.pop()
-        if isinstance(self._doc_stack[-1], Paragraph):
-            self._doc_stack[-1].append(hyperlink)
-        else:
-            # Get align because parent may be a figure element
-            p = Paragraph(
-                    self._ctx_stack[-1].indent,
-                    self._ctx_stack[-1].right_indent,
-                    align=node.parent.get('align'))
-            p.append(hyperlink)
-            self._doc_stack[-1].append(p)
+            anchor = make_bookmark_name(
+                    self._docname_stack[-1], node.get('refid'))
+        self._doc_stack[-1].end_hyperlink(rid, anchor)
+        if self._doc_stack[-2] is None:
+            del self._doc_stack[-2]
+            self._pop_and_append()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_footnote_reference(self, node):
