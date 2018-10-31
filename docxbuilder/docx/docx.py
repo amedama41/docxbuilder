@@ -356,7 +356,7 @@ def make_break_run():
     return make_element_tree([['w:r'], [['w:br']]])
 
 def make_inline_picture_run(
-        rid, picid, picname, width, height, picdescription,
+        rid, picid, picname, cmwidth, cmheight, picdescription,
         nochangeaspect=True, nochangearrowheads=True):
     '''
       Take a relationship id, picture file name, and return a run element
@@ -367,7 +367,12 @@ def make_inline_picture_run(
     non_visual_pic_prop_attrs = {
             'id': str(picid), 'name': picname, 'descr': picdescription
     }
-    ext_attrs = {'cx': str(width), 'cy': str(height)}
+    # OpenXML measures on-screen objects in English Metric Units
+    emupercm = 360000
+    ext_attrs = {
+            'cx': str(int(cmwidth * emupercm)),
+            'cy': str(int(cmheight * emupercm))
+    }
 
     # There are 3 main elements inside a picture
     pic_tree = [
@@ -721,12 +726,11 @@ class DocxDocument:
 
 
 class DocxComposer:
-    _picid = 100
-
     def __init__(self, stylefile):
         '''
            Constructor
         '''
+        self._id = 100
         self.styleDocx = DocxDocument(stylefile)
 
         self.stylenames = self.styleDocx.extract_stylenames()
@@ -755,6 +759,10 @@ class DocxComposer:
         self.document = make_element_tree([['w:document'], [['w:body']]])
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
         self.relationships = self.relationshiplist()
+
+    def new_id(self):
+        self._id += 1
+        return self._id
 
     def get_section_property(self):
         return self.styleDocx.get_section_property()
@@ -958,18 +966,6 @@ class DocxComposer:
         })
         self._image_info_map[imagepath] = (rid, picname)
         return rid
-
-    @classmethod
-    def make_inline_picture_run(
-            cls, rid, picname, cmwidth, cmheight, picdescription):
-        # OpenXML measures on-screen objects in English Metric Units
-        emupercm = 360000
-        width = str(int(cmwidth * emupercm))
-        height = str(int(cmheight * emupercm))
-
-        cls._picid += 1
-        return make_inline_picture_run(
-                rid, cls._picid, picname, width, height, picdescription)
 
     def set_default_footnote_id(self, key, default_fid=None):
         fid = self._footnote_id_map.get(key)

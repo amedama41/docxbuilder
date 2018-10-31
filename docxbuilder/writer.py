@@ -212,10 +212,10 @@ class Paragraph(object):
     def add_break(self):
         self._contents_stack[-1].append(docx.make_break_run())
 
-    def add_picture(self, rid, filename, width, height, alt):
+    def add_picture(self, rid, picid, filename, width, height, alt):
         self._contents_stack[-1].append(
-                docx.DocxComposer.make_inline_picture_run(
-                    rid, filename, width, height, alt))
+                docx.make_inline_picture_run(
+                    rid, picid, filename, width, height, alt))
 
     def add_footnote_reference(self, footnote_id):
         self._contents_stack[-1].append(
@@ -711,7 +711,8 @@ class DocxTranslator(nodes.NodeVisitor):
             width, height = self._get_image_scaled_size(node, filepath)
             rid = self._docx.add_image_relationship(filepath)
             filename = os.path.basename(filepath)
-            self._doc_stack[-1].add_picture(rid, filename, width, height, alt)
+            self._doc_stack[-1].add_picture(
+                    rid, self._docx.new_id(), filename, width, height, alt)
         except Exception as e:
             self._logger.warning(e, location=node)
             self._doc_stack[-1].add_text(alt)
