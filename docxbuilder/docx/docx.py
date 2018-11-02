@@ -260,6 +260,15 @@ def set_orient(section_prop, orient):
     page_size.attrib[h_attr] = w
     page_size.attrib[orient_attr] = orient
 
+def set_title_page(section_prop, is_title_page):
+    value = 'true' if is_title_page else 'false'
+    title_page = get_elements(section_prop, 'w:titlePg')
+    if not title_page:
+        section_prop.append(
+                make_element_tree([['w:titlePg', {'w:val': value}]]))
+        return
+    title_page[0].attrib[norm_name('w:val')] = value
+
 def get_contents_area_info(section_property):
     paper_size = get_elements(section_property, 'w:pgSz')[0]
     width = int(paper_size.get(norm_name('w:w')))

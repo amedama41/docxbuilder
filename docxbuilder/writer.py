@@ -482,6 +482,7 @@ class Document(object):
         if self._last_orient is not None:
             self._body.append(docx.make_section_prop_paragraph(
                 self._sect_prop, self._last_orient))
+            docx.set_title_page(self._sect_prop, False)
             self._last_orient = None
             self._no_pagebreak = True
 
