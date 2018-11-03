@@ -628,9 +628,12 @@ class DocxTranslator(nodes.NodeVisitor):
                 continue
             self._doc_stack[-1].append(BookmarkEnd(bookmark_id))
 
-    def _append_table(self, table_style, colsize_list, is_indent, align=None):
+    def _append_table(
+            self, table_style, colsize_list, is_indent,
+            align=None, arrange_table_in_single_page=True):
         indent = self._ctx_stack[-1].indent if is_indent else 0
-        t = Table(table_style, colsize_list, indent, align, 1)
+        keep_next = 3 if arrange_table_in_single_page else 1
+        t = Table(table_style, colsize_list, indent, align, keep_next)
         self._doc_stack.append(t)
         self._append_new_ctx(indent=0, right_indent=0, width=sum(colsize_list))
         return t
@@ -943,7 +946,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         align = node.parent.get('align')
         self._append_table(
-                'rstTable', [self._ctx_stack[-1].paragraph_width], True, align)
+                'rstTable', [self._ctx_stack[-1].paragraph_width], True, align,
+                self._builder.config.docx_arrange_table_in_single_page)
 
     def depart_tgroup(self, node):
         self._pop_and_append_table()
