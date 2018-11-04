@@ -630,7 +630,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _append_table(
             self, table_style, colsize_list, is_indent,
-            align=None, arrange_table_in_single_page=True):
+            align=None, arrange_table_in_single_page=False):
         indent = self._ctx_stack[-1].indent if is_indent else 0
         keep_next = 3 if arrange_table_in_single_page else 1
         t = Table(table_style, colsize_list, indent, align, keep_next)
