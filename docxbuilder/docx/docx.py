@@ -597,9 +597,6 @@ class DocxDocument:
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
         self.numbering = self.get_xmltree('word/numbering.xml')
         self.styles = self.get_xmltree('word/styles.xml')
-        stylenames = self.extract_stylenames()
-        self.paragraph_style_id = stylenames['Normal']
-        self.character_style_id = stylenames['Default Paragraph Font']
 
     @property
     def footnotes(self):
@@ -611,23 +608,25 @@ class DocxDocument:
         '''
         return etree.fromstring(self.docx.read(fname))
 
-    def extract_stylenames(self):
+    def extract_style_ids(self):
         '''
-          Extract a stylenames from the docx file
+          Extract all style ids from the docx file
         '''
-        stylenames = {}
-        style_elems = get_elements(self.styles, 'w:style')
+        style_id_attr = norm_name('w:styleId')
+        type_attr = norm_name('w:type')
+        return dict(
+                (style.attrib[style_id_attr], style.attrib[type_attr])
+                for style in get_elements(self.styles, 'w:style'))
 
-        for style_elem in style_elems:
-            aliases_elems = get_elements(style_elem, 'w:aliases')
-            if aliases_elems:
-                name = aliases_elems[0].attrib[norm_name('w:val')]
-            else:
-                name_elem = get_elements(style_elem, 'w:name')[0]
-                name = name_elem.attrib[norm_name('w:val')]
-            value = style_elem.attrib[norm_name('w:styleId')]
-            stylenames[name] = value
-        return stylenames
+    def get_default_style_id(self, style_type):
+        '''
+          Extract the last default style's id with style_type
+        '''
+        xpath = 'w:style[@w:type="%s" and (@w:default="1" or @w:default="true")]'
+        styles = get_elements(self.styles, xpath % style_type)
+        if not styles:
+            return None
+        return styles[-1].attrib[norm_name('w:styleId')]
 
     def get_section_property(self):
         return get_elements(self.document, '/w:document/w:body/w:sectPr')[0]
@@ -742,7 +741,7 @@ class DocxComposer:
         self._id = 100
         self.styleDocx = DocxDocument(stylefile)
 
-        self.stylenames = self.styleDocx.extract_stylenames()
+        self._style_ids = self.styleDocx.extract_style_ids()
         self.bullet_list_indents = self.get_numbering_left('ListBullet')
         self.number_list_indent = self.get_numbering_left('ListNumber')[0]
         self._abstract_nums = get_elements(
@@ -903,40 +902,38 @@ class DocxComposer:
         self._numids.append(num)
         return num_id
 
-##########
-# Create New Style
-    def new_character_style(self, styname):
+    def get_default_style_ids(self):
         '''
-
+           Return default paragraph, character, table style ids
         '''
-        newstyle_tree = [['w:style', {'w:type': 'character', 'w:customStye': '1', 'w:styleId': styname}],
-                         [['w:name', {'w:val': styname}]],
-                         [['w:basedOn', {
-                             'w:val': self.styleDocx.character_style_id}]],
-                         [['w:rPr'], [['w:color', {'w:val': 'FF0000'}]]]
-                         ]
+        paragraph_style_id = self.styleDocx.get_default_style_id('paragraph')
+        character_style_id = self.styleDocx.get_default_style_id('character')
+        table_style_id = self.styleDocx.get_default_style_id('table')
+        return paragraph_style_id, character_style_id, table_style_id
 
-        newstyle = make_element_tree(newstyle_tree)
+    def create_style(self, style_type, new_style_id, based_style_id):
+        '''
+           Create a new style_stype style with new_style_id,
+           which is based on based_style_id.
+        '''
+        if new_style_id in self._style_ids:
+            return False
+        if self._style_ids.get(based_style_id, None) != style_type:
+            return False
+        style_tree = [
+                ['w:style', {
+                    'w:type': style_type,
+                    'w:customStye': '1',
+                    'w:styleId': new_style_id
+                }],
+                [['w:name', {'w:val': new_style_id}]],
+                [['w:basedOn', {'w:val': based_style_id}]],
+                [['w:qFormat']]
+        ]
+        newstyle = make_element_tree(style_tree)
         self.styleDocx.styles.append(newstyle)
-        self.stylenames[styname] = styname
-        return styname
-
-    def new_paragraph_style(self, styname):
-        '''
-
-        '''
-        newstyle_tree = [['w:style', {'w:type': 'paragraph', 'w:customStye': '1', 'w:styleId': styname}],
-                         [['w:name', {'w:val': styname}]],
-                         [['w:basedOn', {
-                             'w:val': self.styleDocx.paragraph_style_id}]],
-                         [['w:qFormat']]
-                         ]
-
-        newstyle = make_element_tree(newstyle_tree)
-
-        self.styleDocx.styles.append(newstyle)
-        self.stylenames[styname] = styname
-        return styname
+        self._style_ids[new_style_id] = style_type
+        return True
 
     def add_hyperlink_relationship(self, target):
         rid = self._hyperlink_rid_map.get(target)

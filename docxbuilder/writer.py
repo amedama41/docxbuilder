@@ -603,6 +603,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._bookmark_id_map = {} # bookmark name => BookmarkStart id
         self._logger = logging.getLogger('docxbuilder')
 
+        self._create_docxbuilder_styles()
+
     def _pop_and_append(self):
         contents = self._doc_stack.pop()
         if isinstance(contents, ContentsList):
@@ -755,19 +757,20 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_title(self, node):
         self._append_bookmark_start(node.get('ids', []))
         if isinstance(node.parent, nodes.table):
-            style = 'TableHeading'
+            style = 'TableCaption'
             title_num = self._get_numfig('table', node.parent['ids'])
             indent = self._ctx_stack[-1].indent
             right_indent = self._ctx_stack[-1].right_indent
             align = node.parent.get('align')
         elif isinstance(node.parent, nodes.section):
             style = 'Heading%d' % self._section_level
+            self._docx.create_style('paragraph', style, 'BasedHeading')
             title_num = self._get_numsec(node.parent['ids'])
             indent = None
             right_indent = None
             align = None
         else:
-            style = None # TODO
+            style = 'TitleHeading'
             title_num = None
             indent = self._ctx_stack[-1].indent
             right_indent = self._ctx_stack[-1].right_indent
@@ -784,7 +787,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_subtitle(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(
-            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent)) # TODO
+            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
+            'SubtitleHeading'))
 
     def depart_subtitle(self, node):
         self._pop_and_append()
@@ -883,7 +887,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_math_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(
-            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent)) # TODO
+            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
+            'MathBlock'))
 
     def depart_math_block(self, node):
         self._pop_and_append()
@@ -946,7 +951,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         align = node.parent.get('align')
         self._append_table(
-                'rstTable', [self._ctx_stack[-1].paragraph_width], True, align,
+                'StandardTable',
+                [self._ctx_stack[-1].paragraph_width], True, align,
                 self._builder.config.docx_arrange_table_in_single_page)
 
     def depart_tgroup(self, node):
@@ -1082,7 +1088,8 @@ class DocxTranslator(nodes.NodeVisitor):
             raise nodes.SkipNode
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(Paragraph(
-            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent)) # TODO
+            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
+            'TitleHeading'))
 
     def depart_rubric(self, node):
         self._pop_and_append()
@@ -1616,6 +1623,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._ctx_stack[-1].paragraph_width
         style_name = '%sDescriptions' % node.get('desctype', '').capitalize()
+        self._docx.create_style('table', style_name, 'DescriptionsAdmonition')
         table = self._append_table(style_name, [table_width - 500], True)
         table.start_head()
         table.add_row()
@@ -1891,3 +1899,46 @@ class DocxTranslator(nodes.NodeVisitor):
         except Exception as e:
             self._logger.warning(e, location=node)
             return None
+
+    def _create_docxbuilder_styles(self):
+        default_pargraph, _, default_table = self._docx.get_default_style_ids()
+        paragraph_styles = [
+                ('BasedText', default_pargraph),
+                ('BodyText', 'BasedText'),
+                ('FootnoteText', 'BasedText'),
+                ('DefinitionItem', 'BasedText'),
+                ('LiteralBlock', 'BasedText'),
+                ('MathBlock', 'BasedText'),
+                ('BasedCaption', 'BasedText'),
+                ('BasedHeading', 'BasedText'),
+                ('TableCaption', 'BasedCaption'),
+                ('ImageCaption', 'BasedCaption'),
+                ('LiteralCaption', 'BasedCaption'),
+                ('TitleHeading', 'BasedHeading'),
+                ('SubtitleHeading', 'BasedHeading'),
+                ('ListBullet', 'BasedList'),
+                ('ListNumber', 'BasedList'),
+        ]
+        for new_style, based_style in paragraph_styles:
+            self._docx.create_style('paragraph', new_style, based_style)
+
+        table_styles = [
+                ('BasedListTable', default_table),
+                ('StandardTable', default_table),
+                ('FieldList', 'BasedListTable'),
+                ('OptionList', 'BasedListTable'),
+                ('AttentionAdmonition', 'BasedAdmonition'),
+                ('CautionAdmonition', 'BasedAdmonition'),
+                ('DangerAdmonition', 'BasedAdmonition'),
+                ('ErrorAdmonition', 'BasedAdmonition'),
+                ('HintAdmonition', 'BasedAdmonition'),
+                ('ImportantAdmonition', 'BasedAdmonition'),
+                ('NoteAdmonition', 'BasedAdmonition'),
+                ('TipAdmonition', 'BasedAdmonition'),
+                ('WarningAdmonition', 'BasedAdmonition'),
+                ('GenericAdmonition', 'BasedAdmonition'),
+                ('SeealsoAdmonition', 'BasedAdmonition'),
+                ('DescriptionsAdmonition', 'BasedAdmonition'),
+        ]
+        for new_style, based_style in table_styles:
+            self._docx.create_style('table', new_style, based_style)
