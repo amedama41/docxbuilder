@@ -1200,7 +1200,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_field_name(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._add_table_cell()
-        self._doc_stack.append(Paragraph(align='right'))
+        self._doc_stack.append(Paragraph())
 
     def depart_field_name(self, node):
         self._doc_stack[-1].add_text(':')
