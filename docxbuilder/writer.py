@@ -644,7 +644,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._ctx_stack.pop()
         self._pop_and_append()
         # Append a paragaph as a margin between the table and the next element
-        self._doc_stack[-1].append(Paragraph())
+        self._doc_stack[-1].append(
+                Paragraph(paragraph_style='TableBottomMargin'))
 
     def _add_table_cell(self, morerows=0, morecols=0):
         t = self._doc_stack[-1]
@@ -1902,6 +1903,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _create_docxbuilder_styles(self):
         self._docx.create_empty_paragraph_style('Transition', 100, True)
+        self._docx.create_empty_paragraph_style('TableBottomMargin', 0, False)
 
         default_pargraph, _, default_table = self._docx.get_default_style_ids()
         paragraph_styles = [
