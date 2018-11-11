@@ -318,14 +318,6 @@ def make_paragraph(
     paragraph_tree = [['w:p'], style_tree]
     return make_element_tree(paragraph_tree)
 
-def make_bottom_border_paragraph():
-    bottom_attrs = {'w:val': 'single', 'w:sz': '8', 'w:space': '1'}
-    paragraph_tree = [
-            ['w:p'],
-            [['w:pPr'], [['w:pBdr'], [['w:bottom', bottom_attrs]]]]
-    ]
-    return make_element_tree(paragraph_tree)
-
 def make_pagebreak():
     return make_element_tree([
         ['w:p'],
@@ -934,6 +926,39 @@ class DocxComposer:
         self.styleDocx.styles.append(newstyle)
         self._style_ids[new_style_id] = style_type
         return True
+
+    def create_empty_paragraph_style(
+            self, new_style_id, after_space, with_border):
+        '''
+           Create a new empty paragraph style
+        '''
+        if new_style_id in self._style_ids:
+            return
+        property_tree = [
+                ['w:pPr'],
+                [['w:spacing', {
+                    'w:before': '0', 'w:beforeAutospacing': '0',
+                    'w:after': str(after_space), 'w:afterAutospacing': '0',
+                }]],
+                [['w:rPr'], [['w:sz', {'w:val': '16'}]]],
+        ]
+        if with_border:
+            property_tree.append([
+                ['w:pBdr'],
+                [['w:bottom', {'w:val': 'single', 'w:sz': '8', 'w:space': '1'}]]
+            ])
+        new_style = make_element_tree([
+                ['w:style', {
+                    'w:type': 'paragraph',
+                    'w:customStye': '1',
+                    'w:styleId': new_style_id
+                }],
+                [['w:name', {'w:val': new_style_id}]],
+                [['w:qFormat']],
+                property_tree,
+        ])
+        self.styleDocx.styles.append(new_style)
+        self._style_ids[new_style_id] = 'paragraph'
 
     def add_hyperlink_relationship(self, target):
         rid = self._hyperlink_rid_map.get(target)

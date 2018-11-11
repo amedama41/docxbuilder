@@ -441,7 +441,7 @@ class Document(object):
 
     def add_transition(self):
         self._add_section_prop_if_necessary()
-        self._body.append(docx.make_bottom_border_paragraph())
+        self._body.append(Paragraph(paragraph_style='Transition').to_xml())
         self._no_pagebreak = False
 
     def add_last_section_property(self):
@@ -1901,6 +1901,8 @@ class DocxTranslator(nodes.NodeVisitor):
             return None
 
     def _create_docxbuilder_styles(self):
+        self._docx.create_empty_paragraph_style('Transition', 100, True)
+
         default_pargraph, _, default_table = self._docx.get_default_style_ids()
         paragraph_styles = [
                 ('BasedText', default_pargraph),
