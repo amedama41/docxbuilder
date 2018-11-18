@@ -1495,6 +1495,9 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_abbreviation(self, node):
         self._doc_stack[-1].pop_style()
+        explanation = node.get('explanation')
+        if explanation:
+            self._doc_stack[-1].add_text(' (%s) ' % explanation)
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_acronym(self, node):
