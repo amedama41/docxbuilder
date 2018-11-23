@@ -1071,15 +1071,22 @@ class DocxTranslator(nodes.NodeVisitor):
                 prev_fid = fid
 
     def visit_citation(self, node):
-        raise nodes.SkipNode # TODO
+        self._append_bookmark_start(node.get('ids', []))
+        self._doc_stack.append(FixedTopParagraphList(Paragraph(
+            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
+            paragraph_style='CitationText')))
 
     def depart_citation(self, node):
-        pass
+        self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
 
     def visit_label(self, node):
         if isinstance(node.parent, nodes.footnote):
             raise nodes.SkipNode
-        pass # TODO
+        if isinstance(node.parent, nodes.citation):
+            self._doc_stack[-1][0].add_text('[%s] ' % node.astext())
+            raise nodes.SkipNode
+        pass
 
     def depart_label(self, node):
         pass
@@ -1913,6 +1920,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 ('BasedText', default_pargraph),
                 ('BodyText', 'BasedText'),
                 ('FootnoteText', 'BasedText'),
+                ('CitationText', 'BasedText'),
                 ('DefinitionItem', 'BasedText'),
                 ('LiteralBlock', 'BasedText'),
                 ('MathBlock', 'BasedText'),
