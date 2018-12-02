@@ -578,6 +578,19 @@ def make_table_of_contents(toc_title, maxlevel, bookmark):
     ]
     return make_element_tree(toc_tree)
 
+def make_vml_textbox(style, color, contents, wrap_style=None):
+    rect_tree = [
+            ['v:rect', { 'style': style, 'fillcolor': color }],
+            [['v:textbox', {'style': 'mso-fit-shape-to-text:true'}],
+                [['w:txbxContent']]
+            ]
+    ]
+    if wrap_style is not None:
+        rect_tree.append([['w10:wrap', wrap_style]])
+    txbx = make_element_tree([['w:r'], [['w:pict'], rect_tree]])
+    txbx[0][0][0][0].extend(contents)
+    return txbx
+
 class DocxDocument:
     def __init__(self, docxfile):
         '''

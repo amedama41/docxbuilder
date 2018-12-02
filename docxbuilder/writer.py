@@ -224,6 +224,10 @@ class Paragraph(object):
     def add_footnote_ref(self):
         self._contents_stack[-1].append(docx.make_footnote_ref())
 
+    def add_textbox(self, style, color, contents, wrap_style=None):
+        self._contents_stack[-1].append(docx.make_vml_textbox(
+            style, color, (c.to_xml() for c in contents), wrap_style))
+
     def push_style(self, text_style):
         self._text_style_stack.append(text_style)
 
@@ -808,19 +812,40 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_topic(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass # TODO
+        self._append_new_ctx(width=self._ctx_stack[-1].paragraph_width - 100)
+        self._doc_stack.append(ContentsList())
 
     def depart_topic(self, node):
+        width = convert_to_cm_size(self._ctx_stack[-1].paragraph_width)
+        self._ctx_stack.pop()
+        p = Paragraph(
+            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
+            align='center')
+        # TODO: enable to configure color
+        p.add_textbox('width:%fcm' % width, '#ddeeff', self._doc_stack.pop())
+        self._doc_stack[-1].append(p)
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_sidebar(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        pass # TODO
+        self._append_new_ctx(width=self._ctx_stack[-1].paragraph_width / 2)
+        self._doc_stack.append(ContentsList())
 
     def depart_sidebar(self, node):
+        # TODO: enable to configure color, width, and position
+        width = convert_to_cm_size(self._ctx_stack[-1].paragraph_width)
+        self._ctx_stack.pop()
+        style = ';'.join([
+                'width:%fcm' % width,
+                'mso-position-horizontal:right',
+                'mso-position-vertical-relative:text',
+                'position:absolute',
+        ])
+        wrap_style = {'type': 'square', 'anchory': 'text', 'side': 'left',}
+        p = Paragraph()
+        p.add_textbox(style, '#ddeeff', self._doc_stack.pop(), wrap_style)
+        self._doc_stack[-1].append(p)
         self._append_bookmark_end(node.get('ids', []))
-        pass
 
     def visit_transition(self, node):
         self._doc_stack[-1].add_transition()
