@@ -423,11 +423,15 @@ class Table(object):
         return False
 
 class Document(object):
-    def __init__(self, body, sect_prop):
+    def __init__(self, body, sect_props):
         self._body = body
         self._no_pagebreak = True # To avoid continuous page breaks
-        self._sect_prop = sect_prop
-        self._current_orient = docx.get_orient(sect_prop)
+        self._default_orient = docx.get_orient(sect_props[0])
+        self._sect_props = {
+                self._default_orient: sect_props[0],
+                docx.get_orient(sect_props[1]): sect_props[1],
+        }
+        self._current_orient = self._default_orient
         self._last_orient = None
 
     def add_table_of_contents(self, toc_title, maxlevel, bookmark):
@@ -450,14 +454,14 @@ class Document(object):
 
     def add_last_section_property(self):
         if self._last_orient is not None:
-            docx.set_orient(self._sect_prop, self._last_orient)
+            orient = self._last_orient
         else:
-            docx.set_orient(self._sect_prop, self._current_orient)
-        self._body.append(self._sect_prop)
+            orient = self._current_orient
+        self._body.append(self._sect_props[orient])
 
     def set_page_oriented(self, orient=None):
         if orient is None:
-            orient = docx.get_orient(self._sect_prop)
+            orient = self._default_orient
         if self._current_orient != orient:
             if self._last_orient is not None:
                 # last_orient must be equal to orient, then addition of section
@@ -468,11 +472,7 @@ class Document(object):
             self._current_orient = orient
 
     def get_current_page_width(self):
-        w, h, o, wmargin, hmargin = docx.get_contents_area_info(self._sect_prop)
-        if o == self._current_orient:
-            return w - wmargin
-        else:
-            return h - wmargin
+        return docx.get_contents_width(self._sect_props[self._current_orient])
 
     def append(self, contents):
         is_bookmark = isinstance(contents, (BookmarkStart, BookmarkEnd))
@@ -485,8 +485,10 @@ class Document(object):
     def _add_section_prop_if_necessary(self):
         if self._last_orient is not None:
             self._body.append(docx.make_section_prop_paragraph(
-                self._sect_prop, self._last_orient))
-            docx.set_title_page(self._sect_prop, False)
+                self._sect_props[self._last_orient]))
+            for sect_prop in self._sect_props.values():
+                docx.set_title_page(sect_prop, False)
+                docx.set_title_page(sect_prop, False)
             self._last_orient = None
             self._no_pagebreak = True
 
@@ -586,7 +588,9 @@ class DocxTranslator(nodes.NodeVisitor):
         nodes.NodeVisitor.__init__(self, document)
         self._builder = builder
         self.builder = self._builder # Needs for graphviz.render_dot
-        self._doc_stack = [Document(docx.docbody, docx.get_section_property())]
+        self._doc_stack = [
+                Document(docx.docbody, docx.get_each_orient_section_properties())
+        ]
         self._docname_stack = []
         self._section_level = 0
         self._ctx_stack = [

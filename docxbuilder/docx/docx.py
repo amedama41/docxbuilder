@@ -247,11 +247,11 @@ def get_orient(section_prop):
     page_size = get_elements(section_prop, 'w:pgSz')[0]
     return page_size.attrib.get(norm_name('w:orient'), 'portrait')
 
-def set_orient(section_prop, orient):
+def rotate_orient(section_prop):
     page_size = get_elements(section_prop, 'w:pgSz')[0]
     orient_attr = norm_name('w:orient')
-    if page_size.attrib.get(orient_attr, 'portrait') == orient:
-        return
+    current_orient = page_size.attrib.get(orient_attr, 'portrait')
+    orient = 'landscape' if current_orient == 'portrait' else 'portrait'
     w_attr = norm_name('w:w')
     h_attr = norm_name('w:h')
     w = page_size.attrib.get(w_attr)
@@ -259,6 +259,7 @@ def set_orient(section_prop, orient):
     page_size.attrib[w_attr] = h
     page_size.attrib[h_attr] = w
     page_size.attrib[orient_attr] = orient
+    return section_prop
 
 def set_title_page(section_prop, is_title_page):
     value = 'true' if is_title_page else 'false'
@@ -269,19 +270,14 @@ def set_title_page(section_prop, is_title_page):
         return
     title_page[0].attrib[norm_name('w:val')] = value
 
-def get_contents_area_info(section_property):
+def get_contents_width(section_property):
     paper_size = get_elements(section_property, 'w:pgSz')[0]
     width = int(paper_size.get(norm_name('w:w')))
-    height = int(paper_size.get(norm_name('w:h')))
-    orient = paper_size.get(norm_name('w:orient'), 'portrait')
     paper_margin = get_elements(section_property, 'w:pgMar')[0]
     width_margin = (
             int(paper_margin.get(norm_name('w:right'))) +
             int(paper_margin.get(norm_name('w:left'))))
-    height_margin = (
-            int(paper_margin.get(norm_name('w:top'))) +
-            int(paper_margin.get(norm_name('w:bottom'))))
-    return width, height, orient, width_margin, height_margin
+    return width - width_margin
 
 # Paragraphs and Runs
 
@@ -324,10 +320,8 @@ def make_pagebreak():
         [['w:r'], [['w:br', {'w:type': 'page'}]]],
     ])
 
-def make_section_prop_paragraph(section_prop, orient=None):
+def make_section_prop_paragraph(section_prop):
     section_prop = copy.deepcopy(section_prop)
-    if orient is not None and get_orient(section_prop) != orient:
-        set_orient(section_prop, orient)
     p = make_element_tree([['w:p'], [['w:pPr']]])
     p[0].append(section_prop)
     return p
@@ -633,8 +627,8 @@ class DocxDocument:
             return None
         return styles[-1].attrib[norm_name('w:styleId')]
 
-    def get_section_property(self):
-        return get_elements(self.document, '/w:document/w:body/w:sectPr')[0]
+    def get_section_properties(self):
+        return get_elements(self.document, '//w:sectPr')
 
     def get_coverpage(self):
         coverInfo = get_attribute(
@@ -777,8 +771,14 @@ class DocxComposer:
         self._id += 1
         return self._id
 
-    def get_section_property(self):
-        return self.styleDocx.get_section_property()
+    def get_each_orient_section_properties(self):
+        section_props = self.styleDocx.get_section_properties()
+        first = section_props[0]
+        first_orient = get_orient(first)
+        for sect_prop in section_props[1:]:
+            if get_orient(sect_prop) != first_orient:
+                return first, sect_prop
+        return first, rotate_orient(copy.deepcopy(first))
 
     def get_run_style_property(self, style_id):
         style = self._run_style_property_cache.get(style_id)
