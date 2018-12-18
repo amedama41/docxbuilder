@@ -480,8 +480,10 @@ def make_cell(index, is_first_column, cellsize, grid_span, vmerge):
     property_tree = [
             ['w:tcPr'],
             [['w:cnfStyle', cell_style]],
-            [['w:tcW', {'w:w': str(cellsize), 'w:type': 'dxa'}]]
     ]
+    if cellsize is not None:
+        property_tree.append(
+                [['w:tcW', {'w:w': str(cellsize), 'w:type': 'dxa'}]])
     if grid_span > 1:
         property_tree.append([['w:gridSpan', {'w:val': str(grid_span)}]])
     if vmerge is not None:
