@@ -1297,10 +1297,8 @@ class DocxTranslator(nodes.NodeVisitor):
         table.add_row()
         self._add_table_cell()
         self._doc_stack.append(Paragraph(0, keep_next=True))
-        self._push_style('Literal')
 
     def depart_option_group(self, node):
-        self._doc_stack[-1].pop_style()
         self._pop_and_append()
         self._append_bookmark_end(node.get('ids', []))
 
