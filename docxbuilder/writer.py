@@ -787,6 +787,12 @@ class DocxTranslator(nodes.NodeVisitor):
             indent = None
             right_indent = None
             align = None
+        elif isinstance(node.parent, nodes.admonition):
+            style = None # admonition's style is customized by GenericAdmonition
+            title_num = None
+            indent = self._ctx_stack[-1].indent
+            right_indent = self._ctx_stack[-1].right_indent
+            align = None
         else:
             style = 'TitleHeading'
             title_num = None
