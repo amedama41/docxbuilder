@@ -997,11 +997,11 @@ class DocxComposer:
         if rid is not None:
             return rid
 
-        picext = os.path.splitext(imagepath)
-        if (picext[1] == '.jpg'):
-            picext[1] = '.jpeg'
+        _, picext = os.path.splitext(imagepath)
+        if picext == '.jpg':
+            picext = '.jpeg'
         self.images += 1
-        picname = 'image%d%s' % (self.images, picext[1])
+        picname = 'image%d%s' % (self.images, picext)
 
         # Calculate relationship ID to the first available
         rid = 'rId%d' % (len(self.relationships) + 1)
