@@ -60,6 +60,8 @@ class DocxBuilder(Builder):
         if toctree_only:
             doc = new_document('docxbuilder/builder.py')
             for toctree in tree.traverse(addnodes.toctree):
+                # ids is not assigned to toctree, but to the parent
+                toctree.get('ids').extend(toctree.parent.get('ids'))
                 doc.append(toctree)
             tree = doc
         tree = insert_all_toctrees(tree, self.env, [])
