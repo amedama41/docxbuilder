@@ -1,4 +1,5 @@
 
+from xml.sax import saxutils
 from pygments.formatters import RtfFormatter
 from sphinx.highlighting import PygmentsBridge
 
@@ -47,8 +48,7 @@ class DocxFormatter(RtfFormatter):
                                self.color_mapping[style['border']])
 
                 style = ''.join(buf)
-                value = value.replace('<', '&lt;')
-                value = value.replace('>', '&gt;')
+                value = saxutils.escape(value)
                 index = 0
                 while index < len(value):
                     idx = value.find('\n', index)
