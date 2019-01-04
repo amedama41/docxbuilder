@@ -995,11 +995,12 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_tgroup(self, node):
         self._append_bookmark_start(node.get('ids', []))
         align = node.parent.get('align')
+        fit_content = ('colwidths-auto' in node.parent.get('classes'))
         self._append_table(
                 'StandardTable',
                 [self._ctx_stack[-1].paragraph_width], True, align,
                 self._builder.config.docx_arrange_table_in_single_page,
-                fit_content=self._builder.config.docx_fit_table_to_content)
+                fit_content=fit_content)
 
     def depart_tgroup(self, node):
         self._pop_and_append_table()
