@@ -456,7 +456,7 @@ def make_table(style, indent, align, grid_col_list, has_head, has_first_column):
     ]
     return make_element_tree(table_tree)
 
-def make_row(index, is_head, cant_split):
+def make_row(index, is_head, cant_split, set_tbl_header):
     row_style_attrs = {
             'w:evenHBand': ('true' if index % 2 == 0 else 'false'),
             'w:oddHBand': ('true' if index % 2 != 0 else 'false'),
@@ -468,7 +468,7 @@ def make_row(index, is_head, cant_split):
     ]
     if cant_split:
         property_tree.append([['w:cantSplit']])
-    if is_head:
+    if set_tbl_header:
         property_tree.append([['w:tblHeader']])
     return make_element_tree([['w:tr'], property_tree])
 

@@ -372,7 +372,10 @@ class Table(object):
         return table
 
     def make_row(self, index, row, is_head):
-        row_elem = docx.make_row(index, is_head, self._no_split_cell)
+        # Non-first header needs tblHeader to be applied first row style
+        set_tbl_header = is_head and index > 0
+        row_elem = docx.make_row(
+                index, is_head, self._no_split_cell, set_tbl_header)
         keep_next = self._set_keep_next(is_head, index)
         for index, elem in enumerate(row):
             if elem is None: # Merged with the previous cell
