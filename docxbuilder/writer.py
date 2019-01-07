@@ -269,7 +269,7 @@ class Paragraph(object):
 class Table(object):
     def __init__(
             self, table_style, colsize_list, indent, align,
-            keep_next, fit_content):
+            keep_next, no_split_cell, fit_content):
         self._style = table_style
         self._colspec_list = []
         self._colsize_list = colsize_list
@@ -283,6 +283,7 @@ class Table(object):
         self._current_cell_index = -1
          # 0: not set, 1: set header, 2: set first row, 3: set all rows
         self._keep_next = keep_next
+        self._no_split_cell = no_split_cell
         self._fit_content = fit_content
 
     @property
@@ -371,7 +372,7 @@ class Table(object):
         return table
 
     def make_row(self, index, row, is_head):
-        row_elem = docx.make_row(index, is_head)
+        row_elem = docx.make_row(index, is_head, self._no_split_cell)
         keep_next = self._set_keep_next(is_head, index)
         for index, elem in enumerate(row):
             if elem is None: # Merged with the previous cell
@@ -647,12 +648,13 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _append_table(
             self, table_style, colsize_list, is_indent, align=None,
-            arrange_table_in_single_page=False, fit_content=False):
+            arrange_table_in_single_page=False,
+            no_split_cell=False, fit_content=False):
         indent = self._ctx_stack[-1].indent if is_indent else 0
         keep_next = 3 if arrange_table_in_single_page else 1
         t = Table(
                 table_style, colsize_list, indent, align,
-                keep_next, fit_content)
+                keep_next, no_split_cell, fit_content)
         self._doc_stack.append(t)
         self._append_new_ctx(indent=0, right_indent=0, width=sum(colsize_list))
         return t
