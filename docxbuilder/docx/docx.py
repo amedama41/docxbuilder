@@ -540,7 +540,7 @@ def make_table_of_contents(toc_title, maxlevel, bookmark):
     if toc_title is not None:
         sdtContent_tree.append([
                 ['w:p'],
-                [['w:pPr'], [['w:pStyle', {'w:val': 'TOC_Title'}]]],
+                [['w:pPr'], [['w:pStyle', {'w:val': 'TOCTitle'}]]],
                 [['w:r'], [['w:t', toc_title]]]
         ])
     if maxlevel is not None:
