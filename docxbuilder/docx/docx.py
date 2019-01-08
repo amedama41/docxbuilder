@@ -532,36 +532,80 @@ def make_hyperlink(relationship_id, anchor):
 
 # Structured Document Tags
 
-def make_table_of_contents(toc_title, maxlevel, bookmark):
+def _make_toc_hyperlink(text, anchor):
+    return [['w:hyperlink', {'w:anchor': anchor, 'w:history': '1'}],
+            [['w:r'], [['w:t', text]]],
+            [['w:r'], [['w:rPr'], [['w:webHidden']]], [['w:tab']]],
+            [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
+            [['w:r'],
+                [['w:instrText',
+                    r' PAGEREF %s \h ' % anchor, {'xml:space': 'preserve'}
+                ]]
+            ],
+            [['w:r'], [['w:fldChar', {'w:fldCharType': 'separate'}]]],
+            [['w:r'], [['w:rPr'], [['w:webHidden']]], [['w:t', 'X']]],
+            [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]],
+    ]
+
+def make_table_of_contents(toc_title, maxlevel, bookmark, outlines):
     '''
        Create the Table of Content
     '''
     sdtContent_tree = [['w:sdtContent']]
     if toc_title is not None:
         sdtContent_tree.append([
-                ['w:p'],
-                [['w:pPr'], [['w:pStyle', {'w:val': 'TOCTitle'}]]],
-                [['w:r'], [['w:t', toc_title]]]
+            ['w:p'],
+            [['w:pPr'], [['w:pStyle', {'w:val': 'TOCTitle'}]]],
+            [['w:r'], [['w:t', toc_title]]]
         ])
     if maxlevel is not None:
         instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (maxlevel, bookmark)
     else:
         instr = r' TOC \o \b "%s" \h \z \u ' % bookmark
-    sdtContent_tree.append([
+    tabs_tree = [
+            ['w:tabs'],
+            [['w:tab', {'w:val': 'right', 'w:leader': 'dot', 'w:pos': '8488'}]]
+    ]
+    run_prop_tree = [['w:rPr'], [['w:b', {'w:val': '0'}]], [['w:noProof']]]
+    if outlines:
+        sdtContent_tree.append([
             ['w:p'],
             [['w:pPr'],
-                [['w:pStyle', {'w:val': 'TOC_Contents'}]],
-                [['w:tabs'],
-                    [['w:tab', {
-                        'w:val': 'right', 'w:leader': 'dot', 'w:pos': '8488'
-                    }]]
-                ],
-                [['w:rPr'], [['w:b', {'w:val': '0'}]], [['w:noProof']]]
+                [['w:pStyle', {'w:val': outlines[0][1]}]],
+                tabs_tree,
+                run_prop_tree,
             ],
             [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
             [['w:r'], [['w:instrText', instr, {'xml:space': 'preserve'}]]],
+            [['w:r'], [['w:fldChar', {'w:fldCharType': 'separate'}]]],
+            _make_toc_hyperlink(outlines[0][0], outlines[0][2]),
+        ])
+        for text, style_id, anchor in outlines[1:]:
+            sdtContent_tree.append([
+                ['w:p'],
+                [['w:pPr'],
+                    [['w:pStyle', {'w:val': style_id}]],
+                    tabs_tree,
+                    run_prop_tree,
+                ],
+                _make_toc_hyperlink(text, anchor),
+            ])
+        sdtContent_tree.append([
+            ['w:p'],
             [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]]
-    ])
+        ])
+    else:
+        sdtContent_tree.append([
+            ['w:p'],
+            [['w:pPr'],
+                [['w:pStyle', {'w:val': 'toc 1'}]],
+                tabs_tree,
+                run_prop_tree,
+            ],
+            [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
+            [['w:r'], [['w:instrText', instr, {'xml:space': 'preserve'}]]],
+            [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]],
+        ])
 
     toc_tree = [
             ['w:sdt'],

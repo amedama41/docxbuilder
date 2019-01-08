@@ -27,6 +27,8 @@ import re
 from docutils import nodes, writers
 from lxml import etree
 from six.moves.urllib import parse
+from sphinx import addnodes
+from sphinx.environment.adapters.toctree import TocTree
 from sphinx.ext import graphviz
 from sphinx.locale import admonitionlabels, _
 from sphinx.util import logging
@@ -444,10 +446,11 @@ class Document(object):
         self._current_orient = self._default_orient
         self._last_orient = None
 
-    def add_table_of_contents(self, toc_title, maxlevel, bookmark):
+    def add_table_of_contents(self, toc_title, maxlevel, bookmark, outlines):
         self._add_section_prop_if_necessary()
         self._body.append(
-                docx.make_table_of_contents(toc_title, maxlevel, bookmark))
+                docx.make_table_of_contents(
+                    toc_title, maxlevel, bookmark, outlines))
         self._no_pagebreak = False
 
     def add_pagebreak(self):
@@ -1638,7 +1641,9 @@ class DocxTranslator(nodes.NodeVisitor):
                     'No docx_expanded_toctree_refid', location=node)
             return
         bookmark = make_bookmark_name(self._docname_stack[-1], refid)
-        self._doc_stack[-1].add_table_of_contents(caption, maxlevel, bookmark)
+        self._doc_stack[-1].add_table_of_contents(
+                caption, maxlevel, bookmark,
+                self._collect_outlines(node, maxdepth))
         config = self._builder.config
         if self._section_level <= config.docx_pagebreak_after_table_of_contents:
             self._doc_stack[-1].add_pagebreak()
@@ -1963,6 +1968,29 @@ class DocxTranslator(nodes.NodeVisitor):
         except Exception as e:
             self._logger.warning(e, location=node)
             return None
+
+    def _collect_outlines(self, node, maxdepth):
+        toctree = TocTree(self._builder.env).resolve(
+                self._docname_stack[-1], self._builder, node,
+                maxdepth=maxdepth, includehidden=True)
+        if toctree is None:
+            return []
+        outlines = []
+        for outline in toctree.traverse(
+                addnodes.compact_paragraph, include_self=False):
+            level_class = next(filter(
+                lambda c: c.startswith('toctree-l'), outline.get('classes')))
+            ref = outline[0]
+            secnum = ref.get('secnumber')
+            if secnum is not None:
+                text = '.'.join(map(str, secnum)) + ' ' + ref.astext()
+            else:
+                text = ref.astext()
+            outlines.append((
+                text,
+                level_class.replace('toctree-l', 'toc '),
+                self._get_bookmark_name(ref.get('refuri'))))
+        return outlines
 
     def _create_docxbuilder_styles(self):
         self._docx.create_empty_paragraph_style('Transition', 100, True)
