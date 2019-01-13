@@ -283,8 +283,6 @@ def get_contents_width(section_property):
 
 def make_paragraph(
         indent, right_indent, style, align, keep_lines, keep_next, list_info):
-    if style is None:
-        style = 'BodyText'
     style_tree = [
             ['w:pPr'],
             [['w:pStyle', {'w:val': style}]],
@@ -493,17 +491,17 @@ def make_cell(index, is_first_column, cellsize, grid_span, vmerge):
 
 # Footnotes
 
-def make_footnote_reference(footnote_id):
+def make_footnote_reference(footnote_id, style_id):
     return make_element_tree([
         ['w:r'],
-        [['w:rPr'], [['w:rStyle', {'w:val': 'FootnoteReference'}]]],
+        [['w:rPr'], [['w:rStyle', {'w:val': style_id}]]],
         [['w:footnoteReference', {'w:id': str(footnote_id)}]],
     ])
 
-def make_footnote_ref():
+def make_footnote_ref(style_id):
     return make_element_tree([
         ['w:r'],
-        [['w:rPr'], [['w:rStyle', {'w:val': 'FootnoteReference'}]]],
+        [['w:rPr'], [['w:rStyle', {'w:val': style_id}]]],
         [['w:footnoteRef']],
     ])
 
@@ -547,7 +545,7 @@ def _make_toc_hyperlink(text, anchor):
             [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]],
     ]
 
-def make_table_of_contents(toc_title, maxlevel, bookmark, outlines):
+def make_table_of_contents(toc_title, style_id, maxlevel, bookmark, outlines):
     '''
        Create the Table of Content
     '''
@@ -555,7 +553,7 @@ def make_table_of_contents(toc_title, maxlevel, bookmark, outlines):
     if toc_title is not None:
         sdtContent_tree.append([
             ['w:p'],
-            [['w:pPr'], [['w:pStyle', {'w:val': 'TOCTitle'}]]],
+            [['w:pPr'], [['w:pStyle', {'w:val': style_id}]]],
             [['w:r'], [['w:t', toc_title]]]
         ])
     if maxlevel is not None:
@@ -654,17 +652,22 @@ class DocxDocument:
         '''
         return etree.fromstring(self.docx.read(fname))
 
-    def extract_style_ids(self):
+    def extract_style_info(self):
         '''
-          Extract all style ids from the docx file
+          Extract all style name/id/type from the docx file
         '''
         style_id_attr = norm_name('w:styleId')
         type_attr = norm_name('w:type')
-        return dict(
-                (style.attrib[style_id_attr], style.attrib[type_attr])
-                for style in get_elements(self.styles, 'w:style'))
+        val_attr = norm_name('w:val')
+        def get_info(style):
+            style_id = style.attrib[style_id_attr]
+            style_type = style.attrib[type_attr]
+            names = get_elements(style, 'w:name')
+            style_name = names[0].attrib[val_attr] if names else style_id
+            return (style_name, (style_id, style_type))
+        return dict(get_info(s) for s in get_elements(self.styles, 'w:style'))
 
-    def get_default_style_id(self, style_type):
+    def get_default_style_name(self, style_type):
         '''
           Extract the last default style's id with style_type
         '''
@@ -672,7 +675,11 @@ class DocxDocument:
         styles = get_elements(self.styles, xpath % style_type)
         if not styles:
             return None
-        return styles[-1].attrib[norm_name('w:styleId')]
+        name = get_attribute(styles[-1], 'w:name', 'w:val')
+        if name is not None:
+            return name
+        else:
+            return styles[-1].attrib[norm_name('w:styleId')]
 
     def get_section_properties(self):
         return get_elements(self.document, '//w:sectPr')
@@ -787,7 +794,7 @@ class DocxComposer:
         self._id = 100
         self.styleDocx = DocxDocument(stylefile)
 
-        self._style_ids = self.styleDocx.extract_style_ids()
+        self._style_info = self.styleDocx.extract_style_info()
         self.bullet_list_indents = self.get_numbering_left('ListBullet')
         self.number_list_indent = self.get_numbering_left('ListNumber')[0]
         self._abstract_nums = get_elements(
@@ -826,6 +833,9 @@ class DocxComposer:
             if get_orient(sect_prop) != first_orient:
                 return first, sect_prop
         return first, rotate_orient(copy.deepcopy(first))
+
+    def get_style_id(self, style_name):
+        return self._style_info.get(style_name, (style_name, None))[0]
 
     def get_run_style_property(self, style_id):
         style = self._run_style_property_cache.get(style_id)
@@ -954,46 +964,48 @@ class DocxComposer:
         self._numids.append(num)
         return num_id
 
-    def get_default_style_ids(self):
+    def get_default_style_names(self):
         '''
            Return default paragraph, character, table style ids
         '''
-        paragraph_style_id = self.styleDocx.get_default_style_id('paragraph')
-        character_style_id = self.styleDocx.get_default_style_id('character')
-        table_style_id = self.styleDocx.get_default_style_id('table')
+        paragraph_style_id = self.styleDocx.get_default_style_name('paragraph')
+        character_style_id = self.styleDocx.get_default_style_name('character')
+        table_style_id = self.styleDocx.get_default_style_name('table')
         return paragraph_style_id, character_style_id, table_style_id
 
-    def create_style(self, style_type, new_style_id, based_style_id):
+    def create_style(self, style_type, new_style_name, based_style_name):
         '''
            Create a new style_stype style with new_style_id,
            which is based on based_style_id.
         '''
-        if new_style_id in self._style_ids:
+        if new_style_name in self._style_info:
             return False
-        if self._style_ids.get(based_style_id, None) != style_type:
-            return False
+        new_style_id = new_style_name
         style_tree = [
                 ['w:style', {
                     'w:type': style_type,
                     'w:customStye': '1',
                     'w:styleId': new_style_id
                 }],
-                [['w:name', {'w:val': new_style_id}]],
-                [['w:basedOn', {'w:val': based_style_id}]],
-                [['w:qFormat']]
+                [['w:name', {'w:val': new_style_name}]],
+                [['w:qFormat']],
         ]
+        based_style_info = self._style_info.get(based_style_name, None)
+        if based_style_info is not None and based_style_info[1] == style_type:
+            style_tree.append([['w:basedOn', {'w:val': based_style_info[0]}]])
         newstyle = make_element_tree(style_tree)
         self.styleDocx.styles.append(newstyle)
-        self._style_ids[new_style_id] = style_type
+        self._style_info[new_style_name] = (new_style_id, style_type)
         return True
 
     def create_empty_paragraph_style(
-            self, new_style_id, after_space, with_border):
+            self, new_style_name, after_space, with_border):
         '''
            Create a new empty paragraph style
         '''
-        if new_style_id in self._style_ids:
+        if new_style_name in self._style_info:
             return
+        new_style_id = new_style_name
         property_tree = [
                 ['w:pPr'],
                 [['w:spacing', {
@@ -1013,12 +1025,12 @@ class DocxComposer:
                     'w:customStye': '1',
                     'w:styleId': new_style_id
                 }],
-                [['w:name', {'w:val': new_style_id}]],
+                [['w:name', {'w:val': new_style_name}]],
                 [['w:qFormat']],
                 property_tree,
         ])
         self.styleDocx.styles.append(new_style)
-        self._style_ids[new_style_id] = 'paragraph'
+        self._style_info[new_style_name] = (new_style_id, 'paragraph')
 
     def add_hyperlink_relationship(self, target):
         rid = self._hyperlink_rid_map.get(target)
