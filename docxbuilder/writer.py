@@ -671,11 +671,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _append_table(
             self, table_style, colsize_list, is_indent, align=None,
-            arrange_table_in_single_page=False,
-            no_split_cell=False, fit_content=False):
+            in_single_page=False, no_split_cell=False, fit_content=False):
         table_style = self._docx.get_style_id(table_style)
         indent = self._ctx_stack[-1].indent if is_indent else 0
-        keep_next = 3 if arrange_table_in_single_page else 1
+        keep_next = 3 if in_single_page else 1
         t = Table(
                 table_style, colsize_list, indent, align,
                 keep_next, no_split_cell, fit_content)
@@ -741,7 +740,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def _is_landscape_table(self, node):
         if not isinstance(self._doc_stack[-1], Document):
             return False
-        landscape_columns = self._builder.config.docx_landscape_table_columns
+        landscape_columns = self._builder.config.docx_table_options.get(
+                'landscape_columns', 0)
         if landscape_columns < 1:
             return False
         return landscape_columns <= len(node.traverse(nodes.colspec))
@@ -1027,7 +1027,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_table(
                 'StandardTable',
                 [self._ctx_stack[-1].paragraph_width], True, align,
-                self._builder.config.docx_arrange_table_in_single_page,
+                in_single_page=self._builder.config.docx_table_options.get(
+                    'in_single_page', False),
                 fit_content=fit_content)
 
     def depart_tgroup(self, node):
