@@ -277,7 +277,7 @@ class Paragraph(object):
 class Table(object):
     def __init__(
             self, table_style, colsize_list, indent, align,
-            keep_next, no_split_cell, fit_content):
+            keep_next, cant_split_row, fit_content):
         self._style = table_style
         self._colspec_list = []
         self._colsize_list = colsize_list
@@ -291,7 +291,7 @@ class Table(object):
         self._current_cell_index = -1
          # 0: not set, 1: set header, 2: set first row, 3: set all rows
         self._keep_next = keep_next
-        self._no_split_cell = no_split_cell
+        self._cant_split_row = cant_split_row
         self._fit_content = fit_content
 
     @property
@@ -383,7 +383,7 @@ class Table(object):
         # Non-first header needs tblHeader to be applied first row style
         set_tbl_header = is_head and index > 0
         row_elem = docx.make_row(
-                index, is_head, self._no_split_cell, set_tbl_header)
+                index, is_head, self._cant_split_row, set_tbl_header)
         keep_next = self._set_keep_next(is_head, index)
         for index, elem in enumerate(row):
             if elem is None: # Merged with the previous cell
@@ -671,13 +671,13 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _append_table(
             self, table_style, colsize_list, is_indent, align=None,
-            in_single_page=False, no_split_cell=False, fit_content=False):
+            in_single_page=False, row_splittable=True, fit_content=False):
         table_style = self._docx.get_style_id(table_style)
         indent = self._ctx_stack[-1].indent if is_indent else 0
         keep_next = 3 if in_single_page else 1
         t = Table(
                 table_style, colsize_list, indent, align,
-                keep_next, no_split_cell, fit_content)
+                keep_next, not row_splittable, fit_content)
         self._doc_stack.append(t)
         self._append_new_ctx(indent=0, right_indent=0, width=sum(colsize_list))
         return t
@@ -1029,6 +1029,8 @@ class DocxTranslator(nodes.NodeVisitor):
                 [self._ctx_stack[-1].paragraph_width], True, align,
                 in_single_page=self._builder.config.docx_table_options.get(
                     'in_single_page', False),
+                row_splittable=self._builder.config.docx_table_options.get(
+                    'row_splittable', True),
                 fit_content=fit_content)
 
     def depart_tgroup(self, node):

@@ -27,4 +27,5 @@ def setup(app):
     app.add_config_value('docx_table_options', {
         'landscape_columns': 0,
         'in_single_page': False,
+        'row_splittable': True,
     }, 'env')
