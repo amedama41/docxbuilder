@@ -28,4 +28,5 @@ def setup(app):
         'landscape_columns': 0,
         'in_single_page': False,
         'row_splittable': True,
+        'header_in_all_page': False,
     }, 'env')
