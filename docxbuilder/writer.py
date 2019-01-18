@@ -739,9 +739,20 @@ class DocxTranslator(nodes.NodeVisitor):
                 return prefix % ('.'.join(map(str, num)) + ' ')
         return None
 
+    def _get_table_option(self, classes, option, default_value):
+        if ('docx-%s' % option) in classes:
+            return True
+        if ('docx-no-%s' % option) in classes:
+            return False
+        return self._builder.config.docx_table_options.get(
+                option.replace('-', '_'), default_value)
+
     def _is_landscape_table(self, node):
         if not isinstance(self._doc_stack[-1], Document):
             return False
+        option = self._get_table_option(node.get('classes'), 'landscape', None)
+        if option is not None:
+            return option
         landscape_columns = self._builder.config.docx_table_options.get(
                 'landscape_columns', 0)
         if landscape_columns < 1:
@@ -1025,17 +1036,17 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_tgroup(self, node):
         self._append_bookmark_start(node.get('ids', []))
         align = node.parent.get('align')
-        fit_content = ('colwidths-auto' in node.parent.get('classes'))
+        classes = node.parent.get('classes')
         self._append_table(
                 'StandardTable',
                 [self._ctx_stack[-1].paragraph_width], True, align,
-                in_single_page=self._builder.config.docx_table_options.get(
-                    'in_single_page', False),
-                row_splittable=self._builder.config.docx_table_options.get(
-                    'row_splittable', True),
-                header_in_all_page=self._builder.config.docx_table_options.get(
-                    'header_in_all_page', False),
-                fit_content=fit_content)
+                in_single_page=self._get_table_option(
+                    classes, 'in-single-page', False),
+                row_splittable=self._get_table_option(
+                    classes, 'row-splittable', True),
+                header_in_all_page=self._get_table_option(
+                    classes, 'header-in-all-page', False),
+                fit_content=('colwidths-auto' in classes))
 
     def depart_tgroup(self, node):
         self._pop_and_append_table()
