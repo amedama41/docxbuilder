@@ -839,7 +839,7 @@ class DocxTranslator(nodes.NodeVisitor):
             indent = None
             right_indent = None
             align = None
-        elif isinstance(node.parent, nodes.admonition):
+        elif isinstance(node.parent, nodes.Admonition):
             style = None # admonition's style is customized by Admonition
             title_num = None
             indent = self._ctx_stack[-1].indent
@@ -1924,6 +1924,12 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_refcount(self, node):
         pass
+
+    def visit_todo_node(self, node):
+        self._visit_admonition(node)
+
+    def depart_todo_node(self, node):
+        self._depart_admonition(node)
 
     def unknown_visit(self, node):
         print(node.tagname)
