@@ -7,7 +7,7 @@
     <w:lvl w:ilvl="0">
       <w:start w:val="1"/>
       <w:numFmt w:val="bullet"/>
-      <w:pStyle w:val="ListBullet"/>
+      <w:pStyle w:val="List Bullet"/>
       <w:lvlText w:val=""/>
       <w:lvlJc w:val="left"/>
       <w:pPr>
@@ -149,7 +149,7 @@
     <w:lvl w:ilvl="0">
       <w:start w:val="1"/>
       <w:numFmt w:val="decimal"/>
-      <w:pStyle w:val="ListNumber"/>
+      <w:pStyle w:val="List Number"/>
       <w:lvlText w:val="%1."/>
       <w:lvlJc w:val="left"/>
       <w:pPr>
