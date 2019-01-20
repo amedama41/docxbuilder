@@ -601,6 +601,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._line_block_level = 0
         self._docx = docx
         self._list_id_stack = []
+        self._basic_indent = docx.get_indent('ListParagraph', 320)
         self._bullet_list_id = docx.get_bullet_list_num_id()
         self._language = builder.config.highlight_language
         self._highlighter = DocxPygmentsBridge(
@@ -1014,10 +1015,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_block_quote(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._ctx_stack[-1].indent += self._docx.number_list_indent
+        self._ctx_stack[-1].indent += self._basic_indent
 
     def depart_block_quote(self, node):
-        self._ctx_stack[-1].indent -= self._docx.number_list_indent
+        self._ctx_stack[-1].indent -= self._basic_indent
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_attribution(self, node):
@@ -1291,10 +1292,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_definition(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._ctx_stack[-1].indent += self._docx.number_list_indent
+        self._ctx_stack[-1].indent += self._basic_indent
 
     def depart_definition(self, node):
-        self._ctx_stack[-1].indent -= self._docx.number_list_indent
+        self._ctx_stack[-1].indent -= self._basic_indent
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_field_list(self, node):
@@ -1392,10 +1393,10 @@ class DocxTranslator(nodes.NodeVisitor):
         table = self._doc_stack[-1]
         table.add_row()
         self._add_table_cell()
-        self._ctx_stack[-1].indent += self._docx.number_list_indent
+        self._ctx_stack[-1].indent += self._basic_indent
 
     def depart_description(self, node):
-        self._ctx_stack[-1].indent -= self._docx.number_list_indent
+        self._ctx_stack[-1].indent -= self._basic_indent
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_attention(self, node):

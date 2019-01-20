@@ -752,6 +752,17 @@ class DocxDocument:
                     return indres
         return indres
 
+    def get_indent(self, style_id):
+        ind_elems = get_elements(
+                self.styles,
+                '/w:styles/w:style[@w:styleId="%s"]/w:pPr/w:ind' % style_id)
+        if not ind_elems:
+            return None
+        left = ind_elems[0].get(norm_name('w:left'), None)
+        if left is not None:
+            return left
+        return ind_elems[0].get(norm_name('w:start'), '0')
+
     def get_table_horizon_margin(self, style_name):
         misc_margin = 8 * 2 * 10 # Miscellaneous margin (e.g. border width)
         table_styles = get_elements(self.styles, '/w:styles/w:style')
@@ -846,6 +857,15 @@ class DocxComposer:
     def get_style_id(self, style_name):
         style_info = self.get_style_info(style_name)
         return style_info[0] if style_info is not None else style_name
+
+    def get_indent(self, style_name, default):
+        style_info = self.get_style_info(style_name)
+        if style_info is None or style_info[1] != 'paragraph':
+            return default
+        indent = self.styleDocx.get_indent(style_info[0])
+        if indent is None:
+            return default
+        return int(indent)
 
     def get_run_style_property(self, style_id):
         style = self._run_style_property_cache.get(style_id)
