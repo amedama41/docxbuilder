@@ -79,7 +79,7 @@ def convert_to_twip_size(size_with_unit, max_width):
     cmperin = 2.54
     twippercm = twipperin / cmperin
     ratio_map = {
-            'em': 12 * twipperin / 144, # TODO: Use BodyText font size
+            'em': 12 * twipperin / 144, # TODO: Use Body Text font size
             'ex': 12 * twipperin / 144,
             'mm': twippercm / 10, 'cm': twippercm, 'in': twipperin,
             'px': twipperin / 96, 'pt': twipperin / 72, 'pc': twipperin / 6,
@@ -601,7 +601,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._line_block_level = 0
         self._docx = docx
         self._list_id_stack = []
-        self._basic_indent = docx.get_indent('ListParagraph', 320)
+        self._basic_indent = docx.get_indent('List Paragraph', 320)
         self._bullet_list_id = docx.get_bullet_list_num_id()
         self._language = builder.config.highlight_language
         self._highlighter = DocxPygmentsBridge(
@@ -615,7 +615,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._logger = logging.getLogger('docxbuilder')
 
         self._create_docxbuilder_styles()
-        Paragraph.default_style_id = self._docx.get_style_id('BodyText')
+        Paragraph.default_style_id = self._docx.get_style_id('Body Text')
 
     def _pop_and_append(self):
         contents = self._doc_stack.pop()
@@ -671,7 +671,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._pop_and_append()
         # Append a paragaph as a margin between the table and the next element
         self._doc_stack[-1].append(
-                self._make_paragraph(style='TableBottomMargin'))
+                self._make_paragraph(style='Table Bottom Margin'))
 
     def _add_table_cell(self, morerows=0, morecols=0):
         t = self._doc_stack[-1]
@@ -754,10 +754,10 @@ class DocxTranslator(nodes.NodeVisitor):
         table_width = self._ctx_stack[-1].width
         if style is None:
             style = next((
-                ''.join(word.capitalize() for word in c.split('-'))
+                ' '.join(word.capitalize() for word in c.split('-'))
                 for c in node.get('classes') if c.startswith('admonition-')),
-                'Admonition%s' % node.tagname.capitalize())
-            self._docx.create_style('table', style, 'BasedAdmonition')
+                'Admonition %s' % node.tagname.capitalize())
+            self._docx.create_style('table', style, 'Based Admonition')
         t = self._append_table(
                 style, [table_width - 1000], False, 'center', fit_content=False)
         t.start_head()
@@ -828,14 +828,14 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_title(self, node):
         self._append_bookmark_start(node.get('ids', []))
         if isinstance(node.parent, nodes.table):
-            style = 'TableCaption'
+            style = 'Table Caption'
             title_num = self._get_numfig('table', node.parent['ids'])
             indent = self._ctx_stack[-1].indent
             right_indent = self._ctx_stack[-1].right_indent
             align = node.parent.get('align')
         elif isinstance(node.parent, nodes.section):
-            style = 'Heading%d' % self._section_level
-            self._docx.create_style('paragraph', style, 'BasedHeading')
+            style = 'Heading %d' % self._section_level
+            self._docx.create_style('paragraph', style, 'Heading')
             title_num = self._get_numsec(node.parent['ids'])
             indent = None
             right_indent = None
@@ -847,7 +847,8 @@ class DocxTranslator(nodes.NodeVisitor):
             right_indent = self._ctx_stack[-1].right_indent
             align = None
         else:
-            style = 'TitleHeading'
+            style = '%s Title Heading' % node.tagname.capitalize()
+            self._docx.create_style('paragraph', style, 'Title Heading')
             title_num = None
             indent = self._ctx_stack[-1].indent
             right_indent = self._ctx_stack[-1].right_indent
@@ -863,9 +864,11 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_subtitle(self, node):
         self._append_bookmark_start(node.get('ids', []))
+        style = '%s Subtitle Heading' % node.tagname.capitalize()
+        self._docx.create_style('paragraph', style, 'Subtitle Heading')
         self._doc_stack.append(self._make_paragraph(
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-            'SubtitleHeading'))
+            style))
 
     def depart_subtitle(self, node):
         self._pop_and_append()
@@ -952,7 +955,7 @@ class DocxTranslator(nodes.NodeVisitor):
         if node.rawsource != node.astext(): # Maybe parsed-literal
             self._doc_stack.append(self._make_paragraph(
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-                'LiteralBlock', keep_lines=True, preserve_space=True))
+                'Literal Block', keep_lines=True, preserve_space=True))
             return
         else:
             language = node.get('language', self._language)
@@ -964,7 +967,7 @@ class DocxTranslator(nodes.NodeVisitor):
                     node.rawsource, language,
                     lineos=1, opts=opts, **highlight_args)
             self._doc_stack.append(LiteralBlock(
-                highlighted, self._docx.get_style_id('LiteralBlock'),
+                highlighted, self._docx.get_style_id('Literal Block'),
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent))
             raise nodes.SkipChildren
 
@@ -987,7 +990,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(self._make_paragraph(
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-            'MathBlock'))
+            'Math Block'))
 
     def depart_math_block(self, node):
         self._pop_and_append()
@@ -1051,7 +1054,7 @@ class DocxTranslator(nodes.NodeVisitor):
         align = node.parent.get('align')
         classes = node.parent.get('classes')
         self._append_table(
-                'StandardTable',
+                'Table Grid',
                 [self._ctx_stack[-1].paragraph_width], True, align,
                 in_single_page=self._get_table_option(
                     classes, 'in-single-page', False),
@@ -1131,12 +1134,12 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_caption(self, node):
         self._append_bookmark_start(node.get('ids', []))
         if isinstance(node.parent, nodes.figure):
-            style = 'ImageCaption'
+            style = 'Image Caption'
             figtype = 'figure'
             align = node.parent.get('align')
             keep_next = False
         else:
-            style = 'LiteralCaption'
+            style = 'Literal Caption'
             figtype = 'code-block'
             align = None
             keep_next = True
@@ -1158,8 +1161,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_footnote(self, node):
-        p = self._make_paragraph(None, None, 'FootnoteText')
-        p.add_footnote_ref(self._docx.get_style_id('FootnoteReference'))
+        p = self._make_paragraph(None, None, 'Footnote Text')
+        p.add_footnote_ref(self._docx.get_style_id('Footnote Reference'))
         p.add_text(' ')
         self._doc_stack.append(FixedTopParagraphList(p))
         self._append_bookmark_start(node.get('ids', []))
@@ -1179,7 +1182,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(FixedTopParagraphList(self._make_paragraph(
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-            style='CitationText')))
+            style='Bibliography')))
 
     def depart_citation(self, node):
         self._pop_and_append()
@@ -1202,7 +1205,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(self._make_paragraph(
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-            'TitleHeading'))
+            'Rubric Title Heading'))
 
     def depart_rubric(self, node):
         self._pop_and_append()
@@ -1241,10 +1244,10 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         list_id = self._list_id_stack[-1]
         if isinstance(node.parent, nodes.enumerated_list):
-            style = 'ListNumber'
+            style = 'List Number'
             list_indent_level = 0
         else:
-            style = 'ListBullet'
+            style = 'List Bullet'
             list_indent_level = self._ctx_stack[-1].list_level - 1
         self._doc_stack.append(FixedTopParagraphList(
             self._make_paragraph(
@@ -1273,7 +1276,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(self._make_paragraph(
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-            'DefinitionItem', keep_next=True))
+            'Definition Item', keep_next=True))
 
     def depart_term(self, node):
         term_paragraph = self._doc_stack.pop()
@@ -1303,7 +1306,7 @@ class DocxTranslator(nodes.NodeVisitor):
         table_width = self._ctx_stack[-1].paragraph_width
         colsize_list = [int(table_width * 1 / 4), int(table_width * 3 / 4)]
         table = self._append_table(
-                'FieldList', colsize_list, True, fit_content=True)
+                'Field List', colsize_list, True, fit_content=True)
         table.add_stub()
 
     def depart_field_list(self, node):
@@ -1339,7 +1342,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._ctx_stack[-1].paragraph_width
         self._append_table(
-                'OptionList', [table_width - 500], True, fit_content=False)
+                'Option List', [table_width - 500], True, fit_content=False)
 
     def depart_option_list(self, node):
         self._pop_and_append_table()
@@ -1541,7 +1544,7 @@ class DocxTranslator(nodes.NodeVisitor):
             fid = self._docx.set_default_footnote_id(
                     '%s#%s' % (self._docname_stack[-1], refid))
             self._doc_stack[-1].add_footnote_reference(
-                    fid, self._docx.get_style_id('FootnoteReference'))
+                    fid, self._docx.get_style_id('Footnote Reference'))
         self._append_bookmark_end(node.get('ids', []))
         raise nodes.SkipNode
 
@@ -1563,7 +1566,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_title_reference(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._push_style('TitleReference')
+        self._push_style('Title Reference')
 
     def depart_title_reference(self, node):
         self._doc_stack[-1].pop_style()
@@ -1660,7 +1663,7 @@ class DocxTranslator(nodes.NodeVisitor):
             return
         bookmark = make_bookmark_name(self._docname_stack[-1], refid)
         self._doc_stack[-1].add_table_of_contents(
-                caption, self._docx.get_style_id('TOCTitle'),
+                caption, self._docx.get_style_id('TOC Heading'),
                 maxlevel, bookmark, self._collect_outlines(node, maxdepth))
         config = self._builder.config
         if self._section_level <= config.docx_pagebreak_after_table_of_contents:
@@ -1708,8 +1711,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_desc(self, node):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._ctx_stack[-1].paragraph_width
-        style_name = '%sDescriptions' % node.get('desctype', '').capitalize()
-        self._docx.create_style('table', style_name, 'AdmonitionDescriptions')
+        style_name = '%s Descriptions' % node.get('desctype', '').capitalize()
+        self._docx.create_style('table', style_name, 'Admonition Descriptions')
         table = self._append_table(
                 style_name, [table_width - 500], True, fit_content=False)
         table.start_head()
@@ -2017,37 +2020,38 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _create_docxbuilder_styles(self):
         self._docx.create_empty_paragraph_style('Transition', 100, True)
-        self._docx.create_empty_paragraph_style('TableBottomMargin', 0, False)
+        self._docx.create_empty_paragraph_style('Table Bottom Margin', 0, False)
 
         default_pargraph, _, default_table = self._docx.get_default_style_names()
         paragraph_styles = [
-                ('BasedText', default_pargraph),
-                ('BodyText', 'BasedText'),
-                ('FootnoteText', 'BasedText'),
-                ('CitationText', 'BasedText'),
-                ('DefinitionItem', 'BasedText'),
-                ('LiteralBlock', 'BasedText'),
-                ('MathBlock', 'BasedText'),
-                ('BasedCaption', 'BasedText'),
-                ('BasedHeading', 'BasedText'),
-                ('TableCaption', 'BasedCaption'),
-                ('ImageCaption', 'BasedCaption'),
-                ('LiteralCaption', 'BasedCaption'),
-                ('TitleHeading', 'BasedHeading'),
-                ('SubtitleHeading', 'BasedHeading'),
-                ('ListBullet', 'BasedList'),
-                ('ListNumber', 'BasedList'),
+                ('Body Text', default_pargraph),
+                ('Footnote Text', default_pargraph),
+                ('Bibliography', default_pargraph),
+                ('Definition Item', default_pargraph),
+                ('Literal Block', default_pargraph),
+                ('Math Block', default_pargraph),
+                ('Caption', default_pargraph),
+                ('Table Caption', 'Caption'),
+                ('Image Caption', 'Caption'),
+                ('Literal Caption', 'Caption'),
+                ('Heading', default_pargraph),
+                ('Title Heading', 'Heading'),
+                ('TOC Heading', 'Title Heading'),
+                ('Rubric Title Heading', 'Title Heading'),
+                ('Subtitle Heading', 'Heading'),
+                ('List Bullet', 'List'),
+                ('List Number', 'List'),
         ]
         for new_style, based_style in paragraph_styles:
             self._docx.create_style('paragraph', new_style, based_style)
 
         table_styles = [
-                ('BasedListTable', default_table),
-                ('StandardTable', default_table),
-                ('FieldList', 'BasedListTable'),
-                ('OptionList', 'BasedListTable'),
-                ('Admonition', 'BasedAdmonition'),
-                ('AdmonitionDescriptions', 'BasedAdmonition'),
+                ('List Table', default_table),
+                ('Table Grid', default_table),
+                ('Field List', 'List Table'),
+                ('Option List', 'List Table'),
+                ('Admonition', 'Based Admonition'),
+                ('Admonition Descriptions', 'Based Admonition'),
         ]
         for new_style, based_style in table_styles:
             self._docx.create_style('table', new_style, based_style)

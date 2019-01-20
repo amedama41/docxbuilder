@@ -806,8 +806,8 @@ class DocxComposer:
         self.styleDocx = DocxDocument(stylefile)
 
         self._style_info = self.styleDocx.extract_style_info()
-        self.bullet_list_indents = self.get_numbering_left('ListBullet')
-        self.number_list_indent = self.get_numbering_left('ListNumber')[0]
+        self.bullet_list_indents = self.get_numbering_left('List Bullet')
+        self.number_list_indent = self.get_numbering_left('List Number')[0]
         self._abstract_nums = get_elements(
             self.styleDocx.numbering, 'w:abstractNum')
         self._max_abstract_num_id = get_max_attribute(
@@ -875,7 +875,7 @@ class DocxComposer:
                 style_id, self.styleDocx.get_run_style_property(style_id))
 
     def get_bullet_list_num_id(self):
-        return self.styleDocx.get_numbering_style_id('ListBullet')
+        return self.styleDocx.get_numbering_style_id('List Bullet')
 
     def get_table_cell_margin(self, style_name):
         margin = self.table_margin_map.get(style_name)
