@@ -674,7 +674,8 @@ class DocxTranslator(nodes.NodeVisitor):
             self, table_style, colsize_list, is_indent, align=None,
             in_single_page=False, row_splittable=True,
             header_in_all_page=False, fit_content=False):
-        table_style = self._docx.get_style_id(table_style)
+        if table_style is not None:
+            table_style = self._docx.get_style_id(table_style)
         indent = self._ctx_stack[-1].indent if is_indent else 0
         keep_next = 3 if in_single_page else 1
         t = Table(

@@ -834,8 +834,18 @@ class DocxComposer:
                 return first, sect_prop
         return first, rotate_orient(copy.deepcopy(first))
 
+    def get_style_info(self, style_name):
+        style_info = self._style_info.get(style_name, None)
+        if style_info is not None:
+            return style_info
+        style_info = self._style_info.get(style_name.lower(), None)
+        if style_info is not None:
+            return style_info
+        return None
+
     def get_style_id(self, style_name):
-        return self._style_info.get(style_name, (style_name, None))[0]
+        style_info = self.get_style_info(style_name)
+        return style_info[0] if style_info is not None else style_name
 
     def get_run_style_property(self, style_id):
         style = self._run_style_property_cache.get(style_id)
@@ -978,7 +988,7 @@ class DocxComposer:
            Create a new style_stype style with new_style_id,
            which is based on based_style_id.
         '''
-        if new_style_name in self._style_info:
+        if self.get_style_info(new_style_name) is not None:
             return False
         new_style_id = new_style_name
         style_tree = [
@@ -990,7 +1000,7 @@ class DocxComposer:
                 [['w:name', {'w:val': new_style_name}]],
                 [['w:qFormat']],
         ]
-        based_style_info = self._style_info.get(based_style_name, None)
+        based_style_info = self.get_style_info(based_style_name)
         if based_style_info is not None and based_style_info[1] == style_type:
             style_tree.append([['w:basedOn', {'w:val': based_style_info[0]}]])
         newstyle = make_element_tree(style_tree)
@@ -1003,7 +1013,7 @@ class DocxComposer:
         '''
            Create a new empty paragraph style
         '''
-        if new_style_name in self._style_info:
+        if self.get_style_info(new_style_name) is not None:
             return
         new_style_id = new_style_name
         property_tree = [
