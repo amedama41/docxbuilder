@@ -574,26 +574,6 @@ class DefinitionListItem(ContentsList):
         self._contents_list.append(term_paragraph)
         self._last_term = term_paragraph
 
-def admonition(table_style):
-    def _visit_admonition(func):
-        def visit_admonition(self, node):
-            self._append_bookmark_start(node.get('ids', []))
-            table_width = self._ctx_stack[-1].width
-            t = self._append_table(
-                    table_style, [table_width - 1000], False, 'center',
-                    fit_content=False)
-            t.start_head()
-            t.add_row()
-            self._add_table_cell()
-            p = self._make_paragraph()
-            p.add_text(admonitionlabels[node.tagname] + ':')
-            t.append(p)
-            t.start_body()
-            t.add_row()
-            self._add_table_cell()
-        return visit_admonition
-    return _visit_admonition
-
 class Contenxt(object):
     def __init__(self, indent, right_indent, width, list_level):
         self.indent = indent
@@ -760,6 +740,37 @@ class DocxTranslator(nodes.NodeVisitor):
             return False
         return landscape_columns <= len(node.traverse(nodes.colspec))
 
+    def _visit_admonition(self, node, add_title=False):
+        self._append_bookmark_start(node.get('ids', []))
+        self._doc_stack.append(ContentsList())
+        if add_title:
+            p = self._make_paragraph()
+            p.add_text(admonitionlabels[node.tagname] + ':')
+            self._doc_stack[-1].append(p)
+
+    def _depart_admonition(self, node, style=None):
+        contents = self._doc_stack.pop()
+        table_width = self._ctx_stack[-1].width
+        if style is None:
+            style = next((
+                ''.join(word.capitalize() for word in c.split('-'))
+                for c in node.get('classes') if c.startswith('admonition-')),
+                'Admonition%s' % node.tagname.capitalize())
+            self._docx.create_style('table', style, 'BasedAdmonition')
+        t = self._append_table(
+                style, [table_width - 1000], False, 'center', fit_content=False)
+        t.start_head()
+        t.add_row()
+        self._add_table_cell()
+        t.append(contents[0])
+        t.start_body()
+        t.add_row()
+        self._add_table_cell()
+        for c in contents[1:]:
+            t.append(c)
+        self._pop_and_append_table()
+        self._append_bookmark_end(node.get('ids', []))
+
     def _visit_image_node(self, node, alt, get_filepath):
         self._append_bookmark_start(node.get('ids', []))
 
@@ -829,7 +840,7 @@ class DocxTranslator(nodes.NodeVisitor):
             right_indent = None
             align = None
         elif isinstance(node.parent, nodes.admonition):
-            style = None # admonition's style is customized by GenericAdmonition
+            style = None # admonition's style is customized by Admonition
             title_num = None
             indent = self._ctx_stack[-1].indent
             right_indent = self._ctx_stack[-1].right_indent
@@ -1387,99 +1398,65 @@ class DocxTranslator(nodes.NodeVisitor):
         self._ctx_stack[-1].indent -= self._docx.number_list_indent
         self._append_bookmark_end(node.get('ids', []))
 
-    @admonition('AttentionAdmonition')
     def visit_attention(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_attention(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
-    @admonition('CautionAdmonition')
     def visit_caution(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_caution(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
-    @admonition('DangerAdmonition')
     def visit_danger(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_danger(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
-    @admonition('ErrorAdmonition')
     def visit_error(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_error(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
-    @admonition('HintAdmonition')
     def visit_hint(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_hint(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
-    @admonition('ImportantAdmonition')
     def visit_important(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_important(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
-    @admonition('NoteAdmonition')
     def visit_note(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_note(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
-    @admonition('TipAdmonition')
     def visit_tip(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_tip(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
-    @admonition('WarningAdmonition')
     def visit_warning(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_warning(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
     def visit_admonition(self, node):
-        self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(ContentsList())
+        self._visit_admonition(node)
 
     def depart_admonition(self, node):
-        contents = self._doc_stack.pop()
-        table_width = self._ctx_stack[-1].width
-        t = self._append_table(
-                'GenericAdmonition', [table_width - 1000], False, 'center',
-                fit_content=False)
-        t.start_head()
-        t.add_row()
-        self._add_table_cell()
-        t.append(contents[0])
-        t.start_body()
-        t.add_row()
-        self._add_table_cell()
-        for c in contents[1:]:
-            t.append(c)
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node, 'Admonition')
 
     def visit_substitution_definition(self, node):
         raise nodes.SkipNode # TODO
@@ -1731,7 +1708,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._ctx_stack[-1].paragraph_width
         style_name = '%sDescriptions' % node.get('desctype', '').capitalize()
-        self._docx.create_style('table', style_name, 'DescriptionsAdmonition')
+        self._docx.create_style('table', style_name, 'AdmonitionDescriptions')
         table = self._append_table(
                 style_name, [table_width - 500], True, fit_content=False)
         table.start_head()
@@ -1847,13 +1824,11 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_productionlist(self, node):
         pass
 
-    @admonition('SeealsoAdmonition')
     def visit_seealso(self, node):
-        pass
+        self._visit_admonition(node, add_title=True)
 
     def depart_seealso(self, node):
-        self._pop_and_append_table()
-        self._append_bookmark_end(node.get('ids', []))
+        self._depart_admonition(node)
 
     def visit_tabular_col_spec(self, node):
         raise nodes.SkipNode # Do nothing
@@ -2064,18 +2039,8 @@ class DocxTranslator(nodes.NodeVisitor):
                 ('StandardTable', default_table),
                 ('FieldList', 'BasedListTable'),
                 ('OptionList', 'BasedListTable'),
-                ('AttentionAdmonition', 'BasedAdmonition'),
-                ('CautionAdmonition', 'BasedAdmonition'),
-                ('DangerAdmonition', 'BasedAdmonition'),
-                ('ErrorAdmonition', 'BasedAdmonition'),
-                ('HintAdmonition', 'BasedAdmonition'),
-                ('ImportantAdmonition', 'BasedAdmonition'),
-                ('NoteAdmonition', 'BasedAdmonition'),
-                ('TipAdmonition', 'BasedAdmonition'),
-                ('WarningAdmonition', 'BasedAdmonition'),
-                ('GenericAdmonition', 'BasedAdmonition'),
-                ('SeealsoAdmonition', 'BasedAdmonition'),
-                ('DescriptionsAdmonition', 'BasedAdmonition'),
+                ('Admonition', 'BasedAdmonition'),
+                ('AdmonitionDescriptions', 'BasedAdmonition'),
         ]
         for new_style, based_style in table_styles:
             self._docx.create_style('table', new_style, based_style)
