@@ -407,7 +407,7 @@
     <w:basedOn w:val="a"/>
     <w:qFormat/>
     <w:rPr>
-      <w:rFonts w:ascii="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
+      <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
       <w:i/>
       <w:iCs/>
       <w:sz w:val="24"/>
@@ -504,13 +504,13 @@
     </w:tblStylePr>
   </w:style>
   <w:style w:type="table" w:customStyle="1" w:styleId="AdmonitionNote">
-    <w:name w:val="Admonition None"/>
+    <w:name w:val="Admonition Note"/>
     <w:basedOn w:val="BasedAdmonition"/>
     <w:qFormat/>
   </w:style>
   <w:style w:type="table" w:customStyle="1" w:styleId="AdmonitionWarning">
     <w:name w:val="Admonition Warning"/>
-    <w:basedOn w:val="NoteAdmonition"/>
+    <w:basedOn w:val="AdmonitionNote"/>
     <w:qFormat/>
     <w:tblStylePr w:type="firstRow">
       <w:tblPr/>
@@ -527,7 +527,7 @@
   </w:style>
   <w:style w:type="table" w:customStyle="1" w:styleId="AdmonitionCaution">
     <w:name w:val="Admonition Caution"/>
-    <w:basedOn w:val="WarningAdmonition"/>
+    <w:basedOn w:val="AdmonitionWarning"/>
     <w:qFormat/>
   </w:style>
   <w:style w:type="table" w:customStyle="1" w:styleId="Admonition">
