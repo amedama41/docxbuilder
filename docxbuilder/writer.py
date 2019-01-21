@@ -522,9 +522,9 @@ class Document(object):
             self._no_pagebreak = True
 
 class LiteralBlock(object):
-    def __init__(self, highlighted, style_id, indent, right_indent):
+    def __init__(self, highlighted, style_id, indent, right_indent, keep_lines):
         p = docx.make_paragraph(
-                indent, right_indent, style_id, None, True, False, None)
+                indent, right_indent, style_id, None, keep_lines, False, None)
         xml_text = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' + highlighted + '</w:p>'
         dummy_p = etree.fromstring(xml_text)
         p.extend(dummy_p)
@@ -960,10 +960,12 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_literal_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        if node.rawsource != node.astext(): # Maybe parsed-literal
+        text = node.astext()
+        keep_lines = (text.count('\n') + 1 < 20)
+        if node.rawsource != text: # Maybe parsed-literal
             self._doc_stack.append(self._make_paragraph(
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-                'Literal Block', keep_lines=True, preserve_space=True))
+                'Literal Block', keep_lines=keep_lines, preserve_space=True))
             return
         else:
             language = node.get('language', self._language)
@@ -976,7 +978,8 @@ class DocxTranslator(nodes.NodeVisitor):
                     lineos=1, opts=opts, **highlight_args)
             self._doc_stack.append(LiteralBlock(
                 highlighted, self._docx.get_style_id('Literal Block'),
-                self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent))
+                self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
+                keep_lines))
             raise nodes.SkipChildren
 
     def depart_literal_block(self, node):
