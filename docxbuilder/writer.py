@@ -449,6 +449,19 @@ class Table(object):
             return True
         return False
 
+class TOC(object):
+    def __init__(self, title, title_style_id, maxlevel, bookmark, outlines):
+        self._title = title
+        self._title_style_id = title_style_id
+        self._maxlevel = maxlevel
+        self._bookmark = bookmark
+        self._outlines = outlines
+
+    def to_xml(self):
+        return docx.make_table_of_contents(
+                self._title, self._title_style_id,
+                self._maxlevel, self._bookmark, self._outlines)
+
 class Document(object):
     def __init__(self, body, sect_props):
         self._body = body
@@ -461,25 +474,12 @@ class Document(object):
         self._current_orient = self._default_orient
         self._last_orient = None
 
-    def add_table_of_contents(
-            self, toc_title, title_style_id, maxlevel, bookmark, outlines):
-        self._add_section_prop_if_necessary()
-        self._body.append(
-                docx.make_table_of_contents(
-                    toc_title, title_style_id, maxlevel, bookmark, outlines))
-        self._no_pagebreak = False
-
     def add_pagebreak(self):
         self._add_section_prop_if_necessary()
         if self._no_pagebreak:
             return
         self._body.append(docx.make_pagebreak())
         self._no_pagebreak = True
-
-    def add_transition(self, style_id):
-        self._add_section_prop_if_necessary()
-        self._body.append(Paragraph(paragraph_style=style_id).to_xml())
-        self._no_pagebreak = False
 
     def add_last_section_property(self):
         if self._last_orient is not None:
@@ -884,7 +884,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_section(self, node):
         config = self._builder.config
-        if self._section_level < config.docx_pagebreak_before_section:
+        if (self._section_level < config.docx_pagebreak_before_section
+                and isinstance(self._doc_stack[-1], Document)):
             self._doc_stack[-1].add_pagebreak()
         self._append_bookmark_start(node.get('ids', []))
         self._section_level += 1
@@ -931,8 +932,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_transition(self, node):
-        self._doc_stack[-1].add_transition(
-                self._docx.get_style_id('Transition'))
+        self._doc_stack[-1].append(self._make_paragraph(style='Transition'))
 
     def depart_transition(self, node):
         pass
@@ -1670,11 +1670,12 @@ class DocxTranslator(nodes.NodeVisitor):
                     'No docx_expanded_toctree_refid', location=node)
             return
         bookmark = make_bookmark_name(self._docname_stack[-1], refid)
-        self._doc_stack[-1].add_table_of_contents(
-                caption, self._docx.get_style_id('TOC Heading'),
-                maxlevel, bookmark, self._collect_outlines(node, maxdepth))
+        self._doc_stack[-1].append(TOC(
+            caption, self._docx.get_style_id('TOC Heading'),
+            maxlevel, bookmark, self._collect_outlines(node, maxdepth)))
         config = self._builder.config
-        if self._section_level <= config.docx_pagebreak_after_table_of_contents:
+        if (self._section_level <= config.docx_pagebreak_after_table_of_contents
+                and isinstance(self._doc_stack[-1], Document)):
             self._doc_stack[-1].add_pagebreak()
 
     def depart_toctree(self, node):
