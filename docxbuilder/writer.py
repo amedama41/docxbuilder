@@ -100,6 +100,14 @@ def make_bookmark_name(docname, id):
     # Office could not handle bookmark names including hash characters
     return '%s/%s' % (parse.quote(docname), id)
 
+def count_colspec(table_node):
+    tgroup = next(
+            (c for c in table_node.children if isinstance(c, nodes.tgroup)),
+            None)
+    if tgroup is None:
+        return 0
+    return sum((1 for c in tgroup.children if isinstance(c, nodes.colspec)))
+
 #
 #  DocxWriter class for sphinx
 #
@@ -739,7 +747,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 'landscape_columns', 0)
         if landscape_columns < 1:
             return False
-        return landscape_columns <= len(node.traverse(nodes.colspec))
+        return landscape_columns <= count_colspec(node)
 
     def _visit_admonition(self, node, add_title=False):
         self._append_bookmark_start(node.get('ids', []))
