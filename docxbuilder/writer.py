@@ -1527,7 +1527,8 @@ class DocxTranslator(nodes.NodeVisitor):
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
                 align=node.parent.get('align')))
         self._doc_stack[-1].begin_hyperlink(
-                self._docx.get_run_style_property('Hyperlink'))
+                self._docx.get_run_style_property(
+                    self._docx.get_style_id('Hyperlink')))
 
     def depart_reference(self, node):
         refuri = node.get('refuri', None)
