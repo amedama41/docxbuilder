@@ -1065,7 +1065,7 @@ class DocxTranslator(nodes.NodeVisitor):
         align = node.parent.get('align')
         classes = node.parent.get('classes')
         self._append_table(
-                'Table Grid',
+                'Table',
                 [self._ctx_stack[-1].paragraph_width], True, align,
                 in_single_page=self._get_table_option(
                     classes, 'in-single-page', False),
@@ -2060,7 +2060,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
         table_styles = [
                 ('List Table', default_table),
-                ('Table Grid', default_table),
+                ('Table', default_table),
                 ('Field List', 'List Table'),
                 ('Option List', 'List Table'),
                 ('Admonition', 'Based Admonition'),

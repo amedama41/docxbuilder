@@ -579,8 +579,8 @@
       </w:tcPr>
     </w:tblStylePr>
   </w:style>
-  <w:style w:type="table" w:customStyle="1" w:styleId="TableGrid">
-    <w:name w:val="Table Grid"/>
+  <w:style w:type="table" w:customStyle="1" w:styleId="Table">
+    <w:name w:val="Table"/>
     <w:qFormat/>
     <w:rPr>
       <w:color w:val="000000" w:themeColor="text1"/>
