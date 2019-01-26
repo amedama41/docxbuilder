@@ -646,7 +646,6 @@ class DocxDocument:
         self.docx = zipfile.ZipFile(docxfile)
 
         self.document = self.get_xmltree('word/document.xml')
-        self.docbody = get_elements(self.document, '/w:document/w:body')[0]
         self.numbering = self.get_xmltree('word/numbering.xml')
         self.styles = self.get_xmltree('word/styles.xml')
 
@@ -693,14 +692,10 @@ class DocxDocument:
         return get_elements(self.document, '//w:sectPr')
 
     def get_coverpage(self):
-        coverInfo = get_attribute(
-            self.docbody, 'w:sdt/w:sdtPr/w:docPartObj/w:docPartGallery', 'w:val')
-        if coverInfo == "Cover Pages":
-            coverpage = get_elements(self.docbody, 'w:sdt')[0]
-        else:
-            coverpage = None
-
-        return coverpage
+        coverpages = get_elements(
+            self.document,
+            '//w:sdt[w:sdtPr/w:docPartObj/w:docPartGallery[@w:val="Cover Pages"]]')
+        return coverpages[0] if coverpages else None
 
     def get_number_of_medias(self):
         media_list = filter(lambda fname: fname.startswith('word/media/'),
