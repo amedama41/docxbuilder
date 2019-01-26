@@ -466,7 +466,7 @@ class TOC(object):
 class Document(object):
     def __init__(self, body, sect_props):
         self._body = body
-        self._no_pagebreak = True # To avoid continuous page breaks
+        self._add_pagebreak = False
         self._default_orient = docx.get_orient(sect_props[0])
         self._sect_props = {
                 self._default_orient: sect_props[0],
@@ -476,11 +476,7 @@ class Document(object):
         self._last_orient = None
 
     def add_pagebreak(self):
-        self._add_section_prop_if_necessary()
-        if self._no_pagebreak:
-            return
-        self._body.append(docx.make_pagebreak())
-        self._no_pagebreak = True
+        self._add_pagebreak = True
 
     def add_last_section_property(self):
         if self._last_orient is not None:
@@ -505,12 +501,13 @@ class Document(object):
         return docx.get_contents_width(self._sect_props[self._current_orient])
 
     def append(self, contents):
-        is_bookmark = isinstance(contents, (BookmarkStart, BookmarkEnd))
-        if not is_bookmark:
+        xml = contents.to_xml()
+        if not isinstance(contents, (BookmarkStart, BookmarkEnd)):
             self._add_section_prop_if_necessary()
-        self._body.append(contents.to_xml())
-        if not is_bookmark:
-            self._no_pagebreak = False
+            if self._add_pagebreak:
+                docx.add_page_break_before_to_first_paragraph(xml)
+                self._add_pagebreak = False
+        self._body.append(xml)
 
     def _add_section_prop_if_necessary(self):
         if self._last_orient is not None:
@@ -520,7 +517,6 @@ class Document(object):
                 docx.set_title_page(sect_prop, False)
                 docx.set_title_page(sect_prop, False)
             self._last_orient = None
-            self._no_pagebreak = True
 
 class LiteralBlock(object):
     def __init__(self, highlighted, style_id, indent, right_indent, keep_lines):

@@ -281,6 +281,18 @@ def get_contents_width(section_property):
 
 # Paragraphs and Runs
 
+def add_page_break_before_to_first_paragraph(xml):
+    paragraphs = get_elements(xml, '//w:p')
+    if not paragraphs:
+        return
+    p = paragraphs[0]
+    p_props = get_elements(p, 'w:pPr')
+    tree = [['w:pageBreakBefore', {'w:val': '1'}]]
+    if p_props:
+        p_props[0].append(make_element_tree(tree))
+    else:
+        p.append(make_element_tree([['w:pPr', tree]]))
+
 def make_run_style_property(style_id):
     return {'w:rStyle': {'w:val': style_id}}
 
@@ -314,12 +326,6 @@ def make_paragraph(
 
     paragraph_tree = [['w:p'], style_tree]
     return make_element_tree(paragraph_tree)
-
-def make_pagebreak():
-    return make_element_tree([
-        ['w:p'],
-        [['w:r'], [['w:br', {'w:type': 'page'}]]],
-    ])
 
 def make_section_prop_paragraph(section_prop):
     section_prop = copy.deepcopy(section_prop)
