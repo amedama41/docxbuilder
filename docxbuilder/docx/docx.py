@@ -163,6 +163,21 @@ def get_attribute(xml, path, name):
     return elems[0].attrib[norm_name(name)]
 
 def get_special_footnotes(footnotes_xml):
+    if footnotes_xml is None:
+        def make_footnote(footnote_id, footnote_type):
+            return make_element_tree([
+                ['w:footnote', {
+                    'w:type': footnote_type, 'w:id': str(footnote_id),
+                }],
+                [['w:p'],
+                    [['w:pPr'], [['w:spacing', {'w:after': '0'}]]],
+                    [['w:r'], [['w:' + footnote_type]]],
+                ],
+            ])
+        return [
+                make_footnote(-1, 'separate'),
+                make_footnote(0, 'continuationSeparator')
+        ]
     return get_elements(
             footnotes_xml,
             '/w:footnotes/w:footnote[@w:type and not(@w:type="normal")]')
@@ -657,7 +672,10 @@ class DocxDocument:
         '''
           Extract a document tree from the docx file
         '''
-        return etree.fromstring(self.docx.read(fname))
+        try:
+            return etree.fromstring(self.docx.read(fname))
+        except KeyError:
+            return None
 
     def extract_style_info(self):
         '''
