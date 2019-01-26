@@ -281,6 +281,9 @@ def get_contents_width(section_property):
 
 # Paragraphs and Runs
 
+def make_run_style_property(style_id):
+    return {'w:rStyle': {'w:val': style_id}}
+
 def make_paragraph(
         indent, right_indent, style, align, keep_lines, keep_next, list_info):
     style_tree = [

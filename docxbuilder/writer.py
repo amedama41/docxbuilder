@@ -246,9 +246,10 @@ class Paragraph(object):
     def pop_style(self):
         self._text_style_stack.pop()
 
-    def begin_hyperlink(self, hyperlink_style):
+    def begin_hyperlink(self, hyperlink_style_id):
         self._contents_stack.append([])
-        self._text_style_stack.append(hyperlink_style)
+        self._text_style_stack.append(
+                docx.make_run_style_property(hyperlink_style_id))
 
     def end_hyperlink(self, rid, anchor):
         self._text_style_stack.pop()
@@ -1527,8 +1528,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
                 align=node.parent.get('align')))
         self._doc_stack[-1].begin_hyperlink(
-                self._docx.get_run_style_property(
-                    self._docx.get_style_id('Hyperlink')))
+                self._docx.get_style_id('Hyperlink'))
 
     def depart_reference(self, node):
         refuri = node.get('refuri', None)
