@@ -596,7 +596,6 @@ def make_table_of_contents(toc_title, style_id, maxlevel, bookmark, outlines):
         sdtContent_tree.append([
             ['w:p'],
             [['w:pPr'],
-                [['w:pStyle', {'w:val': 'toc 1'}]],
                 tabs_tree,
                 run_prop_tree,
             ],
