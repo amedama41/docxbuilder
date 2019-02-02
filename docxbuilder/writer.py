@@ -607,7 +607,6 @@ class DocxTranslator(nodes.NodeVisitor):
         self._docx = docx
         self._list_id_stack = []
         self._basic_indent = docx.get_indent('List Paragraph', 320)
-        self._bullet_list_id = docx.get_bullet_list_num_id()
         self._language = builder.config.highlight_language
         self._highlighter = DocxPygmentsBridge(
                 'html',
@@ -620,6 +619,9 @@ class DocxTranslator(nodes.NodeVisitor):
         self._logger = logging.getLogger('docxbuilder')
 
         self._create_docxbuilder_styles()
+        self._bullet_list_id = docx.get_bullet_list_num_id()
+        self._bullet_list_indents = docx.get_numbering_left('List Bullet')
+        self._number_list_indent = docx.get_numbering_left('List Number')[0]
         Paragraph.default_style_id = self._docx.get_style_id('Body Text')
 
     def _pop_and_append(self):
@@ -1224,43 +1226,47 @@ class DocxTranslator(nodes.NodeVisitor):
         self._ctx_stack[-1].list_level += 1
         self._ctx_stack[-1].indent += self._get_additional_list_indent(
                 self._ctx_stack[-1].list_level - 1)
-        self._list_id_stack.append(self._bullet_list_id)
 
     def depart_bullet_list(self, node):
         self._ctx_stack[-1].indent -= self._get_additional_list_indent(
                 self._ctx_stack[-1].list_level - 1)
         self._ctx_stack[-1].list_level -= 1
-        self._list_id_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_enumerated_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._ctx_stack[-1].indent += self._docx.number_list_indent
+        self._ctx_stack[-1].indent += self._number_list_indent
         enumtype = node.get('enumtype', 'arabic')
         prefix = node.get('prefix', '')
         suffix = node.get('suffix', '')
         start = node.get('start', 1)
         self._list_id_stack.append(self._docx.add_numbering_style(
-            start, '{}%1{}'.format(prefix, suffix), enumtype))
+            start, '{}%1{}'.format(prefix, suffix), enumtype,
+            self._number_list_indent))
 
     def depart_enumerated_list(self, node):
-        self._ctx_stack[-1].indent -= self._docx.number_list_indent
+        self._ctx_stack[-1].indent -= self._number_list_indent
         self._list_id_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_list_item(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        list_id = self._list_id_stack[-1]
         if isinstance(node.parent, nodes.enumerated_list):
             style = 'List Number'
-            list_indent_level = 0
+            list_info=(self._list_id_stack[-1], 0)
         else:
             style = 'List Bullet'
-            list_indent_level = self._ctx_stack[-1].list_level - 1
+            if self._bullet_list_id is not None:
+                max_level = max(len(self._bullet_list_indents) - 1, 0)
+                list_indent_level = min(
+                        self._ctx_stack[-1].list_level - 1, max_level)
+                list_info=(self._bullet_list_id, list_indent_level)
+            else:
+                list_info=None
         self._doc_stack.append(FixedTopParagraphList(
             self._make_paragraph(
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-                style, list_info=(list_id, list_indent_level))))
+                style, list_info=list_info)))
 
     def depart_list_item(self, node):
         self._pop_and_append()
@@ -1962,10 +1968,13 @@ class DocxTranslator(nodes.NodeVisitor):
         return None
 
     def _get_additional_list_indent(self, list_level):
-        indent = self._docx.get_list_indent(list_level)
+        if list_level >= len(self._bullet_list_indents):
+            return self._basic_indent
         if list_level == 0:
-            return indent
-        return indent - self._docx.get_list_indent(list_level - 1)
+            parent_indent = 0
+        else:
+            parent_indent = self._bullet_list_indents[list_level - 1]
+        return self._bullet_list_indents[list_level] - parent_indent
 
     def _get_image_scaled_size(self, node, filename):
         paragraph_width = self._ctx_stack[-1].paragraph_width
@@ -2048,11 +2057,14 @@ class DocxTranslator(nodes.NodeVisitor):
                 ('TOC Heading', 'Title Heading'),
                 ('Rubric Title Heading', 'Title Heading'),
                 ('Subtitle Heading', 'Heading'),
-                ('List Bullet', 'List'),
-                ('List Number', 'List'),
         ]
         for new_style, based_style in paragraph_styles:
             self._docx.create_style('paragraph', new_style, based_style)
+
+        self._docx.create_list_style(
+                'List Bullet', 'bullet', '\uf0b7', 'Symbol', self._basic_indent)
+        self._docx.create_list_style(
+                'List Number', 'arabic', '%1.', None, self._basic_indent)
 
         table_styles = [
                 ('List Table', default_table),

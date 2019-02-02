@@ -653,6 +653,12 @@ def make_vml_textbox(style, color, contents, wrap_style=None):
     txbx[0][0][0][0].extend(contents)
     return txbx
 
+def get_left(ind):
+    left = ind.get(norm_name('w:left'), None)
+    if left is not None:
+        return left
+    return ind.get(norm_name('w:start'), '0')
+
 class DocxDocument:
     def __init__(self, docxfile):
         '''
@@ -750,28 +756,12 @@ class DocxDocument:
                     style_elem, 'w:pPr/w:numPr/w:numId')[0]
                 value = numPr.attrib[norm_name('w:val')]
                 return value
-        return '0'
+        return None
 
-    def get_numbering_left(self, style):
-        '''
-           get numbering indeces
-        '''
-        abstractNums = get_elements(self.numbering, 'w:abstractNum')
-
-        indres = [0]
-
-        for x in abstractNums:
-            styles = get_elements(x, 'w:lvl/w:pStyle')
-            if styles:
-                pstyle_name = styles[0].get(norm_name('w:val'))
-                if pstyle_name == style:
-                    ind = get_elements(x, 'w:lvl/w:pPr/w:ind')
-                    if ind:
-                        indres = []
-                        for indx in ind:
-                            indres.append(int(indx.get(norm_name('w:left'))))
-                    return indres
-        return indres
+    def get_elems_from_numbering(self, elem_tag):
+        if self.numbering is None:
+            return []
+        return get_elements(self.numbering, elem_tag)
 
     def get_indent(self, style_id):
         ind_elems = get_elements(
@@ -779,10 +769,7 @@ class DocxDocument:
                 '/w:styles/w:style[@w:styleId="%s"]/w:pPr/w:ind' % style_id)
         if not ind_elems:
             return None
-        left = ind_elems[0].get(norm_name('w:left'), None)
-        if left is not None:
-            return left
-        return ind_elems[0].get(norm_name('w:start'), '0')
+        return get_left(ind_elems[0])
 
     def get_table_horizon_margin(self, style_name):
         misc_margin = 8 * 2 * 10 # Miscellaneous margin (e.g. border width)
@@ -827,15 +814,11 @@ class DocxComposer:
         self.styleDocx = DocxDocument(stylefile)
 
         self._style_info = self.styleDocx.extract_style_info()
-        self.bullet_list_indents = self.get_numbering_left(
-                self.get_style_id('List Bullet'))
-        self.number_list_indent = self.get_numbering_left(
-                self.get_style_id('List Number'))[0]
-        self._abstract_nums = get_elements(
-            self.styleDocx.numbering, 'w:abstractNum')
+        self._abstract_nums = self.styleDocx.get_elems_from_numbering(
+                'w:abstractNum')
         self._max_abstract_num_id = get_max_attribute(
                 self._abstract_nums, norm_name('w:abstractNumId'))
-        self._numids = get_elements(self.styleDocx.numbering, 'w:num')
+        self._numids = self.styleDocx.get_elems_from_numbering('w:num')
         self._max_num_id = get_max_attribute(self._numids, norm_name('w:numId'))
         self.images = self.styleDocx.get_number_of_medias()
 
@@ -919,10 +902,8 @@ class DocxComposer:
         wordrelationships = self.wordrelationships()
 
         numbering = make_element_tree(['w:numbering'])
-        for x in self._abstract_nums:
-            numbering.append(x)
-        for x in self._numids:
-            numbering.append(x)
+        numbering.extend(self._abstract_nums)
+        numbering.extend(self._numids)
 
         coverpage = self.styleDocx.get_coverpage()
 
@@ -960,51 +941,84 @@ class DocxComposer:
 ########
 # Numbering Style
 
-    def get_numbering_left(self, style):
+    def get_numbering_left(self, style_name):
         '''
            Get numbering indeces...
         '''
-        return self.styleDocx.get_numbering_left(style)
+        num_id = self.styleDocx.get_numbering_style_id(style_name)
+        if num_id is None:
+            return []
 
-    def get_list_indent(self, list_level):
-        '''
-           Get list indenent value
-        '''
-        if len(self.bullet_list_indents) > list_level:
-            return self.bullet_list_indents[list_level]
-        else:
-            return self.bullet_list_indents[-1]
+        def find_elem(elems, attr, value):
+            for elem in elems:
+                if elem.get(attr, None) == value:
+                    return elem
+            return None
+
+        num = find_elem(self._numids, norm_name('w:numId'), num_id)
+        if num is None:
+            return []
+
+        abst_num_id = get_attribute(num, 'w:abstractNumId', 'w:val')
+        abstract_num = find_elem(
+                self._abstract_nums, norm_name('w:abstractNumId'), abst_num_id)
+        if abstract_num is None:
+            return []
+
+        indent_info = []
+        ilvl_attr = norm_name('w:ilvl')
+        for lvl in get_elements(abstract_num, 'w:lvl'):
+            ind = get_elements(lvl, 'w:pPr/w:ind')
+            if ind:
+                indent_info.append(
+                        (int(lvl.get(ilvl_attr)), int(get_left(ind[-1]))))
+        indent_info.sort()
+
+        indents = []
+        for lvl, indent in indent_info:
+            while len(indents) < lvl:
+                indents.append(indents[-1] if indents else 0)
+            indents.append(indent)
+        return indents
 
     num_format_map = {
+        'bullet': 'bullet',
         'arabic': 'decimal',
         'loweralpha': 'lowerLetter',
         'upperalpha': 'upperLetter',
         'lowerroman': 'lowerRoman',
-        'upperroman': 'upperRoman'
+        'upperroman': 'upperRoman',
     }
 
-    def add_numbering_style(self, start_val, lvl_txt, typ):
+    def add_numbering_style(
+            self, start_val, lvl_txt, typ, indent, style_id=None, font=None):
         '''
            Create a new numbering definition
         '''
         self._max_abstract_num_id += 1
         abstract_num_id = self._max_abstract_num_id
         typ = self.__class__.num_format_map.get(typ, 'decimal')
-        ind = self.number_list_indent
-        abstnum_tree = [
-                ['w:abstractNum', {'w:abstractNumId': str(abstract_num_id)}],
-                [['w:multiLevelType', {'w:val': 'singleLevel'}]],
-                [['w:lvl', {'w:ilvl': '0'}],
-                    [['w:start', {'w:val': str(start_val)}]],
-                    [['w:lvlText', {'w:val': lvl_txt}]],
-                    [['w:lvlJc', {'w:val': 'left'}]],
-                    [['w:numFmt', {'w:val': typ}]],
-                    [['w:pPr'],
-                        [['w:ind', {'w:left': str(ind), 'w:hanging': str(ind)}]]
-                    ]
-                 ]
+        lvl_tree = [
+                ['w:lvl', {'w:ilvl': '0'}],
+                [['w:start', {'w:val': str(start_val)}]],
+                [['w:lvlText', {'w:val': lvl_txt}]],
+                [['w:lvlJc', {'w:val': 'left'}]],
+                [['w:numFmt', {'w:val': typ}]],
+                [['w:pPr'], [['w:ind', {
+                    'w:left': str(indent), 'w:hanging': str(int(indent * 0.75))
+                }]]],
         ]
-        abstnum = make_element_tree(abstnum_tree)
+        if style_id is not None:
+            lvl_tree.append([['w:pStyle', {'w:val': style_id}]])
+        if font is not None:
+            lvl_tree.append([
+                ['w:rPr'], [['w:rFonts', {'w:ascii': font, 'w:hAnsi': font}]]
+            ])
+        abstnum = make_element_tree([
+            ['w:abstractNum', {'w:abstractNumId': str(abstract_num_id)}],
+            [['w:multiLevelType', {'w:val': 'singleLevel'}]],
+            lvl_tree,
+        ])
         self._abstract_nums.append(abstnum)
 
         self._max_num_id += 1
@@ -1049,6 +1063,29 @@ class DocxComposer:
         newstyle = make_element_tree(style_tree)
         self.styleDocx.styles.append(newstyle)
         self._style_info[new_style_name] = (new_style_id, style_type)
+        return True
+
+    def create_list_style(
+            self, new_style_name, format_type, lvl_text, font, indent):
+        if self.get_style_info(new_style_name) is not None:
+            return
+        new_style_id = new_style_name
+        num_id = self.add_numbering_style(
+                1, lvl_text, format_type, indent, new_style_id, font)
+        style_tree = [
+                ['w:style', {'w:type': 'paragraph', 'w:styleId': new_style_id}],
+                [['w:name', {'w:val': new_style_name}]],
+                [['w:qFormat']],
+                [['w:pPr'],
+                    [['w:numPr'],
+                        [['w:ilvl', {'w:val': '0'}]],
+                        [['w:numId', {'w:val': str(num_id)}]],
+                    ],
+                ],
+        ]
+        newstyle = make_element_tree(style_tree)
+        self.styleDocx.styles.append(newstyle)
+        self._style_info[new_style_name] = (new_style_id, 'paragraph')
         return True
 
     def create_empty_paragraph_style(
