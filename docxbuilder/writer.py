@@ -619,7 +619,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._logger = logging.getLogger('docxbuilder')
 
         self._create_docxbuilder_styles()
-        self._bullet_list_id = docx.get_bullet_list_num_id()
+        self._bullet_list_id = docx.get_bullet_list_num_id('List Bullet')
         self._bullet_list_indents = docx.get_numbering_left('List Bullet')
         self._number_list_indent = docx.get_numbering_left('List Number')[0]
         Paragraph.default_style_id = self._docx.get_style_id('Body Text')

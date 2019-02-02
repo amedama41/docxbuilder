@@ -880,8 +880,8 @@ class DocxComposer:
         return self._run_style_property_cache.setdefault(
                 style_id, self.styleDocx.get_run_style_property(style_id))
 
-    def get_bullet_list_num_id(self):
-        return self.styleDocx.get_numbering_style_id('List Bullet')
+    def get_bullet_list_num_id(self, style_name):
+        return self.styleDocx.get_numbering_style_id(style_name)
 
     def get_table_cell_margin(self, style_name):
         margin = self.table_margin_map.get(style_name)
