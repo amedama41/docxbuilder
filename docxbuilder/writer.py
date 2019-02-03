@@ -96,6 +96,14 @@ def convert_to_cm_size(twip_size):
     cmperin = 2.54
     return twip_size / twipperin * cmperin
 
+def has_caption(image_node):
+    parent = image_node.parent
+    if not isinstance(parent, nodes.figure):
+        return False
+    index = parent.index(image_node)
+    caption_index = parent.first_child_matching_class(nodes.caption, index + 1)
+    return caption_index is not None
+
 def make_bookmark_name(docname, id):
     # Office could not handle bookmark names including hash characters
     return '%s/%s' % (parse.quote(docname), id)
@@ -790,7 +798,7 @@ class DocxTranslator(nodes.NodeVisitor):
         if not isinstance(self._doc_stack[-1], Paragraph):
             self._doc_stack.append(self._make_paragraph(
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-                align=node.parent.get('align')))
+                align=node.parent.get('align'), keep_next=has_caption(node)))
             needs_pop = True
         else:
             needs_pop = False
