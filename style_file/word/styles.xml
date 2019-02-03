@@ -402,7 +402,7 @@
       <w:szCs w:val="20"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:customStyle="1" w:styleId="Caption">
+  <w:style w:type="paragraph" w:styleId="Caption">
     <w:name w:val="Caption"/>
     <w:basedOn w:val="a"/>
     <w:qFormat/>
@@ -449,7 +449,7 @@
       </w:numPr>
     </w:pPr>
   </w:style>
-  <w:style w:type="paragraph" w:customStyle="1" w:styleId="ListNumber">
+  <w:style w:type="paragraph" w:styleId="ListNumber">
     <w:name w:val="List Number"/>
     <w:basedOn w:val="aa"/>
     <w:uiPriority w:val="34"/>
@@ -775,7 +775,7 @@
       <w:szCs w:val="22"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:customStyle="1" w:styleId="TOCHeading">
+  <w:style w:type="paragraph" w:styleId="TOCHeading">
     <w:name w:val="TOC Heading"/>
     <w:basedOn w:val="a"/>
     <w:qFormat/>

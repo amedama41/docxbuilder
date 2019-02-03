@@ -1065,7 +1065,8 @@ class DocxComposer:
         table_style_id = self.styleDocx.get_default_style_name('table')
         return paragraph_style_id, character_style_id, table_style_id
 
-    def create_style(self, style_type, new_style_name, based_style_name):
+    def create_style(
+            self, style_type, new_style_name, based_style_name, is_custom):
         '''
            Create a new style_stype style with new_style_id,
            which is based on based_style_id.
@@ -1076,7 +1077,7 @@ class DocxComposer:
         style_tree = [
                 ['w:style', {
                     'w:type': style_type,
-                    'w:customStye': '1',
+                    'w:customStye': '1' if is_custom else '0',
                     'w:styleId': new_style_id
                 }],
                 [['w:name', {'w:val': new_style_name}]],

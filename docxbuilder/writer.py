@@ -764,7 +764,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 ' '.join(word.capitalize() for word in c.split('-'))
                 for c in node.get('classes') if c.startswith('admonition-')),
                 'Admonition %s' % node.tagname.capitalize())
-            self._docx.create_style('table', style, 'Based Admonition')
+            self._docx.create_style('table', style, 'Based Admonition', True)
         t = self._append_table(
                 style, [table_width - 1000], False, 'center', fit_content=False)
         t.start_head()
@@ -842,7 +842,7 @@ class DocxTranslator(nodes.NodeVisitor):
             align = node.parent.get('align')
         elif isinstance(node.parent, nodes.section):
             style = 'Heading %d' % self._section_level
-            self._docx.create_style('paragraph', style, 'Heading')
+            self._docx.create_style('paragraph', style, 'Heading', False)
             title_num = self._get_numsec(node.parent['ids'])
             indent = None
             right_indent = None
@@ -855,7 +855,7 @@ class DocxTranslator(nodes.NodeVisitor):
             align = None
         else:
             style = '%s Title Heading' % node.tagname.capitalize()
-            self._docx.create_style('paragraph', style, 'Title Heading')
+            self._docx.create_style('paragraph', style, 'Title Heading', True)
             title_num = None
             indent = self._ctx_stack[-1].indent
             right_indent = self._ctx_stack[-1].right_indent
@@ -872,7 +872,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_subtitle(self, node):
         self._append_bookmark_start(node.get('ids', []))
         style = '%s Subtitle Heading' % node.tagname.capitalize()
-        self._docx.create_style('paragraph', style, 'Subtitle Heading')
+        self._docx.create_style('paragraph', style, 'Subtitle Heading', True)
         self._doc_stack.append(self._make_paragraph(
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
             style))
@@ -1727,7 +1727,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._ctx_stack[-1].paragraph_width
         style_name = '%s Descriptions' % node.get('desctype', '').capitalize()
-        self._docx.create_style('table', style_name, 'Admonition Descriptions')
+        self._docx.create_style(
+                'table', style_name, 'Admonition Descriptions', True)
         table = self._append_table(
                 style_name, [table_width - 500], True, fit_content=False)
         table.start_head()
@@ -2042,24 +2043,25 @@ class DocxTranslator(nodes.NodeVisitor):
 
         default_pargraph, _, default_table = self._docx.get_default_style_names()
         paragraph_styles = [
-                ('Body Text', default_pargraph),
-                ('Footnote Text', default_pargraph),
-                ('Bibliography', default_pargraph),
-                ('Definition Item', default_pargraph),
-                ('Literal Block', default_pargraph),
-                ('Math Block', default_pargraph),
-                ('Caption', default_pargraph),
-                ('Table Caption', 'Caption'),
-                ('Image Caption', 'Caption'),
-                ('Literal Caption', 'Caption'),
-                ('Heading', default_pargraph),
-                ('Title Heading', 'Heading'),
-                ('TOC Heading', 'Title Heading'),
-                ('Rubric Title Heading', 'Title Heading'),
-                ('Subtitle Heading', 'Heading'),
+                ('Body Text', default_pargraph, False),
+                ('Footnote Text', default_pargraph, False),
+                ('Bibliography', default_pargraph, False),
+                ('Definition Item', default_pargraph, True),
+                ('Literal Block', default_pargraph, True),
+                ('Math Block', default_pargraph, True),
+                ('Caption', default_pargraph, False),
+                ('Table Caption', 'Caption', True),
+                ('Image Caption', 'Caption', True),
+                ('Literal Caption', 'Caption', True),
+                ('Heading', default_pargraph, True),
+                ('Title Heading', 'Heading', True),
+                ('TOC Heading', 'Title Heading', False),
+                ('Rubric Title Heading', 'Title Heading', True),
+                ('Subtitle Heading', 'Heading', True),
         ]
-        for new_style, based_style in paragraph_styles:
-            self._docx.create_style('paragraph', new_style, based_style)
+        for new_style, based_style, is_custom in paragraph_styles:
+            self._docx.create_style(
+                    'paragraph', new_style, based_style, is_custom)
 
         self._docx.create_list_style(
                 'List Bullet', 'bullet', '\uf0b7', 'Symbol', self._basic_indent)
@@ -2067,12 +2069,12 @@ class DocxTranslator(nodes.NodeVisitor):
                 'List Number', 'arabic', '%1.', None, self._basic_indent)
 
         table_styles = [
-                ('List Table', default_table),
-                ('Table', default_table),
-                ('Field List', 'List Table'),
-                ('Option List', 'List Table'),
-                ('Admonition', 'Based Admonition'),
-                ('Admonition Descriptions', 'Based Admonition'),
+                ('List Table', default_table, False),
+                ('Table', default_table, False),
+                ('Field List', 'List Table', False),
+                ('Option List', 'List Table', False),
+                ('Admonition', 'Based Admonition', False),
+                ('Admonition Descriptions', 'Based Admonition', False),
         ]
-        for new_style, based_style in table_styles:
-            self._docx.create_style('table', new_style, based_style)
+        for new_style, based_style, is_custom in table_styles:
+            self._docx.create_style('table', new_style, based_style, is_custom)
