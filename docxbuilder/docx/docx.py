@@ -1235,12 +1235,15 @@ class DocxComposer:
                 for x in content_types.xpath('*') if 'PartName' in x.attrib)
 
         # Add support for filetypes
-        filetypes = {'rels': 'application/vnd.openxmlformats-package.relationships+xml',
-                     'xml': 'application/xml',
-                     'jpeg': 'image/jpeg',
-                     'jpg': 'image/jpeg',
-                     'gif': 'image/gif',
-                     'png': 'image/png'}
+        filetypes = {
+                'rels': 'application/vnd.openxmlformats-package.relationships+xml',
+                'xml': 'application/xml',
+                'jpeg': 'image/jpeg',
+                'jpg': 'image/jpeg',
+                'gif': 'image/gif',
+                'png': 'image/png',
+                'emf': 'image/x-emf',
+        }
 
         required_content_types = [
                 ['/word/document.xml', CONTENT_TYPE_DOC_MAIN, True],
@@ -1263,9 +1266,9 @@ class DocxComposer:
                     'PartName': item[0], 'ContentType': item[1],
                 }]])
 
-        for extension in filetypes:
+        for ext, ctype in filetypes.items():
             types_tree.append(
-                [['Default', {'Extension': extension, 'ContentType': filetypes[extension]}]])
+                    [['Default', {'Extension': ext, 'ContentType': ctype}]])
 
         return make_element_tree(types_tree, nsprefixes['ct'])
 
