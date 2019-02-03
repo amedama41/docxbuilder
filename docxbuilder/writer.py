@@ -605,6 +605,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._ctx_stack = [
                 Contenxt(0, 0, self._doc_stack[-1].get_current_page_width(), 0)
         ]
+        self._relationship_stack = ['document']
         self._line_block_level = 0
         self._docx = docx
         self._list_id_stack = []
@@ -797,7 +798,8 @@ class DocxTranslator(nodes.NodeVisitor):
         try:
             filepath = get_filepath(self, node)
             width, height = self._get_image_scaled_size(node, filepath)
-            rid = self._docx.add_image_relationship(filepath)
+            rid = self._docx.add_image_relationship(
+                    filepath, self._relationship_stack[-1])
             filename = os.path.basename(filepath)
             self._doc_stack[-1].add_picture(
                     rid, self._docx.new_id(), filename, width, height, alt)
@@ -1175,6 +1177,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_footnote(self, node):
+        self._relationship_stack.append('footnotes')
         p = self._make_paragraph(None, None, 'Footnote Text')
         p.add_footnote_ref(self._docx.get_style_id('Footnote Reference'))
         p.add_text(' ')
@@ -1191,6 +1194,7 @@ class DocxTranslator(nodes.NodeVisitor):
             if fid != prev_fid:
                 self._docx.append_footnote(fid, (c.to_xml() for c in footnote))
                 prev_fid = fid
+        self._relationship_stack.pop()
 
     def visit_citation(self, node):
         self._append_bookmark_start(node.get('ids', []))
@@ -1542,7 +1546,8 @@ class DocxTranslator(nodes.NodeVisitor):
                 rid = None
                 anchor = self._get_bookmark_name(refuri)
             else:
-                rid = self._docx.add_hyperlink_relationship(refuri)
+                rid = self._docx.add_hyperlink_relationship(
+                        refuri, self._relationship_stack[-1])
                 anchor = None
         else:
             rid = None

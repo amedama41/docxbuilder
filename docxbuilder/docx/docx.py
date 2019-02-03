@@ -862,7 +862,10 @@ class DocxComposer:
 
         self.document = make_element_tree([['w:document'], [['w:body']]])
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
-        self.relationships = self.relationshiplist()
+        self._relationships_map = {
+                'document': self.relationshiplist(),
+                'footnotes': []
+        }
 
     def new_id(self):
         self._id += 1
@@ -925,7 +928,8 @@ class DocxComposer:
         contenttypes = self.contenttypes()
         websettings = self.websettings()
 
-        wordrelationships = self.wordrelationships()
+        document_relationships = self.wordrelationships('document')
+        footnotes_relationships = self.wordrelationships('footnotes')
         rootrelationships = self.rootrelationships()
 
         numbering = make_element_tree(['w:numbering'])
@@ -950,7 +954,8 @@ class DocxComposer:
                 numbering: 'word/numbering.xml',
                 self.styleDocx.styles: 'word/styles.xml',
                 websettings: 'word/webSettings.xml',
-                wordrelationships: 'word/_rels/document.xml.rels',
+                document_relationships: 'word/_rels/document.xml.rels',
+                footnotes_relationships: 'word/_rels/footnotes.xml.rels',
                 rootrelationships: '_rels/.rels',
         }
 
@@ -1153,42 +1158,53 @@ class DocxComposer:
         self.styleDocx.styles.append(new_style)
         self._style_info[new_style_name] = (new_style_id, 'paragraph')
 
-    def add_hyperlink_relationship(self, target):
-        rid = self._hyperlink_rid_map.get(target)
-        if rid is not None:
-            return rid
+    def add_hyperlink_relationship(self, target, part):
+        rid_map = self._hyperlink_rid_map.get(target)
+        if rid_map is not None:
+            rid = rid_map.get(part, None)
+            if rid is not None:
+                return rid
+        else:
+            rid_map = {}
 
-        rid = 'rId%d' % (len(self.relationships) + 1)
-        self.relationships.append({
+        relationships = self._relationships_map[part]
+        rid = 'rId%d' % (len(relationships) + 1)
+        relationships.append({
             'Id': rid,
             'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
             'Target': target,
             'TargetMode': 'External'
         })
-        self._hyperlink_rid_map[target] = rid
+        rid_map[part] = rid
+        self._hyperlink_rid_map[(target, part)] = rid_map
         return rid
 
-    def add_image_relationship(self, imagepath):
+    def add_image_relationship(self, imagepath, part):
         imagepath = os.path.abspath(imagepath)
 
-        rid, _ = self._image_info_map.get(imagepath, (None, None))
-        if rid is not None:
-            return rid
+        rid_map, picname = self._image_info_map.get(imagepath, (None, None))
+        if rid_map is not None:
+            rid = rid_map.get(part, None)
+            if rid is not None:
+                return rid
+        else:
+            _, picext = os.path.splitext(imagepath)
+            if picext == '.jpg':
+                picext = '.jpeg'
+            self.images += 1
+            rid_map = {}
+            picname = 'image%d%s' % (self.images, picext)
 
-        _, picext = os.path.splitext(imagepath)
-        if picext == '.jpg':
-            picext = '.jpeg'
-        self.images += 1
-        picname = 'image%d%s' % (self.images, picext)
-
+        relationships = self._relationships_map[part]
         # Calculate relationship ID to the first available
-        rid = 'rId%d' % (len(self.relationships) + 1)
-        self.relationships.append({
+        rid = 'rId%d' % (len(relationships) + 1)
+        relationships.append({
             'Id': rid,
             'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
             'Target': 'media/' + picname
         })
-        self._image_info_map[imagepath] = (rid, picname)
+        rid_map[part] = rid
+        self._image_info_map[imagepath] = (rid_map, picname)
         return rid
 
     def set_default_footnote_id(self, key, default_fid=None):
@@ -1357,14 +1373,14 @@ class DocxComposer:
 
         return relationshiplist
 
-    def wordrelationships(self):
+    def wordrelationships(self, part):
         '''
           Generate a Word relationships file
           This function copied from 'python-docx' library
         '''
         # Default list of relationships
         rel_tree = [['Relationships']]
-        for attributes in self.relationships:
+        for attributes in self._relationships_map[part]:
             rel_tree.append([['Relationship', attributes]])
 
         return make_element_tree(rel_tree, nsprefixes['pr'])
