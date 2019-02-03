@@ -285,9 +285,10 @@ class Paragraph(object):
 
 class Table(object):
     def __init__(
-            self, table_style, colsize_list, indent, align,
+            self, table_style, table_width, colsize_list, indent, align,
             keep_next, cant_split_row, set_table_header, fit_content):
         self._style = table_style
+        self._table_width = table_width
         self._colspec_list = []
         self._colsize_list = colsize_list
         self._indent = indent
@@ -373,7 +374,8 @@ class Table(object):
             return None
         grid_span = self._get_grid_span(
                 self._current_target[self._current_row_index], index)
-        return sum(self._colsize_list[index:index + grid_span])
+        ratio = sum(self._colsize_list[index:index + grid_span])
+        return self._table_width[0] * ratio
 
     def append(self, contents):
         row = self._current_target[self._current_row_index]
@@ -381,8 +383,11 @@ class Table(object):
 
     def to_xml(self):
         table = docx.make_table(
-                self._style, self._indent, self._align,
-                self._colsize_list, self._head, self._stub > 0)
+                self._style,
+                None if self._fit_content else self._table_width[1],
+                self._indent, self._align,
+                (self._table_width[0] * col for col in self._colsize_list),
+                self._head, self._stub > 0)
         for index, row in enumerate(self._head):
             table.append(self.make_row(index, row, True))
         for index, row in enumerate(self._body):
@@ -425,11 +430,8 @@ class Table(object):
         return cell_elem
 
     def _reset_colsize_list(self):
-        table_width = sum(self._colsize_list)
-        total_colspec = sum(self._colspec_list)
-        self._colsize_list = list(map(
-            lambda colspec: int(table_width * colspec / total_colspec),
-            self._colspec_list))
+        total = sum(self._colspec_list)
+        self._colsize_list = [colspec / total for colspec in self._colspec_list]
 
     def _get_grid_span(self, row, cell_index):
         grid_span = 1
@@ -659,7 +661,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 list_info, preserve_space)
 
     def _append_table(
-            self, table_style, colsize_list, is_indent, align=None,
+            self, table_style, table_width, colsize_list, is_indent, align=None,
             in_single_page=False, row_splittable=True,
             header_in_all_page=False, fit_content=False):
         if table_style is not None:
@@ -667,10 +669,12 @@ class DocxTranslator(nodes.NodeVisitor):
         indent = self._ctx_stack[-1].indent if is_indent else 0
         keep_next = 3 if in_single_page else 1
         t = Table(
-                table_style, colsize_list, indent, align,
+                table_style,
+                (table_width, table_width / self._ctx_stack[-1].width),
+                colsize_list, indent, align,
                 keep_next, not row_splittable, header_in_all_page, fit_content)
         self._doc_stack.append(t)
-        self._append_new_ctx(indent=0, right_indent=0, width=sum(colsize_list))
+        self._append_new_ctx(indent=0, right_indent=0, width=table_width)
         return t
 
     def _pop_and_append_table(self):
@@ -758,7 +762,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _depart_admonition(self, node, style=None):
         contents = self._doc_stack.pop()
-        table_width = self._ctx_stack[-1].width
+        table_width = self._ctx_stack[-1].width - 1000
         if style is None:
             style = next((
                 ' '.join(word.capitalize() for word in c.split('-'))
@@ -766,7 +770,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 'Admonition %s' % node.tagname.capitalize())
             self._docx.create_style('table', style, 'Based Admonition', True)
         t = self._append_table(
-                style, [table_width - 1000], False, 'center', fit_content=False)
+                style, table_width, [1.0], False, 'center', fit_content=False)
         t.start_head()
         t.add_row()
         self._add_table_cell()
@@ -1065,7 +1069,7 @@ class DocxTranslator(nodes.NodeVisitor):
         classes = node.parent.get('classes')
         self._append_table(
                 'Table',
-                [self._ctx_stack[-1].paragraph_width], True, align,
+                self._ctx_stack[-1].paragraph_width, [1.0], True, align,
                 in_single_page=self._get_table_option(
                     classes, 'in-single-page', False),
                 row_splittable=self._get_table_option(
@@ -1318,9 +1322,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_field_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._ctx_stack[-1].paragraph_width
-        colsize_list = [int(table_width * 1 / 4), int(table_width * 3 / 4)]
         table = self._append_table(
-                'Field List', colsize_list, True, fit_content=True)
+                'Field List', table_width, [0.25, 0.75], True, fit_content=True)
         table.add_stub()
 
     def depart_field_list(self, node):
@@ -1354,9 +1357,9 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_option_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        table_width = self._ctx_stack[-1].paragraph_width
+        table_width = self._ctx_stack[-1].paragraph_width - 500
         self._append_table(
-                'Option List', [table_width - 500], True, fit_content=False)
+                'Option List', table_width, [1.0], True, fit_content=False)
 
     def depart_option_list(self, node):
         self._pop_and_append_table()
@@ -1725,12 +1728,12 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        table_width = self._ctx_stack[-1].paragraph_width
+        table_width = self._ctx_stack[-1].paragraph_width - 500
         style_name = '%s Descriptions' % node.get('desctype', '').capitalize()
         self._docx.create_style(
                 'table', style_name, 'Admonition Descriptions', True)
         table = self._append_table(
-                style_name, [table_width - 500], True, fit_content=False)
+                style_name, table_width, [1.0], True, fit_content=False)
         table.start_head()
         table.add_row()
         self._add_table_cell()
@@ -1873,8 +1876,9 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._ctx_stack[-1].paragraph_width
         numcols = len(node)
-        colsize_list = [int(table_width / numcols) for _ in range(numcols)]
-        t = self._append_table(None, colsize_list, True, fit_content=False)
+        colsize_list = [1.0 / numcols for _ in range(numcols)]
+        t = self._append_table(
+                None, table_width, colsize_list, True, fit_content=False)
         t.add_row()
 
     def depart_hlist(self, node):

@@ -461,16 +461,21 @@ def make_inline_picture_run(
 
 # Tables
 
-def make_table(style, indent, align, grid_col_list, has_head, has_first_column):
+def make_table(
+        style, width, indent, align, grid_col_list, has_head, has_first_column):
     look_attrs = {
             'w:noHBand': 'false', 'w:noVBand': 'false',
             'w:lastRow': 'false', 'w:lastColumn': 'false'
     }
     look_attrs['w:firstRow'] = 'true' if has_head else 'false'
     look_attrs['w:firstColumn'] = 'true' if has_first_column else 'false'
+    if width is not None:
+        width_attr = {'w:w': '%f%%' % (width * 100), 'w:type': 'pct'}
+    else:
+        width_attr = {'w:w': '0', 'w:type': 'auto'}
     property_tree = [
             ['w:tblPr'],
-            [['w:tblW', {'w:w': '0', 'w:type': 'auto'}]],
+            [['w:tblW', width_attr]],
             [['w:tblInd', {'w:w': str(indent), 'w:type': 'dxa'}]],
             [['w:tblLook', look_attrs]],
     ]
@@ -518,7 +523,7 @@ def make_cell(index, is_first_column, cellsize, grid_span, vmerge):
     ]
     if cellsize is not None:
         property_tree.append(
-                [['w:tcW', {'w:w': str(cellsize), 'w:type': 'dxa'}]])
+                [['w:tcW', {'w:w': '%f%%' % (cellsize * 100), 'w:type': 'pct'}]])
     if grid_span > 1:
         property_tree.append([['w:gridSpan', {'w:val': str(grid_span)}]])
     if vmerge is not None:
