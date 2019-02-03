@@ -56,6 +56,18 @@ nsprefixes = {
     'xml': 'http://www.w3.org/XML/1998/namespace'
 }
 
+REL_TYPE_DOC = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument'
+REL_TYPE_APP = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties'
+REL_TYPE_CORE = 'http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties'
+REL_TYPE_STYLES = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles'
+REL_TYPE_NUMBERING = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering'
+REL_TYPE_FOOTNOTES = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes'
+
+CONTENT_TYPE_DOC_MAIN = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
+CONTENT_TYPE_STYLES = 'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml'
+CONTENT_TYPE_NUMBERING = 'application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml'
+CONTENT_TYPE_FOOTNOTES = 'application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml'
+
 #####################
 
 
@@ -659,14 +671,23 @@ def get_left(ind):
         return left
     return ind.get(norm_name('w:start'), '0')
 
+def create_rels_path(path):
+    return '%s/_rels/%s.rels' % (os.path.dirname(path), os.path.basename(path))
+
 class DocxDocument:
     def __init__(self, docxfile):
         '''
           Constructor
         '''
         self.docx = zipfile.ZipFile(docxfile)
+        docpath = get_attribute(
+                self.get_xmltree('_rels/.rels'),
+                'pr:Relationship[@Type="%s"]' % REL_TYPE_DOC, 'Target')
+        if docpath.startswith('/'):
+            docpath = docpath[1:]
 
-        self.document = self.get_xmltree('word/document.xml')
+        self.document = self.get_xmltree(docpath)
+        self.relationships = self.get_xmltree(create_rels_path(docpath))
         self.numbering = self.get_xmltree('word/numbering.xml')
         self.styles = self.get_xmltree('word/styles.xml')
 
@@ -900,6 +921,7 @@ class DocxComposer:
         websettings = self.websettings()
 
         wordrelationships = self.wordrelationships()
+        rootrelationships = self.rootrelationships()
 
         numbering = make_element_tree(['w:numbering'])
         numbering.extend(self._abstract_nums)
@@ -914,15 +936,18 @@ class DocxComposer:
         footnotes.extend(self._footnote_list)
 
         # Serialize our trees into out zip file
-        treesandfiles = {self.document: 'word/document.xml',
-                         coreproperties: 'docProps/core.xml',
-                         appproperties: 'docProps/app.xml',
-                         contenttypes: '[Content_Types].xml',
-                         footnotes: 'word/footnotes.xml',
-                         numbering: 'word/numbering.xml',
-                         self.styleDocx.styles: 'word/styles.xml',
-                         websettings: 'word/webSettings.xml',
-                         wordrelationships: 'word/_rels/document.xml.rels'}
+        treesandfiles = {
+                self.document: 'word/document.xml',
+                coreproperties: 'docProps/core.xml',
+                appproperties: 'docProps/app.xml',
+                contenttypes: '[Content_Types].xml',
+                footnotes: 'word/footnotes.xml',
+                numbering: 'word/numbering.xml',
+                self.styleDocx.styles: 'word/styles.xml',
+                websettings: 'word/webSettings.xml',
+                wordrelationships: 'word/_rels/document.xml.rels',
+                rootrelationships: '_rels/.rels',
+        }
 
         docxfile = zipfile.ZipFile(
             docxfilename, mode='w', compression=zipfile.ZIP_DEFLATED)
@@ -1195,11 +1220,26 @@ class DocxComposer:
                      'gif': 'image/gif',
                      'png': 'image/png'}
 
+        required_content_types = [
+                ['/word/document.xml', CONTENT_TYPE_DOC_MAIN, True],
+                ['/word/styles.xml', CONTENT_TYPE_STYLES, True],
+                ['/word/numbering.xml', CONTENT_TYPE_NUMBERING, True],
+                ['/word/footnotes.xml', CONTENT_TYPE_FOOTNOTES, True],
+        ]
         types_tree = [['Types']]
-
-        for part in parts:
+        for part, ctype in parts.items():
+            for item in required_content_types:
+                if part == item[0]:
+                    ctype = item[1]
+                    item[2] = False
+                    break
             types_tree.append(
-                [['Override', {'PartName': part, 'ContentType': parts[part]}]])
+                [['Override', {'PartName': part, 'ContentType': ctype}]])
+        for item in required_content_types:
+            if item[2]:
+                types_tree.append([['Override', {
+                    'PartName': item[0], 'ContentType': item[1],
+                }]])
 
         for extension in filetypes:
             types_tree.append(
@@ -1287,10 +1327,27 @@ class DocxComposer:
         return make_element_tree(web_tree)
 
     def relationshiplist(self):
-        filename = 'word/_rels/document.xml.rels'
-        relationships = self.styleDocx.get_xmltree(filename)
+        relationships = self.styleDocx.relationships
 
         relationshiplist = [x.attrib for x in relationships.xpath('*')]
+
+        required_rel_types = [
+                [REL_TYPE_STYLES, 'styles.xml', True],
+                [REL_TYPE_NUMBERING, 'numbering.xml', True],
+                [REL_TYPE_FOOTNOTES, 'footnotes.xml', True],
+        ]
+        for attributes in relationshiplist:
+            rel_type = attributes['Type']
+            for item in required_rel_types:
+                if rel_type == item[0]:
+                    attributes['Target'] = item[1]
+                    item[2] = False
+                    break
+        for item in required_rel_types:
+            if item[2]:
+                rid = 'rId%d' % (len(self.relationships) + 1)
+                relationshiplist.append(
+                        {'Id': rid, 'Type': item[0], 'Target': item[1]})
 
         return relationshiplist
 
@@ -1304,4 +1361,17 @@ class DocxComposer:
         for attributes in self.relationships:
             rel_tree.append([['Relationship', attributes]])
 
+        return make_element_tree(rel_tree, nsprefixes['pr'])
+
+    def rootrelationships(self):
+        rel_list = [
+                (REL_TYPE_DOC, 'word/document.xml'),
+                (REL_TYPE_CORE, 'docProps/core.xml'),
+                (REL_TYPE_APP, 'docProps/app.xml'),
+        ]
+        rel_tree = [['Relationships']]
+        for rid, (rtype, target) in enumerate(rel_list, 1):
+            rel_tree.append([['Relationship', {
+                'Id': 'rId%d' % rid, 'Type': rtype, 'Target': target
+            }]])
         return make_element_tree(rel_tree, nsprefixes['pr'])
