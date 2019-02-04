@@ -1370,7 +1370,7 @@ class DocxComposer:
                     break
         for item in required_rel_types:
             if item[2]:
-                rid = 'rId%d' % (len(self.relationships) + 1)
+                rid = 'rId%d' % (len(relationshiplist) + 1)
                 relationshiplist.append(
                         {'Id': rid, 'Type': item[0], 'Target': item[1]})
 
