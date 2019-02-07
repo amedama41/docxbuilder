@@ -1176,7 +1176,7 @@ class DocxComposer:
             'TargetMode': 'External'
         })
         rid_map[part] = rid
-        self._hyperlink_rid_map[(target, part)] = rid_map
+        self._hyperlink_rid_map[target] = rid_map
         return rid
 
     def add_image_relationship(self, imagepath, part):
