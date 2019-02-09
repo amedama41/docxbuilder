@@ -306,6 +306,18 @@ def get_contents_width(section_property):
             int(paper_margin.get(norm_name('w:left'))))
     return width - width_margin
 
+def make_default_page_size():
+    return make_element_tree([['w:pgSz', {
+        'w:w': '12240', 'w:h': '15840', 'w:orient': 'portrait',
+    }]])
+
+def make_default_page_margin():
+    return make_element_tree([['w:pgMar', {
+        'w:top': '1440', 'w:right': '1440',
+        'w:bottom': '1440', 'w:left': '1440',
+        'w:header': '720', 'w:footer': '720', 'w:gutter': '0',
+    }]])
+
 # Paragraphs and Runs
 
 def add_page_break_before_to_first_paragraph(xml):
@@ -873,7 +885,13 @@ class DocxComposer:
 
     def get_each_orient_section_properties(self):
         section_props = self.styleDocx.get_section_properties()
+        if not section_props:
+            section_props = [make_element_tree([['w:sectPr']])]
         first = section_props[0]
+        if not get_elements(first, 'w:pgSz'):
+            first.append(make_default_page_size())
+        if not get_elements(first, 'w:pgMar'):
+            first.append(make_default_page_margin())
         first_orient = get_orient(first)
         for sect_prop in section_props[1:]:
             if get_orient(sect_prop) != first_orient:
