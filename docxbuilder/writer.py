@@ -461,17 +461,21 @@ class Table(object):
         return False
 
 class TOC(object):
-    def __init__(self, title, title_style_id, maxlevel, bookmark, outlines):
+    def __init__(
+            self, title, title_style_id, maxlevel, bookmark, paragraph_width,
+            outlines):
         self._title = title
         self._title_style_id = title_style_id
         self._maxlevel = maxlevel
         self._bookmark = bookmark
+        self._paragraph_width = paragraph_width
         self._outlines = outlines
 
     def to_xml(self):
         return docx.make_table_of_contents(
                 self._title, self._title_style_id,
-                self._maxlevel, self._bookmark, self._outlines)
+                self._maxlevel, self._bookmark, self._paragraph_width,
+                self._outlines)
 
 class Document(object):
     def __init__(self, body, sect_props):
@@ -1694,7 +1698,8 @@ class DocxTranslator(nodes.NodeVisitor):
         bookmark = make_bookmark_name(self._docname_stack[-1], refid)
         self._doc_stack[-1].append(TOC(
             caption, self._docx.get_style_id('TOC Heading'),
-            maxlevel, bookmark, self._collect_outlines(node, maxdepth)))
+            maxlevel, bookmark, self._ctx_stack[-1].paragraph_width,
+            self._collect_outlines(node, maxdepth)))
         config = self._builder.config
         if (self._section_level <= config.docx_pagebreak_after_table_of_contents
                 and isinstance(self._doc_stack[-1], Document)):

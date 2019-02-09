@@ -598,7 +598,8 @@ def _make_toc_hyperlink(text, anchor):
             [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]],
     ]
 
-def make_table_of_contents(toc_title, style_id, maxlevel, bookmark, outlines):
+def make_table_of_contents(
+        toc_title, style_id, maxlevel, bookmark, paragraph_width, outlines):
     '''
        Create the Table of Content
     '''
@@ -613,9 +614,10 @@ def make_table_of_contents(toc_title, style_id, maxlevel, bookmark, outlines):
         instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (maxlevel, bookmark)
     else:
         instr = r' TOC \o \b "%s" \h \z \u ' % bookmark
+    tab_pos = str(paragraph_width - 10)
     tabs_tree = [
             ['w:tabs'],
-            [['w:tab', {'w:val': 'right', 'w:leader': 'dot', 'w:pos': '8488'}]]
+            [['w:tab', {'w:val': 'right', 'w:leader': 'dot', 'w:pos': tab_pos}]]
     ]
     run_prop_tree = [['w:rPr'], [['w:b', {'w:val': '0'}]], [['w:noProof']]]
     if outlines:
