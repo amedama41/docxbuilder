@@ -693,6 +693,32 @@ def get_left(ind):
 def create_rels_path(path):
     return '%s/_rels/%s.rels' % (os.path.dirname(path), os.path.basename(path))
 
+
+class StyleInfo(object):
+    style_id_attr = norm_name('w:styleId')
+    type_attr = norm_name('w:type')
+
+    def __init__(self, style):
+        self._style = style
+        if get_elements(style, 'w:unhideWhenUsed'):
+            self._semihidden_elems = get_elements(style, 'w:semiHidden')
+        else:
+            self._semihidden_elems = []
+
+    @property
+    def style_id(self):
+        return self._style.attrib[type(self).style_id_attr]
+
+    @property
+    def style_type(self):
+        return self._style.attrib[type(self).type_attr]
+
+    def used(self):
+        for semihidden in self._semihidden_elems:
+            self._style.remove(semihidden)
+        self._semihidden_elems = []
+
+
 class DocxDocument:
     def __init__(self, docxfile):
         '''
@@ -727,15 +753,12 @@ class DocxDocument:
         '''
           Extract all style name/id/type from the docx file
         '''
-        style_id_attr = norm_name('w:styleId')
-        type_attr = norm_name('w:type')
         val_attr = norm_name('w:val')
         def get_info(style):
-            style_id = style.attrib[style_id_attr]
-            style_type = style.attrib[type_attr]
+            info = StyleInfo(style)
             names = get_elements(style, 'w:name')
-            style_name = names[0].attrib[val_attr] if names else style_id
-            return (style_name, (style_id, style_type))
+            style_name = names[0].attrib[val_attr] if names else info.style_id
+            return (style_name, info)
         return dict(get_info(s) for s in get_elements(self.styles, 'w:style'))
 
     def get_default_style_name(self, style_type):
@@ -911,13 +934,16 @@ class DocxComposer:
 
     def get_style_id(self, style_name):
         style_info = self.get_style_info(style_name)
-        return style_info[0] if style_info is not None else style_name
+        if style_info is None:
+            return style_name
+        style_info.used()
+        return style_info.style_id
 
     def get_indent(self, style_name, default):
         style_info = self.get_style_info(style_name)
-        if style_info is None or style_info[1] != 'paragraph':
+        if style_info is None or style_info.style_type != 'paragraph':
             return default
-        indent = self.styleDocx.get_indent(style_info[0])
+        indent = self.styleDocx.get_indent(style_info.style_id)
         if indent is None:
             return default
         return int(indent)
@@ -1096,11 +1122,64 @@ class DocxComposer:
         return paragraph_style_id, character_style_id, table_style_id
 
     def create_style(
-            self, style_type, new_style_name, based_style_name, is_custom):
+            self, style_type, new_style_name, based_style_name, is_custom,
+            is_hidden=False):
         '''
            Create a new style_stype style with new_style_id,
            which is based on based_style_id.
         '''
+        return self._create_style(
+                style_type, new_style_name, is_custom, is_hidden,
+                based_style_name=based_style_name)
+
+    def create_list_style(
+            self, new_style_name, format_type, lvl_text, font, indent):
+        def make_property_tree(new_style_id):
+            num_id = self.add_numbering_style(
+                    1, lvl_text, format_type, indent, new_style_id, font)
+            return [
+                    ['w:pPr'],
+                    [['w:numPr'],
+                        [['w:ilvl', {'w:val': '0'}]],
+                        [['w:numId', {'w:val': str(num_id)}]],
+                    ],
+            ]
+        is_custom = False
+        is_hidden = False
+        return self._create_style(
+                'paragraph', new_style_name, is_custom, is_hidden,
+                make_property_tree=make_property_tree)
+
+    def create_empty_paragraph_style(
+            self, new_style_name, after_space, with_border, is_hidden):
+        '''
+           Create a new empty paragraph style
+        '''
+        def make_property_tree(_):
+            property_tree = [
+                    ['w:pPr'],
+                    [['w:spacing', {
+                        'w:before': '0', 'w:beforeAutospacing': '0',
+                        'w:after': str(after_space), 'w:afterAutospacing': '0',
+                    }]],
+                    [['w:rPr'], [['w:sz', {'w:val': '16'}]]],
+            ]
+            if with_border:
+                property_tree.append([
+                    ['w:pBdr'],
+                    [['w:bottom', {
+                        'w:val': 'single', 'w:sz': '8', 'w:space': '1'
+                    }]]
+                ])
+            return property_tree
+        is_custom = True
+        return self._create_style(
+                'paragraph', new_style_name, is_custom, is_hidden,
+                make_property_tree=make_property_tree)
+
+    def _create_style(
+            self, style_type, new_style_name, is_custom, is_hidden,
+            based_style_name=None, make_property_tree=None):
         if self.get_style_info(new_style_name) is not None:
             return False
         new_style_id = new_style_name
@@ -1111,72 +1190,22 @@ class DocxComposer:
                     'w:styleId': new_style_id
                 }],
                 [['w:name', {'w:val': new_style_name}]],
+                [['w:semiHidden']],
                 [['w:qFormat']],
         ]
-        based_style_info = self.get_style_info(based_style_name)
-        if based_style_info is not None and based_style_info[1] == style_type:
-            style_tree.append([['w:basedOn', {'w:val': based_style_info[0]}]])
-        newstyle = make_element_tree(style_tree)
-        self.styleDocx.styles.append(newstyle)
-        self._style_info[new_style_name] = (new_style_id, style_type)
-        return True
-
-    def create_list_style(
-            self, new_style_name, format_type, lvl_text, font, indent):
-        if self.get_style_info(new_style_name) is not None:
-            return
-        new_style_id = new_style_name
-        num_id = self.add_numbering_style(
-                1, lvl_text, format_type, indent, new_style_id, font)
-        style_tree = [
-                ['w:style', {'w:type': 'paragraph', 'w:styleId': new_style_id}],
-                [['w:name', {'w:val': new_style_name}]],
-                [['w:qFormat']],
-                [['w:pPr'],
-                    [['w:numPr'],
-                        [['w:ilvl', {'w:val': '0'}]],
-                        [['w:numId', {'w:val': str(num_id)}]],
-                    ],
-                ],
-        ]
-        newstyle = make_element_tree(style_tree)
-        self.styleDocx.styles.append(newstyle)
-        self._style_info[new_style_name] = (new_style_id, 'paragraph')
-        return True
-
-    def create_empty_paragraph_style(
-            self, new_style_name, after_space, with_border):
-        '''
-           Create a new empty paragraph style
-        '''
-        if self.get_style_info(new_style_name) is not None:
-            return
-        new_style_id = new_style_name
-        property_tree = [
-                ['w:pPr'],
-                [['w:spacing', {
-                    'w:before': '0', 'w:beforeAutospacing': '0',
-                    'w:after': str(after_space), 'w:afterAutospacing': '0',
-                }]],
-                [['w:rPr'], [['w:sz', {'w:val': '16'}]]],
-        ]
-        if with_border:
-            property_tree.append([
-                ['w:pBdr'],
-                [['w:bottom', {'w:val': 'single', 'w:sz': '8', 'w:space': '1'}]]
-            ])
-        new_style = make_element_tree([
-                ['w:style', {
-                    'w:type': 'paragraph',
-                    'w:customStye': '1',
-                    'w:styleId': new_style_id
-                }],
-                [['w:name', {'w:val': new_style_name}]],
-                [['w:qFormat']],
-                property_tree,
-        ])
+        if not is_hidden:
+            style_tree.append([['w:unhideWhenUsed']])
+        if based_style_name is not None:
+            based_info = self.get_style_info(based_style_name)
+            if based_info is not None and based_info.style_type == style_type:
+                style_tree.append(
+                        [['w:basedOn', {'w:val': based_info.style_id}]])
+        if make_property_tree is not None:
+            style_tree.append(make_property_tree(new_style_id))
+        new_style = make_element_tree(style_tree)
         self.styleDocx.styles.append(new_style)
-        self._style_info[new_style_name] = (new_style_id, 'paragraph')
+        self._style_info[new_style_name] = StyleInfo(new_style)
+        return True
 
     def add_hyperlink_relationship(self, target, part):
         rid_map = self._hyperlink_rid_map.get(target)

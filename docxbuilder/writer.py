@@ -2060,30 +2060,31 @@ class DocxTranslator(nodes.NodeVisitor):
         return outlines
 
     def _create_docxbuilder_styles(self):
-        self._docx.create_empty_paragraph_style('Transition', 100, True)
-        self._docx.create_empty_paragraph_style('Table Bottom Margin', 0, False)
+        self._docx.create_empty_paragraph_style('Transition', 100, True, False)
+        self._docx.create_empty_paragraph_style(
+                'Table Bottom Margin', 0, False, True)
 
         default_pargraph, _, default_table = self._docx.get_default_style_names()
         paragraph_styles = [
-                ('Body Text', default_pargraph, False),
-                ('Footnote Text', default_pargraph, False),
-                ('Bibliography', default_pargraph, False),
-                ('Definition Item', default_pargraph, True),
-                ('Literal Block', default_pargraph, True),
-                ('Math Block', default_pargraph, True),
-                ('Caption', default_pargraph, False),
-                ('Table Caption', 'Caption', True),
-                ('Image Caption', 'Caption', True),
-                ('Literal Caption', 'Caption', True),
-                ('Heading', default_pargraph, True),
-                ('Title Heading', 'Heading', True),
-                ('TOC Heading', 'Title Heading', False),
-                ('Rubric Title Heading', 'Title Heading', True),
-                ('Subtitle Heading', 'Heading', True),
+                ('Body Text', default_pargraph, False, False),
+                ('Footnote Text', default_pargraph, False, False),
+                ('Bibliography', default_pargraph, False, False),
+                ('Definition Item', default_pargraph, True, False),
+                ('Literal Block', default_pargraph, True, False),
+                ('Math Block', default_pargraph, True, False),
+                ('Caption', default_pargraph, False, True),
+                ('Table Caption', 'Caption', True, False),
+                ('Image Caption', 'Caption', True, False),
+                ('Literal Caption', 'Caption', True, False),
+                ('Heading', default_pargraph, True, True),
+                ('Title Heading', 'Heading', True, True),
+                ('TOC Heading', 'Title Heading', False, False),
+                ('Rubric Title Heading', 'Title Heading', True, False),
+                ('Subtitle Heading', 'Heading', True, True),
         ]
-        for new_style, based_style, is_custom in paragraph_styles:
+        for new_style, based_style, is_custom, is_hidden in paragraph_styles:
             self._docx.create_style(
-                    'paragraph', new_style, based_style, is_custom)
+                    'paragraph', new_style, based_style, is_custom, is_hidden)
 
         self._docx.create_list_style(
                 'List Bullet', 'bullet', '\uf0b7', 'Symbol', self._basic_indent)
@@ -2091,12 +2092,14 @@ class DocxTranslator(nodes.NodeVisitor):
                 'List Number', 'arabic', '%1.', None, self._basic_indent)
 
         table_styles = [
-                ('List Table', default_table, False),
-                ('Table', default_table, False),
-                ('Field List', 'List Table', False),
-                ('Option List', 'List Table', False),
-                ('Admonition', 'Based Admonition', False),
-                ('Admonition Descriptions', 'Based Admonition', False),
+                ('List Table', default_table, False, True),
+                ('Table', default_table, False, False),
+                ('Based Admonition', default_table, False, True),
+                ('Field List', 'List Table', False, False),
+                ('Option List', 'List Table', False, False),
+                ('Admonition', 'Based Admonition', False, False),
+                ('Admonition Descriptions', 'Based Admonition', False, True),
         ]
-        for new_style, based_style, is_custom in table_styles:
-            self._docx.create_style('table', new_style, based_style, is_custom)
+        for new_style, based_style, is_custom, is_hidden in table_styles:
+            self._docx.create_style(
+                    'table', new_style, based_style, is_custom, is_hidden)
