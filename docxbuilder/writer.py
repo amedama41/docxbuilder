@@ -773,26 +773,32 @@ class DocxTranslator(nodes.NodeVisitor):
             p.add_text(admonitionlabels[node.tagname] + ':')
             self._doc_stack[-1].append(p)
 
-    def _depart_admonition(self, node, style=None):
+    def _depart_admonition(self, node, style=None, align='center', margin=1000):
         contents = self._doc_stack.pop()
-        table_width = self._ctx_stack[-1].width - 1000
+        table_width = self._ctx_stack[-1].width - margin
         if style is None:
             style = next((
                 ' '.join(word.capitalize() for word in c.split('-'))
                 for c in node.get('classes') if c.startswith('admonition-')),
                 'Admonition %s' % node.tagname.capitalize())
             self._docx.create_style('table', style, 'Based Admonition', True)
+        if align is None:
+            is_indent = True
+        else:
+            is_indent = False
         t = self._append_table(
-                style, table_width, [1.0], False, 'center', fit_content=False)
+                style, table_width, [1.0], is_indent, align, fit_content=False)
         t.start_head()
         t.add_row()
         self._add_table_cell()
         t.append(contents[0])
-        t.start_body()
-        t.add_row()
-        self._add_table_cell()
-        for c in contents[1:]:
-            t.append(c)
+        body_contents = contents[1:]
+        if body_contents:
+            t.start_body()
+            t.add_row()
+            self._add_table_cell()
+            for c in body_contents:
+                t.append(c)
         self._pop_and_append_table()
         self._append_bookmark_end(node.get('ids', []))
 
@@ -1643,9 +1649,13 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_inline(self, node):
         self._append_bookmark_start(node.get('ids', []))
+        if 'versionmodified' in node.get('classes'):
+            self._push_style('Versionmodified')
 
     def depart_inline(self, node):
         self._append_bookmark_end(node.get('ids', []))
+        if 'versionmodified' in node.get('classes'):
+            self._doc_stack[-1].pop_style()
 
     def visit_problematic(self, node):
         self._append_bookmark_start(node.get('ids', []))
@@ -1911,12 +1921,13 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_versionmodified(self, node):
-        self._append_bookmark_start(node.get('ids', []))
-        pass # TODO
+        self._visit_admonition(node)
 
     def depart_versionmodified(self, node):
-        self._append_bookmark_end(node.get('ids', []))
-        pass
+        style_name = 'Admonition ' + node.get('type').capitalize()
+        self._docx.create_style(
+                'table', style_name, 'Admonition Versionmodified', True)
+        self._depart_admonition(node, style=style_name, align=None, margin=0)
 
     def visit_index(self, node):
         self._append_bookmark_start(node.get('ids', []))
@@ -2099,7 +2110,15 @@ class DocxTranslator(nodes.NodeVisitor):
                 ('Option List', 'List Table', False, False),
                 ('Admonition', 'Based Admonition', False, False),
                 ('Admonition Descriptions', 'Based Admonition', False, True),
+                ('Admonition Versionmodified', 'Based Admonition', True, True),
         ]
         for new_style, based_style, is_custom, is_hidden in table_styles:
             self._docx.create_style(
                     'table', new_style, based_style, is_custom, is_hidden)
+
+        character_styles = [
+                ('Versionmodified', 'Emphasis', True, True),
+        ]
+        for new_style, based_style, is_custom, is_hidden in character_styles:
+            self._docx.create_style(
+                    'character', new_style, based_style, is_custom, is_hidden)
