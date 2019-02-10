@@ -713,6 +713,19 @@ class StyleInfo(object):
     def style_type(self):
         return self._style.attrib[type(self).type_attr]
 
+    def get_based_style_id(self):
+        based_on_elems = get_elements(self._style, 'w:basedOn')
+        if not based_on_elems:
+            return None
+        return based_on_elems[-1].attrib[norm_name('w:val')]
+
+    def get_run_style_property(self):
+        props = get_elements(self._style, 'w:rPr')
+        if not props:
+            return {}
+        return [(prop.tag, prop.attrib)
+                for prop in props[0] if not prop.tag.endswith('rPrChange')]
+
     def used(self):
         for semihidden in self._semihidden_elems:
             self._style.remove(semihidden)
@@ -797,15 +810,6 @@ class DocxDocument:
 
 ############
 # Numbering
-    def get_run_style_property(self, style_id):
-        props = get_elements(
-                self.styles,
-                '/w:styles/w:style[@w:styleId="%s"]/w:rPr' % style_id)
-        if not props:
-            return {}
-        return [(prop.tag, prop.attrib)
-                for prop in props[0] if not prop.tag.endswith('rPrChange')]
-
     def get_numbering_style_id(self, style):
         '''
 
@@ -932,6 +936,12 @@ class DocxComposer:
             return style_info
         return None
 
+    def get_style_info_by_id(self, style_id):
+        for style_info in self._style_info.values():
+            if style_info.style_id == style_id:
+                return style_info
+        return None
+
     def get_style_id(self, style_name):
         style_info = self.get_style_info(style_name)
         if style_info is None:
@@ -949,11 +959,18 @@ class DocxComposer:
         return int(indent)
 
     def get_run_style_property(self, style_id):
-        style = self._run_style_property_cache.get(style_id)
-        if style is not None:
-            return style
-        return self._run_style_property_cache.setdefault(
-                style_id, self.styleDocx.get_run_style_property(style_id))
+        style_prop = self._run_style_property_cache.get(style_id)
+        if style_prop is not None:
+            return style_prop
+        style_info = self.get_style_info_by_id(style_id)
+        if style_info is None or style_info.style_type != 'character':
+            return {}
+        based_style_id = style_info.get_based_style_id()
+        style_prop = {}
+        if based_style_id is not None:
+            style_prop.update(self.get_run_style_property(based_style_id))
+        style_prop.update(style_info.get_run_style_property())
+        return self._run_style_property_cache.setdefault(style_id, style_prop)
 
     def get_bullet_list_num_id(self, style_name):
         return self.styleDocx.get_numbering_style_id(style_name)
