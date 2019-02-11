@@ -1996,7 +1996,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._depart_admonition(node)
 
     def unknown_visit(self, node):
-        print(node.tagname)
+        self._logger.warning(
+                'Ignore unknown node ' + node.tagname, location=node)
         raise nodes.SkipNode
 
     def _get_bookmark_name(self, refuri):
