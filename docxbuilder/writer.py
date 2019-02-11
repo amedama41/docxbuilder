@@ -1327,7 +1327,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(self._make_paragraph(
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-            'Definition Item', keep_next=True))
+            'Definition Term', keep_next=True))
 
     def depart_term(self, node):
         term_paragraph = self._doc_stack.pop()
@@ -2091,7 +2091,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 ('Body Text', default_pargraph, False, False),
                 ('Footnote Text', default_pargraph, False, False),
                 ('Bibliography', default_pargraph, False, False),
-                ('Definition Item', default_pargraph, True, False),
+                ('Definition Term', default_pargraph, True, False),
                 ('Literal Block', default_pargraph, True, False),
                 ('Math Block', default_pargraph, True, False),
                 ('Caption', default_pargraph, False, True),

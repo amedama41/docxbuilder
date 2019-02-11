@@ -437,8 +437,8 @@
     <w:name w:val="Table Caption"/>
     <w:basedOn w:val="Caption"/>
   </w:style>
-  <w:style w:type="paragraph" w:customStyle="1" w:styleId="DefinitionItem">
-    <w:name w:val="Definition Item"/>
+  <w:style w:type="paragraph" w:customStyle="1" w:styleId="DefinitionTerm">
+    <w:name w:val="Definition Term"/>
     <w:basedOn w:val="a"/>
     <w:qFormat/>
     <w:rPr>
