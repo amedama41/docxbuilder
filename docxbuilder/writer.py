@@ -732,6 +732,16 @@ class DocxTranslator(nodes.NodeVisitor):
             width = self._ctx_stack[-1].width
         self._ctx_stack.append(Contenxt(indent, right_indent, width, 0))
 
+    def _set_page_oriented(self):
+        self._doc_stack[-1].set_page_oriented('landscape')
+        self._append_new_ctx(
+                indent=0, right_indent=0,
+                width=self._doc_stack[-1].get_current_page_width())
+
+    def _clear_page_oriented(self):
+        self._ctx_stack.pop()
+        self._doc_stack[-1].set_page_oriented()
+
     def _get_numsec(self, ids):
         for id in ids:
             num = self._numsec_map.get('%s/#%s' % (self._docname_stack[-1], id))
@@ -776,6 +786,11 @@ class DocxTranslator(nodes.NodeVisitor):
         if landscape_columns < 1:
             return False
         return landscape_columns <= count_colspec(node)
+
+    def _is_landscape_figure(self, node):
+        if not isinstance(self._doc_stack[-1], Document):
+            return False
+        return 'docx-landscape' in node.get('classes')
 
     def _visit_admonition(self, node, add_title=False):
         self._append_bookmark_start(node.get('ids', []))
@@ -1099,17 +1114,13 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_table(self, node):
         if self._is_landscape_table(node):
-            self._doc_stack[-1].set_page_oriented('landscape')
-            self._append_new_ctx(
-                    indent=0, right_indent=0,
-                    width=self._doc_stack[-1].get_current_page_width())
+            self._set_page_oriented()
         self._append_bookmark_start(node.get('ids', []))
 
     def depart_table(self, node):
         self._append_bookmark_end(node.get('ids', []))
         if self._is_landscape_table(node):
-            self._ctx_stack.pop()
-            self._doc_stack[-1].set_page_oriented()
+            self._clear_page_oriented()
 
     def visit_tgroup(self, node):
         self._append_bookmark_start(node.get('ids', []))
@@ -1172,6 +1183,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_figure(self, node):
+        if self._is_landscape_figure(node):
+            self._set_page_oriented()
         self._append_bookmark_start(node.get('ids', []))
         paragraph_width = self._ctx_stack[-1].paragraph_width
         width = convert_to_twip_size(node.get('width', '100%'), paragraph_width)
@@ -1192,6 +1205,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_figure(self, node):
         self._ctx_stack.pop()
         self._append_bookmark_end(node.get('ids', []))
+        if self._is_landscape_figure(node):
+            self._clear_page_oriented()
 
     def visit_caption(self, node):
         self._append_bookmark_start(node.get('ids', []))
