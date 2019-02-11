@@ -726,6 +726,22 @@ class StyleInfo(object):
         return [(prop.tag, prop.attrib)
                 for prop in props[0] if not prop.tag.endswith('rPrChange')]
 
+    def get_table_horizon_margin(self):
+        cell_margin_elems = get_elements(self._style, 'w:tblPr/w:tblCellMar')
+        if not cell_margin_elems:
+            return (None, None)
+
+        cell_margin = cell_margin_elems[-1]
+        type_attr = norm_name('w:type')
+        w_attr = norm_name('w:w')
+        def get_margin(elem):
+            if elem is None or elem.get(type_attr) != 'dxa':
+                return None
+            return int(elem.get(w_attr))
+        left = cell_margin.find('w:left', nsprefixes)
+        right = cell_margin.find('w:right', nsprefixes)
+        return (get_margin(left), get_margin(right))
+
     def used(self):
         for semihidden in self._semihidden_elems:
             self._style.remove(semihidden)
@@ -838,33 +854,6 @@ class DocxDocument:
             return None
         return get_left(ind_elems[0])
 
-    def get_table_horizon_margin(self, style_name):
-        misc_margin = 8 * 2 * 10 # Miscellaneous margin (e.g. border width)
-        table_styles = get_elements(self.styles, '/w:styles/w:style')
-        for style in table_styles:
-            name_elem = style.find('w:name', nsprefixes)
-            name = name_elem.get(norm_name('w:val'))
-            if name == style_name:
-                break
-        else:
-            return misc_margin
-
-        cell_margin = style.find('w:tblPr/w:tblCellMar', nsprefixes)
-        if cell_margin is None:
-            return misc_margin # TODO: Check based style
-
-        type_attr = norm_name('w:type')
-        w_attr = norm_name('w:w')
-        def get_margin(elem):
-            if elem is None:
-                return misc_margin
-            if elem.get(type_attr) != 'dxa':
-                return misc_margin
-            return int(elem.get(w_attr))
-        left = cell_margin.find('w:left', nsprefixes)
-        right = cell_margin.find('w:right', nsprefixes)
-        return get_margin(left) + get_margin(right) + misc_margin
-
 ##########
 
 #
@@ -899,7 +888,7 @@ class DocxComposer:
                 self._footnote_list, norm_name('w:id'))
 
         self._run_style_property_cache = {}
-        self.table_margin_map = {}
+        self._table_margin_cache = {}
 
         self.document = make_element_tree([['w:document'], [['w:body']]])
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
@@ -936,7 +925,7 @@ class DocxComposer:
             return style_info
         return None
 
-    def get_style_info_by_id(self, style_id):
+    def get_style_info_from_id(self, style_id):
         for style_info in self._style_info.values():
             if style_info.style_id == style_id:
                 return style_info
@@ -959,12 +948,14 @@ class DocxComposer:
         return int(indent)
 
     def get_run_style_property(self, style_id):
+        if style_id is None:
+            return {}
         style_prop = self._run_style_property_cache.get(style_id)
         if style_prop is not None:
             return style_prop
-        style_info = self.get_style_info_by_id(style_id)
+        style_info = self.get_style_info_from_id(style_id)
         if style_info is None or style_info.style_type != 'character':
-            return {}
+            return self._run_style_property_cache.setdefault(style_id, {})
         based_style_id = style_info.get_based_style_id()
         style_prop = {}
         if based_style_id is not None:
@@ -975,12 +966,30 @@ class DocxComposer:
     def get_bullet_list_num_id(self, style_name):
         return self.styleDocx.get_numbering_style_id(style_name)
 
-    def get_table_cell_margin(self, style_name):
-        margin = self.table_margin_map.get(style_name)
+    def get_table_cell_margin(self, style_id):
+        misc_margin = 8 * 2 * 10 # Miscellaneous margin (e.g. border width)
+        left, right = self.get_table_horizon_margin(style_id)
+        margin = left + right + misc_margin
+        return margin
+
+    def get_table_horizon_margin(self, style_id):
+        default_margin = (115, 115)
+        if style_id is None:
+            return default_margin
+        margin = self._table_margin_cache.get(style_id)
         if margin is not None:
             return margin
-        return self.table_margin_map.setdefault(
-                style_name, self.styleDocx.get_table_horizon_margin(style_name))
+
+        style_info = self.get_style_info_from_id(style_id)
+        if style_info is None or style_info.style_type != 'table':
+            return self._table_margin_cache.setdefault(style_id, default_margin)
+        left, right = style_info.get_table_horizon_margin()
+        if left is None or right is None:
+            based_left, based_right = self.get_table_horizon_margin(
+                    style_info.get_based_style_id())
+            left = left or based_left
+            right = right or based_right
+        return self._table_margin_cache.setdefault(style_id, (left, right))
 
     def save(self, docxfilename, has_coverpage, title, creator, language, props):
         '''
