@@ -705,7 +705,10 @@ class DocxTranslator(nodes.NodeVisitor):
             margin = self._docx.get_table_cell_margin(t.style)
             self._ctx_stack[-1].width = width - margin
 
-    def _push_style(self, style_name):
+    def _push_style(self, style_name, based_style_name=None):
+        if based_style_name is not None:
+            self._docx.create_style(
+                    'character', style_name, based_style_name, True, False)
         self._doc_stack[-1].push_style(
                 self._docx.get_run_style_property(
                     self._docx.get_style_id(style_name)))
@@ -1432,7 +1435,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_option_argument(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack[-1].add_text(node.get('delimiter', ' '))
-        self._push_style('Emphasis')
+        self._push_style('Option Argument', 'Emphasis')
 
     def depart_option_argument(self, node):
         self._doc_stack[-1].pop_style()
@@ -1658,7 +1661,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_inline(self, node):
         self._append_bookmark_start(node.get('ids', []))
         if 'versionmodified' in node.get('classes'):
-            self._push_style('Versionmodified')
+            self._push_style('Versionmodified', 'Emphasis')
 
     def depart_inline(self, node):
         self._append_bookmark_end(node.get('ids', []))
@@ -1798,7 +1801,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_name(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._push_style('Strong')
+        self._push_style('Desc Name', 'Strong')
 
     def depart_desc_name(self, node):
         self._doc_stack[-1].pop_style()
@@ -1806,7 +1809,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_addname(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._push_style('Literal')
+        self._push_style('Desc Name', 'Strong')
 
     def depart_desc_addname(self, node):
         self._doc_stack[-1].pop_style()
@@ -1859,7 +1862,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_annotation(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._push_style('Emphasis')
+        self._push_style('Desc Annotation', 'Emphasis')
 
     def depart_desc_annotation(self, node):
         self._doc_stack[-1].pop_style()
@@ -2123,10 +2126,3 @@ class DocxTranslator(nodes.NodeVisitor):
         for new_style, based_style, is_custom, is_hidden in table_styles:
             self._docx.create_style(
                     'table', new_style, based_style, is_custom, is_hidden)
-
-        character_styles = [
-                ('Versionmodified', 'Emphasis', True, True),
-        ]
-        for new_style, based_style, is_custom, is_hidden in character_styles:
-            self._docx.create_style(
-                    'character', new_style, based_style, is_custom, is_hidden)

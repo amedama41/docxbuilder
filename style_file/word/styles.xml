@@ -383,6 +383,13 @@
       <w:u w:val="single"/>
     </w:rPr>
   </w:style>
+  <w:style w:type="character" w:customStyle="1" w:styleId="DescName">
+    <w:name w:val="Desc Name"/>
+    <w:basedOn w:val="Strong"/>
+    <w:rPr>
+      <w:rFonts w:ascii="Consolas" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
+    </w:rPr>
+  </w:style>
   <w:style w:type="paragraph" w:customStyle="1" w:styleId="LiteralBlock">
     <w:name w:val="Literal Block"/>
     <w:basedOn w:val="a"/>
