@@ -874,6 +874,16 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
         raise nodes.SkipNode
 
+    def _visit_math_block(self, node, latex):
+        self._append_bookmark_start(node.get('ids', []))
+        self._doc_stack.append(self._make_paragraph(
+            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
+            'Math Block'))
+        self._doc_stack[-1].add_text(latex) # TODO
+        self._pop_and_append()
+        self._append_bookmark_end(node.get('ids', []))
+        raise nodes.SkipNode
+
     def visit_start_of_file(self, node):
         self._docname_stack.append(node['docname'])
         self._append_bookmark_start([''])
@@ -1064,14 +1074,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self.depart_literal_block(node)
 
     def visit_math_block(self, node):
-        self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(self._make_paragraph(
-            self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-            'Math Block'))
-
-    def depart_math_block(self, node):
-        self._pop_and_append()
-        self._append_bookmark_end(node.get('ids', []))
+        self._visit_math_block(node, node.astext())
 
     def visit_line_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
@@ -1583,6 +1586,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_math(self, node):
         self._append_bookmark_start(node.get('ids', []))
+        latex = node.get('latex')
+        if latex:
+            self._doc_stack[-1].add_text(latex)
+            raise nodes.SkipChildren
         pass # TODO
 
     def depart_math(self, node):
@@ -2022,6 +2029,9 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_refcount(self, node):
         pass
+
+    def visit_displaymath(self, node):
+        self._visit_math_block(node, node.get('latex'))
 
     def visit_todo_node(self, node):
         self._visit_admonition(node)
