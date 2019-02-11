@@ -20,13 +20,14 @@ from sphinx.util import logging
 from sphinx.util.docutils import new_document
 from sphinx.util.osutil import ensuredir
 
-from docxbuilder.writer import DocxWriter
+from docxbuilder.writer import DocxWriter, DocxTranslator
 
 
 class DocxBuilder(Builder):
     name = 'docx'
     format = 'docx'
     out_suffix = '.docx'
+    default_translator_class = DocxTranslator
 
     def init(self):
         self._logger = logging.getLogger('docxbuilder')

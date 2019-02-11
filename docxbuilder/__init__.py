@@ -4,6 +4,8 @@ from docxbuilder.builder import DocxBuilder
 
 def setup(app):
     app.add_builder(DocxBuilder)
+    # Set translator for user to enable add visitor methods
+    app.set_translator(DocxBuilder.name, DocxBuilder.default_translator_class)
 
     def default_docx_documents(conf):
         start_doc = conf.master_doc
