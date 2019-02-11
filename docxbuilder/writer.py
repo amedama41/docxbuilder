@@ -826,9 +826,17 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
 
         if not isinstance(self._doc_stack[-1], Paragraph):
+            if isinstance(node.parent, nodes.figure):
+                style = 'Figure'
+                align = node.parent.get('align')
+                keep_next = has_caption(node)
+            else:
+                style = None
+                align = None
+                keep_next = False
             self._doc_stack.append(self._make_paragraph(
                 self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-                align=node.parent.get('align'), keep_next=has_caption(node)))
+                style=style, align=align, keep_next=keep_next))
             needs_pop = True
         else:
             needs_pop = False
@@ -2105,6 +2113,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 ('Definition Term', default_pargraph, True, False),
                 ('Literal Block', default_pargraph, True, False),
                 ('Math Block', default_pargraph, True, False),
+                ('Figure', default_pargraph, True, False),
                 ('Caption', default_pargraph, False, True),
                 ('Table Caption', 'Caption', True, False),
                 ('Image Caption', 'Caption', True, False),
