@@ -791,8 +791,16 @@ class DocxTranslator(nodes.NodeVisitor):
         t.start_head()
         t.add_row()
         self._add_table_cell()
-        t.append(contents[0])
-        body_contents = contents[1:]
+        for idx, c in enumerate(contents):
+            t.append(c)
+            if not isinstance(c, (BookmarkStart, BookmarkEnd)):
+                break
+        idx = idx + 1
+        for idx, c in enumerate(contents[idx:], idx):
+            if not isinstance(c, BookmarkEnd):
+                break
+            t.append(c)
+        body_contents = contents[idx:]
         if body_contents:
             t.start_body()
             t.add_row()
