@@ -1725,6 +1725,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_image(self, node):
         def get_filepath(self, node):
             uri = node['uri']
+            if uri.find('://') != -1:
+                raise RuntimeError('Not support remote image files yet')
             filepath = os.path.join(self._builder.srcdir, uri)
             if not os.path.exists(filepath):
                 # Some extensions output images in outdir
