@@ -96,6 +96,12 @@ def convert_to_cm_size(twip_size):
     cmperin = 2.54
     return twip_size / twipperin * cmperin
 
+def adjust_size(max_size, size, other_size):
+    if size > max_size:
+        ratio = max_size / size
+        return max_size, other_size * ratio
+    return size, other_size
+
 def has_caption(image_node):
     parent = image_node.parent
     if not isinstance(parent, nodes.figure):
@@ -513,6 +519,9 @@ class Document(object):
 
     def get_current_page_width(self):
         return docx.get_contents_width(self._sect_props[self._current_orient])
+
+    def get_current_page_height(self):
+        return docx.get_contents_height(self._sect_props[self._current_orient])
 
     def append(self, contents):
         xml = contents.to_xml()
@@ -2042,11 +2051,12 @@ class DocxTranslator(nodes.NodeVisitor):
             width *= scale
             height *= scale
 
-        max_width = convert_to_cm_size(paragraph_width)
-        if width > max_width:
-            ratio = max_width / width
-            width = max_width
-            height *= ratio
+        width, height = adjust_size(
+                convert_to_cm_size(paragraph_width), width, height)
+        # 600 is margin for caption
+        max_height = self._doc_stack[0].get_current_page_height() - 600
+        height, width = adjust_size(
+                convert_to_cm_size(max_height), height, width)
 
         return width, height
 

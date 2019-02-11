@@ -298,13 +298,19 @@ def set_title_page(section_prop, is_title_page):
     title_page[0].attrib[norm_name('w:val')] = value
 
 def get_contents_width(section_property):
+    return get_contents_size(section_property, 'w:w', ('w:left', 'w:right'))
+
+def get_contents_height(section_property):
+    return get_contents_size(section_property, 'w:h', ('w:top', 'w:bottom'))
+
+def get_contents_size(section_property, size_prop, margin_props):
     paper_size = get_elements(section_property, 'w:pgSz')[0]
-    width = int(paper_size.get(norm_name('w:w')))
+    size = int(paper_size.get(norm_name(size_prop)))
     paper_margin = get_elements(section_property, 'w:pgMar')[0]
-    width_margin = (
-            int(paper_margin.get(norm_name('w:right'))) +
-            int(paper_margin.get(norm_name('w:left'))))
-    return width - width_margin
+    margin = (
+            int(paper_margin.get(norm_name(margin_props[0]))) +
+            int(paper_margin.get(norm_name(margin_props[1]))))
+    return size - margin
 
 def make_default_page_size():
     return make_element_tree([['w:pgSz', {
