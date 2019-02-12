@@ -26,7 +26,7 @@
             </w:rPr>
             <w:pict>
               <v:rect id="_x0000_s1103" style="position:absolute;left:63.45pt;top:162pt;width:467.45pt;height:90pt;mso-wrap-edited:f;mso-position-horizontal-relative:page;mso-position-vertical-relative:page" wrapcoords="37 0 -37 360 -37 20520 0 21240 21562 21240 21600 20520 21600 360 21524 0 37 0" filled="f" stroked="f">
-                <v:textbox inset="0,,36pt">
+                <v:textbox inset="0,,36pt" style="mso-fit-shape-to-text:true">
                   <w:txbxContent>
                     <w:sdt>
                       <w:sdtPr>
