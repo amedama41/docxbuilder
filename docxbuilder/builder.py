@@ -13,7 +13,7 @@
 import os
 
 from docutils import nodes
-from docutils.io import StringOutput
+from docutils.io import BinaryFileOutput
 from sphinx import addnodes
 from sphinx.builders import Builder
 from sphinx.util import logging
@@ -107,24 +107,17 @@ class DocxBuilder(Builder):
 
             self._logger.info('processing %s... ' % docname, nonl=True)
             doctree = self.assemble_doctree(start_doc, toctree_only)
-            self.writer.set_numsec_map(self.make_numsec_map())
-            self.writer.set_numfig_map(self.make_numfig_map())
-            self.writer.set_doc_properties(title, author, props)
+            self.doc_properties = (title, author, props)
             self._logger.info('')
             self._logger.info('writing... ', nonl=True)
             self.write_doc(docname, doctree)
             self._logger.info('done')
 
     def write_doc(self, docname, doctree):
-        destination = StringOutput(encoding='utf-8')
-        self.writer.write(doctree, destination)
         outfilename = os.path.join(self.outdir, docname)
         ensuredir(os.path.dirname(outfilename))
-        try:
-            self.writer.save(outfilename)
-        except (IOError, OSError) as err:
-            self._logger.warning(
-                    "error writing file %s: %s" % (outfilename, err))
+        destination = BinaryFileOutput(destination_path=outfilename)
+        self.writer.write(doctree, destination)
 
     def finish(self):
         pass

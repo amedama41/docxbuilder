@@ -16,6 +16,7 @@
 
 import copy
 import datetime
+import io
 import os
 import time
 import six
@@ -997,9 +998,8 @@ class DocxComposer:
             right = right or based_right
         return self._table_margin_cache.setdefault(style_id, (left, right))
 
-    def save(self, docxfilename, has_coverpage, title, creator, language, props):
-        '''
-          Save the composed document to the docx file 'docxfilename'.
+    def asbytes(self, has_coverpage, title, creator, language, props):
+        '''Generate the composed document as docx binary.
         '''
         coreproperties = self.coreproperties(title, creator, language, props)
         appproperties = self.appproperties(props.get('company', ''))
@@ -1037,18 +1037,20 @@ class DocxComposer:
                 rootrelationships: '_rels/.rels',
         }
 
-        docxfile = zipfile.ZipFile(
-            docxfilename, mode='w', compression=zipfile.ZIP_DEFLATED)
+        bytes_io = io.BytesIO()
+        with zipfile.ZipFile(
+                bytes_io, mode='w', compression=zipfile.ZIP_DEFLATED) as zip:
+            self.styleDocx.collect_items(zip, treesandfiles.values())
+            for tree, xmlpath in treesandfiles.items():
+                treestring = etree.tostring(
+                    tree, xml_declaration=True,
+                    encoding='UTF-8', standalone='yes')
+                zip.writestr(xmlpath, treestring)
+            for imgpath, (_, picname) in self._image_info_map.items():
+                zip.write(imgpath, 'word/media/' + picname)
 
-        self.styleDocx.collect_items(docxfile, treesandfiles.values())
+        return bytes_io.getvalue()
 
-        for tree, xmlpath in treesandfiles.items():
-            treestring = etree.tostring(
-                tree, xml_declaration=True, encoding='UTF-8', standalone='yes')
-            docxfile.writestr(xmlpath, treestring)
-
-        for imgpath, (_, picname) in self._image_info_map.items():
-            docxfile.write(imgpath, 'word/media/' + picname)
 
  ##################
 ########

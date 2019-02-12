@@ -137,54 +137,20 @@ class DocxWriter(writers.Writer):
     def __init__(self, builder):
         writers.Writer.__init__(self)
         self.builder = builder
-        stylefile = self.builder.config['docx_style']
-        if stylefile:
-            self.stylefile = os.path.join(
-                self.builder.confdir, os.path.join(stylefile))
-        else: # Use default style file
-            self.stylefile = os.path.join(
-                    os.path.dirname(__file__), 'docx/style.docx')
-        self.docx = None
-        self.numsec_map = None
-        self.numfig_map = None
 
         self._title = ''
         self._author = ''
         self._props = {}
-        try:
-            self.coverpage = self.builder.config['docx_coverpage']
-        except:
-            self.coverpage = True
-
-    def set_numsec_map(self, numsec_map):
-        self.numsec_map = numsec_map
-
-    def set_numfig_map(self, numfig_map):
-        self.numfig_map = numfig_map
 
     def set_doc_properties(self, title, author, props):
         self._title = title
         self._author = author
         self._props = props
 
-    def save(self, filename):
-        language = self._props.get(
-                'language', self.builder.config.language or 'en')
-        invalid_props = docx.normalize_coreproperties(self._props)
-        for p in invalid_props:
-            self.builder._logger.warning(
-                    'invalid value is found in docx_documents "%s"' % p)
-        self.docx.save(
-                filename, self.coverpage,
-                self._title, self._author, language, self._props)
-
     def translate(self):
-        self.docx = docx.DocxComposer(self.stylefile)
-        visitor = DocxTranslator(
-                self.document, self.builder, self.docx,
-                self.numsec_map, self.numfig_map)
+        visitor = self.builder.create_translator(self.document, self.builder)
         self.document.walkabout(visitor)
-        self.output = ''  # visitor.body
+        self.output = visitor.asbytes()
 
 #
 #  DocxTranslator class for sphinx
@@ -614,12 +580,21 @@ class Contenxt(object):
         return self.width - self.indent - self.right_indent
 
 class DocxTranslator(nodes.NodeVisitor):
-    def __init__(self, document, builder, docx, numsec_map, numfig_map):
+    def __init__(self, document, builder):
         nodes.NodeVisitor.__init__(self, document)
         self._builder = builder
         self.builder = self._builder # Needs for graphviz.render_dot
+        stylefile = builder.config['docx_style']
+        if stylefile:
+            stylefile = os.path.join(builder.confdir, os.path.join(stylefile))
+        else: # Use default style file
+            stylefile = os.path.join(
+                    os.path.dirname(__file__), 'docx/style.docx')
+        self._docx = docx.DocxComposer(stylefile)
         self._doc_stack = [
-                Document(docx.docbody, docx.get_each_orient_section_properties())
+                Document(
+                    self._docx.docbody,
+                    self._docx.get_each_orient_section_properties())
         ]
         self._docname_stack = []
         self._section_level = 0
@@ -628,25 +603,34 @@ class DocxTranslator(nodes.NodeVisitor):
         ]
         self._relationship_stack = ['document']
         self._line_block_level = 0
-        self._docx = docx
         self._list_id_stack = []
-        self._basic_indent = docx.get_indent('List Paragraph', 320)
+        self._basic_indent = self._docx.get_indent('List Paragraph', 320)
         self._language = builder.config.highlight_language
         self._highlighter = DocxPygmentsBridge(
                 'html',
                 builder.config.pygments_style,
                 builder.config.trim_doctest_flags)
-        self._numsec_map = numsec_map
-        self._numfig_map = numfig_map
+        self._numsec_map = builder.make_numsec_map()
+        self._numfig_map = builder.make_numfig_map()
         self._bookmark_id = 0
         self._bookmark_id_map = {} # bookmark name => BookmarkStart id
         self._logger = logging.getLogger('docxbuilder')
 
         self._create_docxbuilder_styles()
-        self._bullet_list_id = docx.get_bullet_list_num_id('List Bullet')
-        self._bullet_list_indents = docx.get_numbering_left('List Bullet')
-        self._number_list_indent = docx.get_numbering_left('List Number')[0]
+        self._bullet_list_id = self._docx.get_bullet_list_num_id('List Bullet')
+        self._bullet_list_indents = self._docx.get_numbering_left('List Bullet')
+        self._number_list_indent = self._docx.get_numbering_left('List Number')[0]
         Paragraph.default_style_id = self._docx.get_style_id('Body Text')
+
+    def asbytes(self):
+        coverpage = self._builder.config['docx_coverpage']
+        title, author, props = self._builder.doc_properties
+        language = props.get('language', self._builder.config.language or 'en')
+        invalid_props = docx.normalize_coreproperties(props)
+        for p in invalid_props:
+            self._builder._logger.warning(
+                    'invalid value is found in docx_documents "%s"' % p)
+        return self._docx.asbytes(coverpage, title, author, language, props)
 
     def _pop_and_append(self):
         contents = self._doc_stack.pop()
