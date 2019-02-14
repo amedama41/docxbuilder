@@ -299,7 +299,14 @@ def set_title_page(section_prop, is_title_page):
     title_page[0].attrib[norm_name('w:val')] = value
 
 def get_contents_width(section_property):
-    return get_contents_size(section_property, 'w:w', ('w:left', 'w:right'))
+    width = get_contents_size(section_property, 'w:w', ('w:left', 'w:right'))
+    cols_elems = get_elements(section_property, 'w:cols')
+    if not cols_elems:
+        return width
+    cols = cols_elems[-1]
+    num = int(cols.attrib.get(norm_name('w:num'), '1'))
+    space = int(cols.attrib.get(norm_name('w:space'), '720'))
+    return (width - (space * (num - 1))) / num # TODO non equal col width
 
 def get_contents_height(section_property):
     return get_contents_size(section_property, 'w:h', ('w:top', 'w:bottom'))
