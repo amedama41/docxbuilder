@@ -355,7 +355,7 @@ class Table(object):
         grid_span = self._get_grid_span(
                 self._current_target[self._current_row_index], index)
         ratio = sum(self._colsize_list[index:index + grid_span])
-        return self._table_width[0] * ratio
+        return int(self._table_width[0] * ratio)
 
     def append(self, contents):
         row = self._current_target[self._current_row_index]
@@ -410,7 +410,7 @@ class Table(object):
         return cell_elem
 
     def _reset_colsize_list(self):
-        total = sum(self._colspec_list)
+        total = float(sum(self._colspec_list))
         self._colsize_list = [colspec / total for colspec in self._colspec_list]
 
     def _get_grid_span(self, row, cell_index):
@@ -676,7 +676,7 @@ class DocxTranslator(nodes.NodeVisitor):
         keep_next = 3 if in_single_page else 1
         t = Table(
                 table_style,
-                (table_width, table_width / self._ctx_stack[-1].width),
+                (table_width, float(table_width) / self._ctx_stack[-1].width),
                 colsize_list, indent, align,
                 keep_next, not row_splittable, header_in_all_page, fit_content)
         self._doc_stack.append(t)
@@ -1181,7 +1181,7 @@ class DocxTranslator(nodes.NodeVisitor):
             self._append_new_ctx(
                 right_indent=self._ctx_stack[-1].right_indent + delta_width)
         elif align == 'center':
-            padding = int(delta_width / 2)
+            padding = delta_width // 2
             self._append_new_ctx(
                 indent=self._ctx_stack[-1].indent + padding,
                 right_indent=self._ctx_stack[-1].right_indent + padding)

@@ -306,7 +306,7 @@ def get_contents_width(section_property):
     cols = cols_elems[-1]
     num = int(cols.attrib.get(norm_name('w:num'), '1'))
     space = int(cols.attrib.get(norm_name('w:space'), '720'))
-    return (width - (space * (num - 1))) / num # TODO non equal col width
+    return (width - (space * (num - 1))) // num # TODO non equal col width
 
 def get_contents_height(section_property):
     return get_contents_size(section_property, 'w:h', ('w:top', 'w:bottom'))
@@ -512,7 +512,7 @@ def make_table(
 
     table_grid_tree = [['w:tblGrid']]
     for grid_col in grid_col_list:
-        table_grid_tree.append([['w:gridCol', {'w:w': str(grid_col)}]])
+        table_grid_tree.append([['w:gridCol', {'w:w': str(int(grid_col))}]])
 
     table_tree = [
             ['w:tbl'],
