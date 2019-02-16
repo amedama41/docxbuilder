@@ -865,7 +865,9 @@ class DocxTranslator(nodes.NodeVisitor):
                 self._doc_stack[-1].add_textbox(
                         'width:%fcm' % width, 'white', [literal_block])
             else:
+                self._push_style('Problematic')
                 self._doc_stack[-1].add_text(alt)
+                self._doc_stack[-1].pop_style()
 
         if needs_pop:
             self._pop_and_append()
