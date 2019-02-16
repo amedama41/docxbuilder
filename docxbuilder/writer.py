@@ -1848,7 +1848,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_returns(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack[-1].add_text(' → ')
+        self._doc_stack[-1].add_text(u' → ')
 
     def depart_desc_returns(self, node):
         self._append_bookmark_end(node.get('ids', []))
@@ -2096,8 +2096,8 @@ class DocxTranslator(nodes.NodeVisitor):
         outlines = []
         for outline in toctree.traverse(
                 addnodes.compact_paragraph, include_self=False):
-            level_class = next(filter(
-                lambda c: c.startswith('toctree-l'), outline.get('classes')))
+            classes = outline.get('classes')
+            level_class = next(c for c in classes if c.startswith('toctree-l'))
             ref = outline[0]
             secnum = ref.get('secnumber')
             if secnum is not None:
