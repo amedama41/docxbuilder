@@ -841,6 +841,10 @@ class DocxTranslator(nodes.NodeVisitor):
         else:
             needs_pop = False
 
+        if isinstance(alt, tuple):
+            alt, alt_lang = alt
+        else:
+            alt_lang = None
         try:
             filepath = get_filepath(self, node)
             width, height = self._get_image_scaled_size(node, filepath)
@@ -851,7 +855,17 @@ class DocxTranslator(nodes.NodeVisitor):
                     rid, self._docx.new_id(), filename, width, height, alt)
         except Exception as e:
             self._logger.warning(e, location=node)
-            self._doc_stack[-1].add_text(alt)
+            if alt_lang is not None and needs_pop:
+                highlighted = self._highlighter.highlight_block(
+                        alt, alt_lang, lineos=1, opts={})
+                literal_block = LiteralBlock(
+                        highlighted,
+                        self._docx.get_style_id('LiteralBlock'), 0, 0, False)
+                width = convert_to_cm_size(self._ctx_stack[-1].paragraph_width)
+                self._doc_stack[-1].add_textbox(
+                        'width:%fcm' % width, 'white', [literal_block])
+            else:
+                self._doc_stack[-1].add_text(alt)
 
         if needs_pop:
             self._pop_and_append()
@@ -2008,7 +2022,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 raise RuntimeError('Failed to generate a graphviz image')
             return filepath
         self.visit_image_node(
-                node, node.get('alt', node['code']), get_filepath)
+                node, node.get('alt', (node['code'], 'dot')), get_filepath)
 
     def visit_refcount(self, node):
         raise nodes.SkipNode # TODO
