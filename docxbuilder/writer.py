@@ -776,7 +776,7 @@ class DocxTranslator(nodes.NodeVisitor):
             return False
         return 'docx-landscape' in node.get('classes')
 
-    def _visit_admonition(self, node, add_title=False):
+    def visit_admonition_node(self, node, add_title=False):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(ContentsList())
         if add_title:
@@ -784,7 +784,8 @@ class DocxTranslator(nodes.NodeVisitor):
             p.add_text(admonitionlabels[node.tagname] + ':')
             self._doc_stack[-1].append(p)
 
-    def _depart_admonition(self, node, style=None, align='center', margin=1000):
+    def depart_admonition_node(
+            self, node, style=None, align='center', margin=1000):
         contents = self._doc_stack.pop()
         table_width = self._ctx_stack[-1].width - margin
         if style is None:
@@ -821,7 +822,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._pop_and_append_table()
         self._append_bookmark_end(node.get('ids', []))
 
-    def _visit_image_node(self, node, alt, get_filepath):
+    def visit_image_node(self, node, alt, get_filepath):
         self._append_bookmark_start(node.get('ids', []))
 
         if not isinstance(self._doc_stack[-1], Paragraph):
@@ -858,7 +859,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
         raise nodes.SkipNode
 
-    def _visit_math_block(self, node, latex):
+    def visit_math_block_node(self, node, latex):
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(self._make_paragraph(
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
@@ -1058,7 +1059,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self.depart_literal_block(node)
 
     def visit_math_block(self, node):
-        self._visit_math_block(node, node.astext())
+        self.visit_math_block_node(node, node.astext())
 
     def visit_line_block(self, node):
         self._append_bookmark_start(node.get('ids', []))
@@ -1472,64 +1473,64 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_attention(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_attention(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_caution(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_caution(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_danger(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_danger(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_error(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_error(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_hint(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_hint(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_important(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_important(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_note(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_note(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_tip(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_tip(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_warning(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_warning(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_admonition(self, node):
-        self._visit_admonition(node)
+        self.visit_admonition_node(node)
 
     def depart_admonition(self, node):
-        self._depart_admonition(node, 'Admonition')
+        self.depart_admonition_node(node, 'Admonition')
 
     def visit_substitution_definition(self, node):
         raise nodes.SkipNode # TODO
@@ -1723,7 +1724,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 # Some extensions output images in outdir
                 filepath = os.path.join(self._builder.outdir, uri)
             return filepath
-        self._visit_image_node(
+        self.visit_image_node(
                 node, node.get('alt', node['uri']), get_filepath)
 
     def visit_raw(self, node):
@@ -1912,10 +1913,10 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_seealso(self, node):
-        self._visit_admonition(node, add_title=True)
+        self.visit_admonition_node(node, add_title=True)
 
     def depart_seealso(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def visit_tabular_col_spec(self, node):
         raise nodes.SkipNode # Do nothing
@@ -1957,13 +1958,14 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_versionmodified(self, node):
-        self._visit_admonition(node)
+        self.visit_admonition_node(node)
 
     def depart_versionmodified(self, node):
         style_name = 'Admonition ' + node.get('type').capitalize()
         self._docx.create_style(
                 'table', style_name, 'Admonition Versionmodified', True)
-        self._depart_admonition(node, style=style_name, align=None, margin=0)
+        self.depart_admonition_node(
+                node, style=style_name, align=None, margin=0)
 
     def visit_index(self, node):
         self._append_bookmark_start(node.get('ids', []))
@@ -2005,7 +2007,7 @@ class DocxTranslator(nodes.NodeVisitor):
             if filepath is None:
                 raise RuntimeError('Failed to generate a graphviz image')
             return filepath
-        self._visit_image_node(
+        self.visit_image_node(
                 node, node.get('alt', node['code']), get_filepath)
 
     def visit_refcount(self, node):
@@ -2015,13 +2017,13 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_displaymath(self, node):
-        self._visit_math_block(node, node.get('latex'))
+        self.visit_math_block_node(node, node.get('latex'))
 
     def visit_todo_node(self, node):
-        self._visit_admonition(node)
+        self.visit_admonition_node(node)
 
     def depart_todo_node(self, node):
-        self._depart_admonition(node)
+        self.depart_admonition_node(node)
 
     def unknown_visit(self, node):
         self._logger.warning(
