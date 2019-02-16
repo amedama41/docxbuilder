@@ -11,7 +11,8 @@ def setup(app):
         start_doc = conf.master_doc
         filename = '%s.docx' % make_filename(conf.project)
         title = conf.project
-        author = 'sphinx-docxbuilder'
+        # author configuration value is available from Sphinx 1.8
+        author = getattr(conf, 'author', 'sphinx-docxbuilder')
         properties = {
                 'subject': '',
                 'category': '',
