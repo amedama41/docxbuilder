@@ -23,6 +23,7 @@
 
 import os
 import re
+import sys
 
 from docutils import nodes, writers
 from lxml import etree
@@ -684,6 +685,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._list_id_stack = []
         self._basic_indent = self._docx.get_indent('List Paragraph', 320)
         self._language = builder.config.highlight_language
+        self._linenothreshold = sys.maxsize
         self._highlighter = DocxPygmentsBridge(
                 'html',
                 builder.config.pygments_style,
@@ -1123,7 +1125,9 @@ class DocxTranslator(nodes.NodeVisitor):
             return
         else:
             language = node.get('language', self._language)
-            linenos = node.get('linenos', False)
+            linenos = node.get(
+                    'linenos',
+                    (node.rawsource.count('\n') >= self._linenothreshold - 1))
             highlight_args = node.get('highlight_args', {})
             config = self._builder.config
             opts = (config.highlight_options
@@ -1891,6 +1895,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_highlightlang(self, node):
         self._language = node.get('lang', 'guess')
+        self._linenothreshold = node.get(
+                'linenothreshold', self._linenothreshold)
         raise nodes.SkipNode
 
     def visit_glossary(self, node):
