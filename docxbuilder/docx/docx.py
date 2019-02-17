@@ -350,7 +350,8 @@ def make_run_style_property(style_id):
     return {'w:rStyle': {'w:val': style_id}}
 
 def make_paragraph(
-        indent, right_indent, style, align, keep_lines, keep_next, list_info):
+        indent, right_indent, style, align, keep_lines, keep_next, list_info,
+        properties=None):
     style_tree = [
             ['w:pPr'],
             [['w:pStyle', {'w:val': style}]],
@@ -376,9 +377,52 @@ def make_paragraph(
         style_tree.append([['w:keepLines']])
     if keep_next:
         style_tree.append([['w:keepNext']])
+    if properties is not None:
+        style_tree.extend(properties)
 
     paragraph_tree = [['w:p'], style_tree]
     return make_element_tree(paragraph_tree)
+
+def make_paragraph_spacing_property(**kwargs):
+    attr = {}
+    for key in ['before', 'after', 'line']:
+        value = kwargs.get(key)
+        if value is None:
+            continue
+        attr['w:' + key] = str(value)
+    return [['w:spacing', attr]]
+
+def make_paragraph_shading_property(pattern, **kwargs):
+    attr = {'w:val': pattern}
+    if kwargs:
+        for key in ['color', 'fill']:
+            value = kwargs.get(key)
+            if value is None:
+                continue
+            attr['w:' + key] = value
+    return [['w:shd', attr]]
+
+def make_paragraph_border_property(**kwargs):
+    key_list = [
+            ('size', 'w:sz'), ('space', 'w:space'), ('color', 'w:color'),
+            ('shadow', 'w:shadow'), ('frame', 'w:frame')
+    ]
+    border_tree = [['w:pBdr']]
+    for kind in ['top', 'left', 'bottom', 'right', 'between', 'bar']:
+        if kind not in kwargs:
+            continue
+        value = kwargs[kind]
+        if value is None:
+            attr = {'w:val': 'nil'}
+        else:
+            pattern = value['pattern']
+            attr = {'w:val': pattern if pattern is not None else 'nil'}
+            for key, attr_key in key_list:
+                v = value.get(key)
+                if v is not None:
+                    attr[attr_key] = str(v)
+        border_tree.append([['w:' + kind, attr]])
+    return border_tree
 
 def make_section_prop_paragraph(section_prop):
     section_prop = copy.deepcopy(section_prop)
@@ -488,7 +532,8 @@ def make_inline_picture_run(
 # Tables
 
 def make_table(
-        style, width, indent, align, grid_col_list, has_head, has_first_column):
+        style, width, indent, align, grid_col_list, has_head, has_first_column,
+        properties=None):
     look_attrs = {
             'w:noHBand': 'false', 'w:noVBand': 'false',
             'w:lastRow': 'false', 'w:lastColumn': 'false'
@@ -509,6 +554,8 @@ def make_table(
         property_tree.insert(1, [['w:tblStyle', {'w:val': style}]])
     if align is not None:
         property_tree.append([['w:jc', {'w:val': align}]])
+    if properties is not None:
+        property_tree.extend(properties)
 
     table_grid_tree = [['w:tblGrid']]
     for grid_col in grid_col_list:
@@ -537,7 +584,7 @@ def make_row(index, is_head, cant_split, set_tbl_header):
         property_tree.append([['w:tblHeader']])
     return make_element_tree([['w:tr'], property_tree])
 
-def make_cell(index, is_first_column, cellsize, grid_span, vmerge):
+def make_cell(index, is_first_column, cellsize, grid_span, vmerge, valign=None):
     cell_style = {
             'w:evenVBand': ('true' if index % 2 == 0 else 'false'),
             'w:oddVBand': ('true' if index % 2 != 0 else 'false'),
@@ -554,7 +601,30 @@ def make_cell(index, is_first_column, cellsize, grid_span, vmerge):
         property_tree.append([['w:gridSpan', {'w:val': str(grid_span)}]])
     if vmerge is not None:
         property_tree.append([['w:vMerge', {'w:val': vmerge}]])
+    if valign is not None:
+        property_tree.append([['w:vAlign', {'w:val': valign}]])
     return make_element_tree([['w:tc'], property_tree])
+
+def make_table_cell_margin_property(**kwargs):
+    margin_tree = [['w:tblCellMar']]
+    for kind in ['top', 'left', 'bottom', 'right']:
+        if kind in kwargs:
+            margin_tree.append(
+                    [['w:' + kind, make_table_width_attr(kwargs[kind])]])
+    return margin_tree
+
+def make_table_cell_spacing_property(val):
+    return [['w:tblCellSpacing', make_table_width_attr(val)]]
+
+def make_table_width_attr(val):
+    if val is None:
+        return {'w:type': 'nil', 'w:w': '0'}
+    elif val == 'auto':
+        return {'w:type': 'auto', 'w:w': '0'}
+    elif isinstance(val, float) and val <= 1.0:
+        return {'w:type': 'pct', 'w:w': '%f%%' % (val * 100)}
+    else:
+        return {'w:type': 'dxa', 'w:w': str(int(val))}
 
 # Footnotes
 

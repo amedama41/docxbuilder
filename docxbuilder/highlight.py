@@ -1,15 +1,13 @@
-
 from xml.sax import saxutils
-from pygments.formatters import RtfFormatter
+from pygments.formatter import Formatter
 from sphinx.highlighting import PygmentsBridge
 
-#--- Formatter
-
-
-class DocxFormatter(RtfFormatter):
+class DocxFormatter(Formatter):
     def __init__(self, **options):
-        RtfFormatter.__init__(self, **options)
+        super(DocxFormatter, self).__init__(**options)
+        self.linenos = options.get('linenos', False)
         self.hl_lines = options.get('hl_lines', [])
+        self.linenostart = options.get('linenostart', 1)
         self.trim_last_line_break = options.get('trim_last_line_break', False)
         self.color_mapping = {}
         for _, style in self.style:
@@ -63,29 +61,56 @@ class DocxFormatter(RtfFormatter):
         if self.trim_last_line_break and lines[-1] == []:
             lines.pop()
 
+        if self.linenos:
+            self.output_as_table_with_linenos(outfile, lines)
+        else:
+            self.output_as_paragraph(outfile, lines)
+
+    def output_as_paragraph(self, outfile, lines):
+        outfile.write(
+                '<w:p xmlns:w='
+                '"http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+                '>')
         for lineno, tokens in enumerate(lines, 1):
-            for text, style in tokens:
-                outfile.write(r'<w:r>')
-                if lineno in self.hl_lines:
-                    style += r'<w:highlight w:val="yellow" />' # TODO: color
-                if style:
-                    outfile.write(r'<w:rPr>%s</w:rPr>' % style)
-                if text.find(' ') != -1:
-                    outfile.write(r'<w:t xml:space="preserve">')
-                else:
-                    outfile.write(r'<w:t>')
-                outfile.write(text)
-                outfile.write(r'</w:t>')
-                outfile.write(r'</w:r>')
+            self.output_line(outfile, lineno, tokens)
             if lineno != len(lines):
                 outfile.write(r'<w:r><w:br /></w:r>')
+        outfile.write('</w:p>')
 
+    def output_as_table_with_linenos(self, outfile, lines):
+        outfile.write(
+                '<w:tbl xmlns:w='
+                '"http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+                '>')
+        for lineno, tokens in enumerate(lines, 1):
+            outfile.write('<w:tr>')
+            outfile.write('<w:tc><w:p>')
+            outfile.write(
+                '<w:r><w:t>%d</w:t></w:r>' % (self.linenostart + lineno - 1))
+            outfile.write('</w:p></w:tc>')
+            outfile.write('<w:tc><w:p>')
+            self.output_line(outfile, lineno, tokens)
+            outfile.write('</w:p></w:tc>')
+            outfile.write('</w:tr>')
+        outfile.write('</w:tbl>')
 
+    def output_line(self, outfile, lineno, tokens):
+        for text, style in tokens:
+            outfile.write(r'<w:r>')
+            if lineno in self.hl_lines:
+                style += r'<w:highlight w:val="yellow" />' # TODO: color
+            if style:
+                outfile.write(r'<w:rPr>%s</w:rPr>' % style)
+            if text.find(' ') != -1:
+                outfile.write(r'<w:t xml:space="preserve">')
+            else:
+                outfile.write(r'<w:t>')
+            outfile.write(text)
+            outfile.write(r'</w:t>')
+            outfile.write(r'</w:r>')
 
-#--- PygmentsBridge
 class DocxPygmentsBridge(PygmentsBridge):
-    def __init__(self, dest='docx', stylename='sphinx',
-                 trim_doctest_flags=False):
+    def __init__(self, dest, stylename, trim_doctest_flags):
         PygmentsBridge.__init__(self, dest, stylename, trim_doctest_flags)
         self.formatter = DocxFormatter
 
@@ -94,4 +119,3 @@ class DocxPygmentsBridge(PygmentsBridge):
         kwargs['trim_last_line_break'] = not source.endswith('\n')
         return super(DocxPygmentsBridge, self).highlight_block(
                 source, lang, *args, **kwargs)
-

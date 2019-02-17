@@ -511,13 +511,59 @@ class LiteralBlock(object):
     def __init__(self, highlighted, style_id, indent, right_indent, keep_lines):
         p = docx.make_paragraph(
                 indent, right_indent, style_id, None, keep_lines, False, None)
-        xml_text = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' + highlighted + '</w:p>'
-        dummy_p = etree.fromstring(xml_text)
-        p.extend(dummy_p)
+        p.extend(etree.fromstring(highlighted))
         self._paragraph = p
 
     def to_xml(self):
         return self._paragraph
+
+class LiteralBlockTable(object):
+    def __init__(self, highlighted, style_id, table_width, indent, keep_next):
+        org_tbl = etree.fromstring(highlighted)
+
+        table = docx.make_table(
+                None, table_width[1], indent, None,
+                [table_width[0] * 0.1, table_width[0] * 0.9], False, True,
+                properties=[
+                    docx.make_table_cell_spacing_property(None),
+                    docx.make_table_cell_margin_property(
+                        top=None, left=108, bottom=None, right=108),
+                ])
+        spacing = docx.make_paragraph_spacing_property(before=0, after=0)
+        shading = docx.make_paragraph_shading_property('clear')
+        lineno_border = docx.make_paragraph_border_property(
+                top=None, bottom=None, left=None, right=None)
+        middle_border = docx.make_paragraph_border_property(
+                top=None, bottom=None)
+        last_index = len(org_tbl) - 1
+        border = {
+                0: docx.make_paragraph_border_property(bottom=None),
+                last_index: docx.make_paragraph_border_property(top=None),
+        }
+        valign = {0: 'bottom', last_index: 'top'}
+
+        for index, org_row in enumerate(org_tbl):
+            row = docx.make_row(index, False, False, False)
+            cell1 = docx.make_cell(0, True, None, 1, None, valign.get(index))
+            p1 = docx.make_paragraph(
+                    None, None, style_id, 'right', False, keep_next, None,
+                    properties=[spacing, shading, lineno_border])
+            p1.extend(org_row[0][0])
+            cell1.append(p1)
+            row.append(cell1)
+
+            cell2 = docx.make_cell(1, False, 0.99, 1, None)
+            p2 = docx.make_paragraph(
+                    None, None, style_id, None, False, False, None,
+                    properties=[spacing, border.get(index, middle_border)])
+            p2.extend(org_row[1][0])
+            cell2.append(p2)
+            row.append(cell2)
+            table.append(row)
+        self._table = table
+
+    def to_xml(self):
+        return self._table
 
 class ContentsList(object):
     def __init__(self):
@@ -856,8 +902,7 @@ class DocxTranslator(nodes.NodeVisitor):
         except Exception as e:
             self._logger.warning(e, location=node)
             if alt_lang is not None and needs_pop:
-                highlighted = self._highlighter.highlight_block(
-                        alt, alt_lang, lineos=1, opts={})
+                highlighted = self._highlighter.highlight_block(alt, alt_lang)
                 literal_block = LiteralBlock(
                         highlighted,
                         self._docx.get_style_id('LiteralBlock'), 0, 0, False)
@@ -1046,21 +1091,36 @@ class DocxTranslator(nodes.NodeVisitor):
             return
         else:
             language = node.get('language', self._language)
+            linenos = node.get('linenos', False)
             highlight_args = node.get('highlight_args', {})
             config = self._builder.config
             opts = (config.highlight_options
                     if language == config.highlight_language else {})
             highlighted = self._highlighter.highlight_block(
                     node.rawsource, language,
-                    lineos=1, opts=opts, **highlight_args)
-            self._doc_stack.append(LiteralBlock(
-                highlighted, self._docx.get_style_id('Literal Block'),
-                self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-                keep_lines))
+                    linenos=linenos, opts=opts, location=node, **highlight_args)
+            style_id = self._docx.get_style_id('Literal Block')
+            ctx = self._ctx_stack[-1]
+            if linenos:
+                table_width = ctx.paragraph_width
+                block = LiteralBlockTable(
+                        highlighted, style_id,
+                        (table_width, float(table_width) / ctx.width),
+                        ctx.indent, keep_lines)
+            else:
+                block = LiteralBlock(
+                        highlighted, style_id,
+                        ctx.indent, ctx.right_indent, keep_lines)
+            self._doc_stack.append(block)
             raise nodes.SkipChildren
 
     def depart_literal_block(self, node):
-        self._pop_and_append()
+        if isinstance(self._doc_stack[-1], LiteralBlockTable):
+            self._pop_and_append()
+            self._doc_stack[-1].append(
+                    self._make_paragraph(style='Table Bottom Margin'))
+        else:
+            self._pop_and_append()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_doctest_block(self, node):
