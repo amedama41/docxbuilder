@@ -563,11 +563,15 @@ class LiteralBlockTable(TableElement):
         middle_border = docx.make_paragraph_border_property(
                 top=None, bottom=None)
         last_index = len(org_tbl) - 1
-        border = {
-                0: docx.make_paragraph_border_property(bottom=None),
-                last_index: docx.make_paragraph_border_property(top=None),
-        }
-        valign = {0: 'bottom', last_index: 'top'}
+        if last_index == 0:
+            border = {0: docx.make_paragraph_border_property()}
+            valign = {0: 'center'}
+        else:
+            border = {
+                    0: docx.make_paragraph_border_property(bottom=None),
+                    last_index: docx.make_paragraph_border_property(top=None),
+            }
+            valign = {0: 'bottom', last_index: 'top'}
 
         for index, org_row in enumerate(org_tbl):
             row = docx.make_row(index, False, False, False)
