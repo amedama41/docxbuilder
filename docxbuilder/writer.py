@@ -522,18 +522,32 @@ class Document(object):
 
 class LiteralBlock(ParagraphElement):
     def __init__(self, highlighted, style_id, indent, right_indent, keep_lines):
-        p = docx.make_paragraph(
-                indent, right_indent, style_id, None, keep_lines, False, None)
-        p.extend(etree.fromstring(highlighted))
-        self._paragraph = p
+        self._args = [highlighted, style_id, indent, right_indent, keep_lines]
+        self._keep_next = False
+
+    def keep_next(self):
+        self._keep_next = True
 
     def to_xml(self):
-        return self._paragraph
+        highlighted, style_id, indent, right_indent, keep_lines = self._args
+        p = docx.make_paragraph(
+                indent, right_indent, style_id, None,
+                keep_lines, self._keep_next, None)
+        p.extend(etree.fromstring(highlighted))
+        return p
 
 class LiteralBlockTable(TableElement):
     def __init__(self, highlighted, style_id, table_width, indent, keep_next):
-        org_tbl = etree.fromstring(highlighted)
+        self._args = [highlighted, style_id, table_width, indent]
+         # 0: not set, 1: set header, 2: set first row, 3: set all rows
+        self._keep_next = 3 if keep_next else 0
 
+    def keep_next(self):
+        self._keep_next = max(2, self._keep_next)
+
+    def to_xml(self):
+        highlighted, style_id, table_width, indent = self._args
+        org_tbl = etree.fromstring(highlighted)
         table = docx.make_table(
                 None, table_width[1], indent, None,
                 [table_width[0] * 0.1, table_width[0] * 0.9], False, True,
@@ -558,6 +572,7 @@ class LiteralBlockTable(TableElement):
         for index, org_row in enumerate(org_tbl):
             row = docx.make_row(index, False, False, False)
             cell1 = docx.make_cell(0, True, None, 1, None, valign.get(index))
+            keep_next = self._is_keep_next(index)
             p1 = docx.make_paragraph(
                     None, None, style_id, 'right', False, keep_next, None,
                     properties=[spacing, shading, lineno_border])
@@ -573,10 +588,10 @@ class LiteralBlockTable(TableElement):
             cell2.append(p2)
             row.append(cell2)
             table.append(row)
-        self._table = table
+        return table
 
-    def to_xml(self):
-        return self._table
+    def _is_keep_next(self, index):
+        return (self._keep_next == 2 and index == 0) or (self._keep_next == 3)
 
 class ContentsList(object):
     def __init__(self):
