@@ -161,7 +161,19 @@ def to_error_string(contents):
     func = lambda xml: tostring(xml, encoding='utf8').decode('utf8')
     return type(contents).__name__ + '\n' + func(contents.to_xml())
 
-class BookmarkStart(object):
+class BookmarkElement(object):
+    pass
+
+class ParagraphElement(object):
+    pass
+
+class TableElement(object):
+    pass
+
+class SdtElement(object):
+    pass
+
+class BookmarkStart(BookmarkElement):
     def __init__(self, id, name):
         self._id = id
         self._name = name
@@ -169,14 +181,14 @@ class BookmarkStart(object):
     def to_xml(self):
         return docx.make_bookmark_start(self._id, self._name)
 
-class BookmarkEnd(object):
+class BookmarkEnd(BookmarkElement):
     def __init__(self, id):
         self._id = id
 
     def to_xml(self):
         return docx.make_bookmark_end(self._id)
 
-class Paragraph(object):
+class Paragraph(ParagraphElement):
     default_style_id = None
 
     def __init__(self, indent=None, right_indent=None,
@@ -247,7 +259,7 @@ class Paragraph(object):
     def append(self, contents):
         if isinstance(contents, Paragraph): # for nested line_block
             self._contents_stack[-1].extend(contents._contents_stack[0])
-        elif isinstance(contents, (BookmarkStart, BookmarkEnd)):
+        elif isinstance(contents, BookmarkElement):
             self._contents_stack[-1].append(contents.to_xml())
         else:
             raise RuntimeError('Can not append %s' % to_error_string(contents))
@@ -263,7 +275,7 @@ class Paragraph(object):
         p.extend(self._contents_stack[0])
         return p
 
-class Table(object):
+class Table(TableElement):
     def __init__(
             self, table_style, table_width, colsize_list, indent, align,
             keep_next, cant_split_row, set_table_header, fit_content):
@@ -396,15 +408,16 @@ class Table(object):
         cell_elem = docx.make_cell(
                 index, index < self._stub, cellsize, grid_span, vmerge)
 
+        contents_types = (ParagraphElement, TableElement, SdtElement)
         # The last element must be paragraph for Microsoft word
         last = next(
-                (e for e in reversed(cell) if isinstance(e, (Paragraph, Table))),
+                (e for e in reversed(cell) if isinstance(e, contents_types)),
                 None)
-        if not isinstance(last, Paragraph):
+        if last is None or isinstance(last, TableElement):
             cell.append(Paragraph())
 
         if keep_next:
-            first = next(e for e in cell if isinstance(e, (Paragraph, Table)))
+            first = next(e for e in cell if isinstance(e, contents_types))
             first.keep_next()
         cell_elem.extend(c.to_xml() for c in cell)
         return cell_elem
@@ -432,7 +445,7 @@ class Table(object):
             return True
         return False
 
-class TOC(object):
+class TOC(SdtElement):
     def __init__(
             self, title, title_style_id, maxlevel, bookmark, paragraph_width,
             outlines):
@@ -491,7 +504,7 @@ class Document(object):
 
     def append(self, contents):
         xml = contents.to_xml()
-        if not isinstance(contents, (BookmarkStart, BookmarkEnd)):
+        if not isinstance(contents, BookmarkElement):
             self._add_section_prop_if_necessary()
             if self._add_pagebreak:
                 docx.add_page_break_before_to_first_paragraph(xml)
@@ -507,7 +520,7 @@ class Document(object):
                 docx.set_title_page(sect_prop, False)
             self._last_orient = None
 
-class LiteralBlock(object):
+class LiteralBlock(ParagraphElement):
     def __init__(self, highlighted, style_id, indent, right_indent, keep_lines):
         p = docx.make_paragraph(
                 indent, right_indent, style_id, None, keep_lines, False, None)
@@ -517,7 +530,7 @@ class LiteralBlock(object):
     def to_xml(self):
         return self._paragraph
 
-class LiteralBlockTable(object):
+class LiteralBlockTable(TableElement):
     def __init__(self, highlighted, style_id, table_width, indent, keep_next):
         org_tbl = etree.fromstring(highlighted)
 
@@ -590,7 +603,7 @@ class FixedTopParagraphList(ContentsList):
 
     def append(self, contents):
         if len(self) == 1:
-            if isinstance(contents, (BookmarkStart, BookmarkEnd)):
+            if isinstance(contents, BookmarkElement):
                 self._top_paragraph.append(contents)
                 return
             if self._available_top_paragraph:
@@ -851,7 +864,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._add_table_cell()
         for idx, c in enumerate(contents):
             t.append(c)
-            if not isinstance(c, (BookmarkStart, BookmarkEnd)):
+            if not isinstance(c, BookmarkElement):
                 break
         idx = idx + 1
         for idx, c in enumerate(contents[idx:], idx):
