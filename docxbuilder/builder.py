@@ -30,6 +30,7 @@ class DocxBuilder(Builder):
     default_translator_class = DocxTranslator
 
     def init(self):
+        self.imagedir = '_images'
         self._logger = logging.getLogger('docxbuilder')
         self._docx_documents = []
 
