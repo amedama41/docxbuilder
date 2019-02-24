@@ -618,8 +618,8 @@ def make_table(
 
 def make_row(index, is_head, cant_split, set_tbl_header):
     row_style_attrs = {
-            'w:evenHBand': ('true' if index % 2 == 0 else 'false'),
-            'w:oddHBand': ('true' if index % 2 != 0 else 'false'),
+            'w:evenHBand': ('true' if index % 2 != 0 else 'false'),
+            'w:oddHBand': ('true' if index % 2 == 0 else 'false'),
             'w:firstRow': ('true' if is_head else 'false'),
     }
     property_tree = [
@@ -634,8 +634,8 @@ def make_row(index, is_head, cant_split, set_tbl_header):
 
 def make_cell(index, is_first_column, cellsize, grid_span, vmerge, valign=None):
     cell_style = {
-            'w:evenVBand': ('true' if index % 2 == 0 else 'false'),
-            'w:oddVBand': ('true' if index % 2 != 0 else 'false'),
+            'w:evenVBand': ('true' if index % 2 != 0 else 'false'),
+            'w:oddVBand': ('true' if index % 2 == 0 else 'false'),
             'w:firstColumn': ('true' if is_first_column else 'false'),
     }
     property_tree = [
