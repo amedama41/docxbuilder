@@ -53,6 +53,8 @@ nsprefixes = {
     'ct': 'http://schemas.openxmlformats.org/package/2006/content-types',
     # Package Relationships (we're just making up our own namespaces here to save time)
     'pr': 'http://schemas.openxmlformats.org/package/2006/relationships',
+    # Variant Types
+    'vt': 'http://purl.oclc.org/ooxml/officeDocument/docPropsVTypes',
     # xml
     'xml': 'http://www.w3.org/XML/1998/namespace'
 }
@@ -63,11 +65,15 @@ REL_TYPE_CORE = 'http://schemas.openxmlformats.org/package/2006/relationships/me
 REL_TYPE_STYLES = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles'
 REL_TYPE_NUMBERING = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering'
 REL_TYPE_FOOTNOTES = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes'
+REL_TYPE_CUSTOM = 'http://purl.oclc.org/ooxml/officeDocument/relationships/customProperties'
 
 CONTENT_TYPE_DOC_MAIN = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
 CONTENT_TYPE_STYLES = 'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml'
 CONTENT_TYPE_NUMBERING = 'application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml'
 CONTENT_TYPE_FOOTNOTES = 'application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml'
+CONTENT_TYPE_CORE_PROPERTIES = 'application/vnd.openxmlformats-package.core-properties+xml'
+CONTENT_TYPE_EXTENDED_PROPERTIES = 'application/vnd.openxmlformats-officedocument.extended-properties+xml'
+CONTENT_TYPE_CUSTOM_PROPERTIES = 'application/vnd.openxmlformats-officedocument.custom-properties+xml'
 
 #####################
 
@@ -244,32 +250,74 @@ def convert_to_W3CDTF_string(value):
 #   This class for analizing docx-file
 #
 
-def normalize_coreproperties(props):
-    invalid_props = []
+CORE_PROPERTY_KEYS = (
+        ('dc', 'title', {}),
+        ('dc', 'creator', {}),
+        ('dc', 'language', {}),
+        ('cp', 'category', {}),
+        ('cp', 'contentStatus', {}),
+        ('dc', 'description', {}),
+        ('dc', 'identifier', {}),
+        ('cp', 'lastModifiedBy', {}),
+        ('cp', 'lastPrinted', {}),
+        ('cp', 'revision', {}),
+        ('dc', 'subject', {}),
+        ('cp', 'version', {}),
+        ('cp', 'keywords', {}),
+        ('dcterms', 'created', {'xsi:type': 'dcterms:W3CDTF'}),
+        ('dcterms', 'modified', {'xsi:type': 'dcterms:W3CDTF'}),
+)
 
-    last_printed = props.get('lastPrinted', None)
+CUSTOM_PROPERTY_TYPES = (
+        (bool, 'vt:bool', lambda v: str(v).lower()),
+        (six.integer_types, 'vt:i8', str),
+        (float, 'vt:r8', str),
+        (six.string_types, 'vt:lpwstr', str),
+        (datetime.datetime, 'vt:date', convert_to_W3CDTF_string),
+)
+
+def separate_core_and_custom_properties(props):
+    core_props = {}
+    custom_props = {}
+    invalid_prop_keys = []
+
+    core_prop_keys = set(key for _, key, _ in CORE_PROPERTY_KEYS)
+
+    for key, value in props.items():
+        if key in core_prop_keys:
+            core_props[key] = value
+            continue
+        for prop_type, _, _ in CUSTOM_PROPERTY_TYPES:
+            if isinstance(value, prop_type):
+                custom_props[key] = value
+                break
+        else:
+            invalid_prop_keys.append(key)
+
+    time_fmt = '%Y-%m-%dT%H:%M:%S'
+    last_printed = core_props.get('lastPrinted', None)
     if last_printed is not None:
         if isinstance(last_printed, datetime.datetime):
-            props['lastPrinted'] = last_printed.strftime('%Y-%m-%dT%H:%M:%S')
+            core_props['lastPrinted'] = last_printed.strftime(time_fmt)
         else:
             try:
-                datetime.datetime.strptime(last_printed, '%Y-%m-%dT%H:%M:%S')
+                datetime.datetime.strptime(last_printed, time_fmt)
             except ValueError:
-                invalid_props.append('lastPrinted')
+                invalid_prop_keys.append('lastPrinted')
+                del core_props['lastPrinted']
 
     for doctime in ['created', 'modified']:
-        value = props.get(doctime, None)
+        value = core_props.get(doctime, None)
         if value is None:
             continue
         value = convert_to_W3CDTF_string(value)
         if value is None:
-            invalid_props.append(doctime)
+            invalid_prop_keys.append(doctime)
+            del core_props[doctime]
         else:
-            props[doctime] = value
+            core_props[doctime] = value
 
-    for p in invalid_props:
-        del props[p]
-    return invalid_props
+    return core_props, custom_props, invalid_prop_keys
 
 def get_orient(section_prop):
     page_size = get_elements(section_prop, 'w:pgSz')[0]
@@ -1075,11 +1123,12 @@ class DocxComposer:
             right = right or based_right
         return self._table_margin_cache.setdefault(style_id, (left, right))
 
-    def asbytes(self, has_coverpage, title, creator, language, props):
+    def asbytes(self, has_coverpage, props, custom_props):
         '''Generate the composed document as docx binary.
         '''
-        coreproperties = self.coreproperties(title, creator, language, props)
+        coreproperties = self.coreproperties(props)
         appproperties = self.appproperties(props.get('company', ''))
+        customproperties = self.customproperties(custom_props)
         contenttypes = self.contenttypes()
         websettings = self.websettings()
 
@@ -1104,6 +1153,7 @@ class DocxComposer:
                 self.document: 'word/document.xml',
                 coreproperties: 'docProps/core.xml',
                 appproperties: 'docProps/app.xml',
+                customproperties: 'docProps/custom.xml',
                 contenttypes: '[Content_Types].xml',
                 footnotes: 'word/footnotes.xml',
                 numbering: 'word/numbering.xml',
@@ -1410,6 +1460,9 @@ class DocxComposer:
                 ['/word/styles.xml', CONTENT_TYPE_STYLES, True],
                 ['/word/numbering.xml', CONTENT_TYPE_NUMBERING, True],
                 ['/word/footnotes.xml', CONTENT_TYPE_FOOTNOTES, True],
+                ['/docProps/core.xml', CONTENT_TYPE_CORE_PROPERTIES, True],
+                ['/docProps/app.xml', CONTENT_TYPE_EXTENDED_PROPERTIES, True],
+                ['/docProps/custom.xml', CONTENT_TYPE_CUSTOM_PROPERTIES, True],
         ]
         types_tree = [['Types']]
         for part, ctype in parts.items():
@@ -1432,47 +1485,20 @@ class DocxComposer:
 
         return make_element_tree(types_tree, nsprefixes['ct'])
 
-    def coreproperties(self, title, creator, language, props):
+    def coreproperties(self, props):
         '''
            Create core properties (common document properties referred to in 
            the 'Dublin Core' specification).
            See appproperties() for other stuff.
         '''
-        coreprops_tree = [
-                ['cp:coreProperties'],
-                [['dc:title', title]],
-                [['dc:creator', creator]],
-                [['dc:language', language]],
-        ]
-        properties = [
-                ('cp', 'category'),
-                ('cp', 'contentStatus'),
-                ('dc', 'description'),
-                ('dc', 'identifier'),
-                ('cp', 'lastModifiedBy'),
-                ('cp', 'lastPrinted'),
-                ('cp', 'revision'),
-                ('dc', 'subject'),
-                ('cp', 'version'),
-        ]
-        for ns, prop in properties:
+        coreprops_tree = [['cp:coreProperties']]
+        for ns, prop, attr in CORE_PROPERTY_KEYS:
             value = props.get(prop, None)
             if value is None:
                 continue
-            coreprops_tree.append([['%s:%s' % (ns, prop), value]])
-
-        keywords = props.get('keywords', None)
-        if keywords is not None:
-            if isinstance(keywords, (list, tuple)):
-                keywords = ','.join(keywords)
-            coreprops_tree.append([['cp:keywords', keywords]])
-
-        for doctime in ['created', 'modified']:
-            value = props.get(doctime, None)
-            if value is None:
-                continue
-            coreprops_tree.append(
-                [['dcterms:' + doctime, {'xsi:type': 'dcterms:W3CDTF'}, value]])
+            if prop == 'keywords' and isinstance(value, (list, tuple)):
+                value = ','.join(value)
+            coreprops_tree.append([['%s:%s' % (ns, prop), attr, value]])
 
         return make_element_tree(coreprops_tree)
 
@@ -1501,6 +1527,22 @@ class DocxComposer:
                          ]
 
         return make_element_tree(appprops_tree, nsprefixes['ep'])
+
+    def customproperties(self, custom_props):
+        props_tree = [['Properties']]
+        # User defined pid must start from 2
+        for pid, (name, value) in enumerate(custom_props.items(), 2):
+            for type_, type_elem, to_str in CUSTOM_PROPERTY_TYPES:
+                if not isinstance(value, type_):
+                    continue
+                # Fmtid of user defined properties
+                fmtid = '{D5CDD505-2E9C-101B-9397-08002B2CF9AE}'
+                attr = {'pid': str(pid), 'fmtid': fmtid, 'name': name}
+                props_tree.append(
+                        [['property', attr], [[type_elem, to_str(value)]]])
+                break
+        xmlns = 'http://purl.oclc.org/ooxml/officeDocument/customProperties'
+        return make_element_tree(props_tree, xmlns)
 
     def websettings(self):
         '''
@@ -1553,6 +1595,7 @@ class DocxComposer:
                 (REL_TYPE_DOC, 'word/document.xml'),
                 (REL_TYPE_CORE, 'docProps/core.xml'),
                 (REL_TYPE_APP, 'docProps/app.xml'),
+                (REL_TYPE_CUSTOM, 'docProps/custom.xml'),
         ]
         rel_tree = [['Relationships']]
         for rid, (rtype, target) in enumerate(rel_list, 1):

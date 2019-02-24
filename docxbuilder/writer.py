@@ -704,13 +704,14 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def asbytes(self):
         coverpage = self._builder.config['docx_coverpage']
-        title, author, props = self._builder.doc_properties
-        language = props.get('language', self._builder.config.language or 'en')
-        invalid_props = docx.normalize_coreproperties(props)
-        for p in invalid_props:
+        props = self._builder.doc_properties
+        core_props, custom_props, invalid_prop_keys = (
+                docx.separate_core_and_custom_properties(props))
+        for key in invalid_prop_keys:
             self._builder._logger.warning(
-                    'invalid value is found in docx_documents "%s"' % p)
-        return self._docx.asbytes(coverpage, title, author, language, props)
+                    'invalid value is found in docx_documents "%s"' % key)
+        core_props.setdefault('language', self._builder.config.language or 'en')
+        return self._docx.asbytes(coverpage, core_props, custom_props)
 
     def _pop_and_append(self):
         contents = self._doc_stack.pop()

@@ -12,13 +12,15 @@ def setup(app):
         # author configuration value is available from Sphinx 1.8
         author = getattr(conf, 'author', 'sphinx-docxbuilder')
         properties = {
+                'title': title,
+                'creator': author,
                 'subject': '',
                 'category': '',
                 'description': 'This document generaged by sphix-docxbuilder',
                 'keywords': ['python', 'Office Open XML', 'Word'],
         }
         toc_only = False
-        return [(start_doc, filename, title, author, properties, toc_only)]
+        return [(start_doc, filename, properties, toc_only)]
 
     app.add_config_value('docx_documents', default_docx_documents, 'env')
     app.add_config_value('docx_style', '', 'env')

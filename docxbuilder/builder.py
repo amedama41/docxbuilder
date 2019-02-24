@@ -103,12 +103,12 @@ class DocxBuilder(Builder):
         self._logger.info('done')
 
         for entry in self._docx_documents:
-            start_doc, docname, title, author, props = entry[:5]
-            toctree_only = entry[5] if len(entry) > 5 else False
+            start_doc, docname, props = entry[:3]
+            toctree_only = entry[3] if len(entry) > 3 else False
 
             self._logger.info('processing %s... ' % docname, nonl=True)
             doctree = self.assemble_doctree(start_doc, toctree_only)
-            self.doc_properties = (title, author, props)
+            self.doc_properties = props
             self._logger.info('')
             self._logger.info('writing... ', nonl=True)
             self.write_doc(docname, doctree)
