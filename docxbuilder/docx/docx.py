@@ -472,6 +472,21 @@ def make_paragraph_border_property(**kwargs):
         border_tree.append([['w:' + kind, attr]])
     return border_tree
 
+def make_border_info(border_attrs):
+    identity = lambda x: x
+    to_bool = lambda x: x == 'true' or x == '1'
+    attr_list = [
+            ('w:val', 'pattern', identity), ('w:color', 'color', identity),
+            ('w:sz', 'size', int), ('w:space', 'space', int),
+            ('w:shadow', 'shadow', to_bool), ('w:frame', 'frame', to_bool)
+    ]
+    border_info = {}
+    for attr, key, convert in attr_list:
+        val = border_attrs.get(norm_name(attr))
+        if val is not None:
+            border_info[key] = convert(val)
+    return border_info
+
 def make_section_prop_paragraph(section_prop):
     section_prop = copy.deepcopy(section_prop)
     p = make_element_tree([['w:p'], [['w:pPr']]])
@@ -851,6 +866,12 @@ class StyleInfo(object):
             return None
         return based_on_elems[-1].attrib[norm_name('w:val')]
 
+    def get_border_info(self, kind):
+        border_elems = get_elements(self._style, 'w:pPr/w:pBdr/w:' + kind)
+        if not border_elems:
+            return None
+        return border_elems[-1].attrib
+
     def get_run_style_property(self):
         props = get_elements(self._style, 'w:rPr')
         if not props:
@@ -1078,6 +1099,17 @@ class DocxComposer:
         if indent is None:
             return default
         return int(indent)
+
+    def get_border_info(self, style_id, kind):
+        if style_id is None:
+            return None
+        style_info = self.get_style_info_from_id(style_id)
+        if style_info is None or style_info.style_type != 'paragraph':
+            return None
+        border_attrs = style_info.get_border_info(kind)
+        if border_attrs is not None:
+            return make_border_info(border_attrs)
+        return self.get_border_info(style_info.get_based_style_id(), kind)
 
     def get_run_style_property(self, style_id):
         if style_id is None:

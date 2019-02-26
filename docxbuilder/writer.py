@@ -538,8 +538,10 @@ class LiteralBlock(ParagraphElement):
         return p
 
 class LiteralBlockTable(TableElement):
-    def __init__(self, highlighted, style_id, table_width, indent, keep_next):
-        self._args = [highlighted, style_id, table_width, indent]
+    def __init__(
+            self, highlighted, top_space,
+            style_id, table_width, indent, keep_next):
+        self._args = [highlighted, top_space, style_id, table_width, indent]
          # 0: not set, 1: set header, 2: set first row, 3: set all rows
         self._keep_next = 3 if keep_next else 0
 
@@ -547,7 +549,7 @@ class LiteralBlockTable(TableElement):
         self._keep_next = max(2, self._keep_next)
 
     def to_xml(self):
-        highlighted, style_id, table_width, indent = self._args
+        highlighted, top_space, style_id, table_width, indent = self._args
         org_tbl = etree.fromstring(highlighted)
         table = docx.make_table(
                 None, table_width[1], indent, None,
@@ -557,7 +559,7 @@ class LiteralBlockTable(TableElement):
                     docx.make_table_cell_margin_property(
                         top=None, left=108, bottom=None, right=108),
                 ])
-        spacing = docx.make_paragraph_spacing_property(before=0, after=0)
+        no_spacing = docx.make_paragraph_spacing_property(before=0, after=0)
         shading = docx.make_paragraph_shading_property('clear')
         lineno_border = docx.make_paragraph_border_property(
                 top=None, bottom=None, left=None, right=None)
@@ -566,17 +568,20 @@ class LiteralBlockTable(TableElement):
         last_index = len(org_tbl) - 1
         if last_index == 0:
             border = {0: docx.make_paragraph_border_property()}
-            valign = {0: 'center'}
         else:
             border = {
                     0: docx.make_paragraph_border_property(bottom=None),
                     last_index: docx.make_paragraph_border_property(top=None),
             }
-            valign = {0: 'bottom', last_index: 'top'}
 
         for index, org_row in enumerate(org_tbl):
             row = docx.make_row(index, False, False, False)
-            cell1 = docx.make_cell(0, True, None, 1, None, valign.get(index))
+            if index == 0:
+                spacing = docx.make_paragraph_spacing_property(
+                        before=(top_space or 0), after=0)
+            else:
+                spacing = no_spacing
+            cell1 = docx.make_cell(0, True, None, 1, None, valign='top')
             keep_next = self._is_keep_next(index)
             p1 = docx.make_paragraph(
                     None, None, style_id, 'right', False, keep_next, None,
@@ -585,10 +590,10 @@ class LiteralBlockTable(TableElement):
             cell1.append(p1)
             row.append(cell1)
 
-            cell2 = docx.make_cell(1, False, 0.99, 1, None)
+            cell2 = docx.make_cell(1, False, 0.99, 1, None, valign='top')
             p2 = docx.make_paragraph(
                     None, None, style_id, None, False, False, None,
-                    properties=[spacing, border.get(index, middle_border)])
+                    properties=[no_spacing, border.get(index, middle_border)])
             p2.extend(org_row[1][0])
             cell2.append(p2)
             row.append(cell2)
@@ -1140,8 +1145,15 @@ class DocxTranslator(nodes.NodeVisitor):
             ctx = self._ctx_stack[-1]
             if linenos:
                 table_width = ctx.paragraph_width
+                border_info = self._docx.get_border_info(style_id, 'top')
+                if border_info is not None:
+                    top_space = int(
+                            border_info.get('size', 1) * 2.5 +
+                            border_info.get('space', 0) * 20)
+                else:
+                    top_space = 0
                 block = LiteralBlockTable(
-                        highlighted, style_id,
+                        highlighted, top_space, style_id,
                         (table_width, float(table_width) / ctx.width),
                         ctx.indent, keep_lines)
             else:
