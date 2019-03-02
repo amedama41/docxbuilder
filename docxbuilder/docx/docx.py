@@ -1159,7 +1159,7 @@ class DocxComposer:
         '''Generate the composed document as docx binary.
         '''
         coreproperties = self.coreproperties(props)
-        appproperties = self.appproperties(props.get('company', ''))
+        appproperties = self.appproperties(custom_props)
         customproperties = self.customproperties(custom_props)
         contenttypes = self.contenttypes()
         websettings = self.websettings()
@@ -1518,10 +1518,8 @@ class DocxComposer:
         return make_element_tree(types_tree, nsprefixes['ct'])
 
     def coreproperties(self, props):
-        '''
-           Create core properties (common document properties referred to in 
+        '''Create core properties (common document properties referred to in
            the 'Dublin Core' specification).
-           See appproperties() for other stuff.
         '''
         coreprops_tree = [['cp:coreProperties']]
         for ns, prop, attr in CORE_PROPERTY_KEYS:
@@ -1534,29 +1532,35 @@ class DocxComposer:
 
         return make_element_tree(coreprops_tree)
 
-    def appproperties(self, company):
+    def appproperties(self, custom_props):
+        '''Create app-specific properties.
+           This function is based on 'python-docx' library
         '''
-           Create app-specific properties. See docproperties() for more common document properties.
-           This function copied from 'python-docx' library
-        '''
-        appprops_tree = [['Properties'],
-                         [['Template', 'Normal.dotm']],
-                         [['TotalTime', '6']],
-                         [['Pages', '1']],
-                         [['Words', '83']],
-                         [['Characters', '475']],
-                         [['Application', 'Microsoft Word 12.0.0']],
-                         [['DocSecurity', '0']],
-                         [['Lines', '12']],
-                         [['Paragraphs', '8']],
-                         [['ScaleCrop', 'false']],
-                         [['LinksUpToDate', 'false']],
-                         [['CharactersWithSpaces', '583']],
-                         [['SharedDoc', 'false']],
-                         [['HyperlinksChanged', 'false']],
-                         [['AppVersion', '12.0000']],
-                         [['Company', company]]
-                         ]
+        appprops_tree = [
+                ['Properties'],
+                [['Template', 'Normal.dotm']],
+                [['TotalTime', '6']],
+                [['Pages', '1']],
+                [['Words', '83']],
+                [['Characters', '475']],
+                [['Application', 'Microsoft Word 12.0.0']],
+                [['DocSecurity', '0']],
+                [['Lines', '12']],
+                [['Paragraphs', '8']],
+                [['ScaleCrop', 'false']],
+                [['LinksUpToDate', 'false']],
+                [['CharactersWithSpaces', '583']],
+                [['SharedDoc', 'false']],
+                [['HyperlinksChanged', 'false']],
+                [['AppVersion', '12.0000']],
+        ]
+        for key in ['Company', 'Manager']:
+            value = custom_props.get(key)
+            if value is None:
+                value = custom_props.get(key.lower())
+                if value is None:
+                    continue
+            appprops_tree.append([[key, value]])
 
         return make_element_tree(appprops_tree, nsprefixes['ep'])
 
