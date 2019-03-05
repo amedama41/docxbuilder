@@ -1529,8 +1529,11 @@ class DocxComposer:
             value = props.get(prop, None)
             if value is None:
                 continue
-            if prop == 'keywords' and isinstance(value, (list, tuple)):
-                value = ','.join(value)
+            if isinstance(value, (list, tuple)):
+                if prop == 'keywords':
+                    value = ','.join(value)
+                else:
+                    value = '; '.join(value)
             value = xml_encode(value)
             coreprops_tree.append([['%s:%s' % (ns, prop), attr, value]])
 
