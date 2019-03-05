@@ -43,7 +43,7 @@
                           <w:docPart w:val="FEF9F005431A3B48AB85E5D43659FBD2"/>
                         </w:placeholder>
                         <w:dataBinding w:prefixMappings="xmlns:ns0='http://purl.org/dc/elements/1.1/' xmlns:ns1='http://schemas.openxmlformats.org/package/2006/metadata/core-properties' " w:xpath="/ns1:coreProperties[1]/ns0:title[1]" w:storeItemID="{6C3C8BC8-F283-45AE-878A-BAB7291924A1}"/>
-                        <w:text/>
+                        <w:text w:multiLine="1"/>
                       </w:sdtPr>
                       <w:sdtEndPr/>
                       <w:sdtContent>
