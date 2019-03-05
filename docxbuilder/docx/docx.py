@@ -1040,7 +1040,6 @@ class DocxComposer:
 
         self._footnote_list = get_special_footnotes(self.styleDocx.footnotes)
         self._footnote_id_map = {} # docname#id => footnote id
-        norm_id = norm_name('w:id')
         self._max_footnote_id = get_max_attribute(
                 self._footnote_list, norm_name('w:id'))
 
