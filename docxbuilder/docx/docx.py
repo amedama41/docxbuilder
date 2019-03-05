@@ -18,6 +18,7 @@ import copy
 import datetime
 import io
 import os
+import re
 import time
 import six
 import zipfile
@@ -77,6 +78,9 @@ CONTENT_TYPE_CUSTOM_PROPERTIES = 'application/vnd.openxmlformats-officedocument.
 
 #####################
 
+def xml_encode(value):
+    value = value.replace('_x', '_x005F_x')
+    return re.sub(r'[\x00-\x1f]', lambda m: '_x%04x_' % ord(m.group(0)), value)
 
 def norm_name(tagname, namespaces=nsprefixes):
     '''
@@ -1528,6 +1532,7 @@ class DocxComposer:
                 continue
             if prop == 'keywords' and isinstance(value, (list, tuple)):
                 value = ','.join(value)
+            value = xml_encode(value)
             coreprops_tree.append([['%s:%s' % (ns, prop), attr, value]])
 
         return make_element_tree(coreprops_tree)
@@ -1560,7 +1565,7 @@ class DocxComposer:
                 value = custom_props.get(key.lower())
                 if value is None:
                     continue
-            appprops_tree.append([[key, value]])
+            appprops_tree.append([[key, xml_encode(value)]])
 
         return make_element_tree(appprops_tree, nsprefixes['ep'])
 
