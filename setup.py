@@ -19,8 +19,10 @@ setup(
         'docxbuilder.docx',
     ],
     install_requires=[
-        "pillow",
+        "Sphinx>=1.7.6",
         "lxml",
+        "pillow",
+        "six",
     ],
     package_data={
         'docxbuilder.docx': ['style.docx'],
