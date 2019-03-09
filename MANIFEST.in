@@ -1,0 +1,3 @@
+include LICENSE
+include docxbuilder/docx/LICENSE
+recursive-include style_file *
