@@ -9,7 +9,7 @@ class CustomBuild(build.build, object):
         return super(CustomBuild, self).run()
 
 setup(
-    name='shpinx-docxbuilder',
+    name='sphinx-docxbuilder',
     version='0.0.1',
     description='Sphinx builder extension that generates docx files',
     license='MIT',
