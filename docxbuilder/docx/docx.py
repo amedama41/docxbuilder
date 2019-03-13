@@ -79,7 +79,7 @@ CONTENT_TYPE_CUSTOM_PROPERTIES = 'application/vnd.openxmlformats-officedocument.
 #####################
 
 def xml_encode(value):
-    value = value.replace('_x', '_x005F_x')
+    value = re.sub(r'_(?=x[0-9a-fA-F]{4}_)', r'_x005f_', value)
     return re.sub(r'[\x00-\x1f]', lambda m: '_x%04x_' % ord(m.group(0)), value)
 
 def norm_name(tagname, namespaces=nsprefixes):
