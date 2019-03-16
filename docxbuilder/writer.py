@@ -788,9 +788,12 @@ class DocxTranslator(nodes.NodeVisitor):
         if based_style_name is not None:
             self._docx.create_style(
                     'character', style_name, based_style_name, True, False)
-        self._doc_stack[-1].push_style(
-                self._docx.get_run_style_property(
-                    self._docx.get_style_id(style_name)))
+        style_id = self._docx.get_style_id(style_name)
+        if self._builder.config.docx_nested_character_style:
+            style = self._docx.get_run_style_property(style_id)
+        else:
+            style = docx.make_run_style_property(style_id)
+        self._doc_stack[-1].push_style(style)
 
     def _append_new_ctx(
             self, indent=None, right_indent=None, width=None):
