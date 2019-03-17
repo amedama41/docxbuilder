@@ -674,7 +674,8 @@ class DocxTranslator(nodes.NodeVisitor):
         else: # Use default style file
             stylefile = os.path.join(
                     os.path.dirname(__file__), 'docx/style.docx')
-        self._docx = docx.DocxComposer(stylefile)
+        self._docx = docx.DocxComposer(
+                stylefile, builder.config['docx_coverpage'])
         self._doc_stack = [
                 Document(
                     self._docx.docbody,
@@ -708,7 +709,6 @@ class DocxTranslator(nodes.NodeVisitor):
         Paragraph.default_style_id = self._docx.get_style_id('Body Text')
 
     def asbytes(self):
-        coverpage = self._builder.config['docx_coverpage']
         props = self._builder.doc_properties
         core_props, custom_props, invalid_prop_keys = (
                 docx.separate_core_and_custom_properties(props))
@@ -716,7 +716,7 @@ class DocxTranslator(nodes.NodeVisitor):
             self._builder._logger.warning(
                     'invalid value is found in docx_documents "%s"' % key)
         core_props.setdefault('language', self._builder.config.language or 'en')
-        return self._docx.asbytes(coverpage, core_props, custom_props)
+        return self._docx.asbytes(core_props, custom_props)
 
     def _pop_and_append(self):
         contents = self._doc_stack.pop()

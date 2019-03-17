@@ -68,6 +68,20 @@ REL_TYPE_NUMBERING = 'http://schemas.openxmlformats.org/officeDocument/2006/rela
 REL_TYPE_FOOTNOTES = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes'
 REL_TYPE_CUSTOM = 'http://purl.oclc.org/ooxml/officeDocument/relationships/customProperties'
 
+REL_TYPE_COMMENTS = 'http://purl.oclc.org/ooxml/officeDocument/relationships/comments'
+REL_TYPE_ENDNOTES = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes'
+REL_TYPE_FONT_TABLE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable'
+REL_TYPE_GLOSSARY_DOCUMENT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/glossaryDocument'
+REL_TYPE_SETTINGS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings'
+REL_TYPE_STYLES_WITH_EFFECTS = 'http://schemas.microsoft.com/office/2007/relationships/stylesWithEffects'
+REL_TYPE_THEME = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme'
+REL_TYPE_WEB_SETTINGS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/webSettings'
+
+REL_TYPE_CUSTOM_XML = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml'
+REL_TYPE_CUSTOM_XML_PROPS = 'http://purl.oclc.org/ooxml/officeDocument/relationships/customXmlProps'
+REL_TYPE_THUMBNAIL = 'http://purl.oclc.org/ooxml/officeDocument/relationships/metadata/thumbnail'
+
+
 CONTENT_TYPE_DOC_MAIN = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
 CONTENT_TYPE_STYLES = 'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml'
 CONTENT_TYPE_NUMBERING = 'application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml'
@@ -205,14 +219,13 @@ def get_special_footnotes(footnotes_xml):
             footnotes_xml,
             '/w:footnotes/w:footnote[@w:type and not(@w:type="normal")]')
 
-def get_max_attribute(elems, attribute):
+def get_max_attribute(elems, attribute, to_int=int):
     '''
        Get the maximum integer attribute among the specified elems
     '''
-    if not elems:
+    if len(elems) == 0:
         return 0
-    num_id = norm_name('w:numId')
-    return max(map(lambda e: int(e.get(attribute)), elems))
+    return max(map(lambda e: to_int(e.get(attribute)), elems))
 
 def local_to_utc(value):
     utc = datetime.datetime.utcfromtimestamp(time.mktime(value.timetuple()))
@@ -844,6 +857,14 @@ def get_left(ind):
 def create_rels_path(path):
     return '%s/_rels/%s.rels' % (os.path.dirname(path), os.path.basename(path))
 
+def make_relationships(relationships):
+    '''Generate a relationships
+    '''
+    rel_tree = [['Relationships']]
+    for attributes in relationships:
+        rel_tree.append([['Relationship', attributes]])
+    return make_element_tree(rel_tree, nsprefixes['pr'])
+
 
 class StyleInfo(object):
     style_id_attr = norm_name('w:styleId')
@@ -917,6 +938,7 @@ class DocxDocument:
         if docpath.startswith('/'):
             docpath = docpath[1:]
 
+        self.docpath = docpath
         self.document = self.get_xmltree(docpath)
         self.relationships = self.get_xmltree(create_rels_path(docpath))
         self.numbering = self.get_xmltree('word/numbering.xml')
@@ -975,11 +997,36 @@ class DocxDocument:
                             self.docx.namelist())
         return len(list(media_list))
 
-    def collect_items(self, zip_docxfile, files_to_skip=[]):
+    def collect_items(self, zip_docxfile, collected_files):
         # Add & compress support files
-        filelist = self.docx.namelist()
-        for fname in filter(lambda f: f not in files_to_skip, filelist):
+        for fname in collected_files:
             zip_docxfile.writestr(fname, self.docx.read(fname))
+
+    def collect_relation_files(self, rel_files, rel_attrs, basedir):
+        for attr in rel_attrs:
+            if attr.get('TargetMode', 'Internal') == 'External':
+                continue
+            filepath = attr['Target']
+            if filepath.startswith('/'):
+                filepath = filepath[1:]
+            else:
+                filepath = basedir + '/' + filepath
+            rel_files.add(filepath)
+            rel_filepath = create_rels_path(filepath)
+            rel_xml = self.get_xmltree(rel_filepath)
+            if rel_xml is not None:
+                rel_files.add(rel_filepath)
+                self.collect_relation_files(
+                        rel_files,
+                        (r.attrib for r in get_elements(
+                            rel_xml, '/pr:Relationships/pr:Relationship')),
+                        os.path.dirname(filepath))
+
+    def collect_all_relation_files(self, rel_attrs):
+        rel_files = set()
+        self.collect_relation_files(
+                rel_files, rel_attrs, os.path.dirname(self.docpath))
+        return rel_files
 
 ############
 # Numbering
@@ -1019,7 +1066,7 @@ class DocxDocument:
 
 
 class DocxComposer:
-    def __init__(self, stylefile):
+    def __init__(self, stylefile, has_coverpage):
         '''
            Constructor
         '''
@@ -1048,10 +1095,20 @@ class DocxComposer:
 
         self.document = make_element_tree([['w:document'], [['w:body']]])
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
+        def rid_to_int(rid):
+            m = re.match(r'rId(\d+)', rid)
+            return int(m.group(1)) if m else 0
+        max_rid = get_max_attribute(
+                self.styleDocx.relationships, norm_name('Id'), rid_to_int)
+        # document part -> (relationships, first relationship id)
         self._relationships_map = {
-                'document': self.relationshiplist(),
-                'footnotes': []
+                'document': ([], max_rid),
+                'footnotes': ([], 0),
         }
+
+        coverpage = self.styleDocx.get_coverpage() if has_coverpage else None
+        if coverpage is not None:
+            self.docbody.append(coverpage)
 
     def new_id(self):
         self._id += 1
@@ -1158,54 +1215,54 @@ class DocxComposer:
             right = right or based_right
         return self._table_margin_cache.setdefault(style_id, (left, right))
 
-    def asbytes(self, has_coverpage, props, custom_props):
+    def asbytes(self, props, custom_props):
         '''Generate the composed document as docx binary.
         '''
         coreproperties = self.coreproperties(props)
         appproperties = self.appproperties(custom_props)
         customproperties = self.customproperties(custom_props)
-        contenttypes = self.contenttypes()
         websettings = self.websettings()
 
-        document_relationships = self.wordrelationships('document')
-        footnotes_relationships = self.wordrelationships('footnotes')
+        inherited_relationshiplist = self.inherited_relationshiplist()
+        inherited_files = self.styleDocx.collect_all_relation_files(
+                inherited_relationshiplist)
+
+        contenttypes = self.contenttypes(inherited_files)
+        document_relationships = self.document_relationships(
+                inherited_relationshiplist)
+        footnotes_relationships = self.footnotes_relationships()
         rootrelationships = self.rootrelationships()
 
         numbering = make_element_tree(['w:numbering'])
         numbering.extend(self._abstract_nums)
         numbering.extend(self._numids)
 
-        coverpage = self.styleDocx.get_coverpage()
-
-        if has_coverpage and coverpage is not None:
-            self.docbody.insert(0, coverpage)
-
         footnotes = make_element_tree([['w:footnotes']])
         footnotes.extend(self._footnote_list)
 
         # Serialize our trees into out zip file
-        treesandfiles = {
-                self.document: 'word/document.xml',
-                coreproperties: 'docProps/core.xml',
-                appproperties: 'docProps/app.xml',
-                customproperties: 'docProps/custom.xml',
-                contenttypes: '[Content_Types].xml',
-                footnotes: 'word/footnotes.xml',
-                numbering: 'word/numbering.xml',
-                self.styleDocx.styles: 'word/styles.xml',
-                websettings: 'word/webSettings.xml',
-                document_relationships: 'word/_rels/document.xml.rels',
-                footnotes_relationships: 'word/_rels/footnotes.xml.rels',
-                rootrelationships: '_rels/.rels',
-        }
+        treesandfiles = [
+                ('_rels/.rels', rootrelationships),
+                ('docProps/core.xml', coreproperties),
+                ('docProps/app.xml', appproperties),
+                ('docProps/custom.xml', customproperties),
+                ('word/_rels/document.xml.rels', document_relationships),
+                ('word/_rels/footnotes.xml.rels', footnotes_relationships),
+                ('word/document.xml', self.document),
+                ('word/footnotes.xml', footnotes),
+                ('word/numbering.xml', numbering),
+                ('word/styles.xml', self.styleDocx.styles),
+                ('word/webSettings.xml', websettings),
+                ('[Content_Types].xml', contenttypes),
+        ]
 
         bytes_io = io.BytesIO()
         with zipfile.ZipFile(
                 bytes_io, mode='w', compression=zipfile.ZIP_DEFLATED) as zip:
-            self.styleDocx.collect_items(zip, treesandfiles.values())
-            for tree, xmlpath in treesandfiles.items():
+            self.styleDocx.collect_items(zip, inherited_files)
+            for xmlpath, xml in treesandfiles:
                 treestring = etree.tostring(
-                    tree, xml_declaration=True,
+                    xml, xml_declaration=True,
                     encoding='UTF-8', standalone='yes')
                 zip.writestr(xmlpath, treestring)
             for imgpath, (_, picname) in self._image_info_map.items():
@@ -1412,8 +1469,8 @@ class DocxComposer:
         else:
             rid_map = {}
 
-        relationships = self._relationships_map[part]
-        rid = 'rId%d' % (len(relationships) + 1)
+        relationships, first_rid = self._relationships_map[part]
+        rid = 'rId%d' % (first_rid + len(relationships) + 1)
         relationships.append({
             'Id': rid,
             'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
@@ -1440,9 +1497,9 @@ class DocxComposer:
             rid_map = {}
             picname = 'image%d%s' % (self.images, picext)
 
-        relationships = self._relationships_map[part]
+        relationships, first_rid = self._relationships_map[part]
         # Calculate relationship ID to the first available
-        rid = 'rId%d' % (len(relationships) + 1)
+        rid = 'rId%d' % (first_rid + len(relationships) + 1)
         relationships.append({
             'Id': rid,
             'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
@@ -1467,18 +1524,40 @@ class DocxComposer:
         footnote.extend(contents)
         self._footnote_list.append(footnote)
 
-    def contenttypes(self):
-        '''
-           create [Content_Types].xml 
-           This function copied from 'python-docx' library
+    def inherited_relationshiplist(self):
+        """Collect relationships inherited from style file.
+        """
+        implicit_rel_types = {
+                REL_TYPE_COMMENTS,
+                REL_TYPE_ENDNOTES,
+                REL_TYPE_FONT_TABLE,
+                REL_TYPE_GLOSSARY_DOCUMENT,
+                REL_TYPE_SETTINGS,
+                REL_TYPE_STYLES_WITH_EFFECTS,
+                REL_TYPE_THEME,
+                # REL_TYPE_WEB_SETTINGS,
+                REL_TYPE_CUSTOM_XML,
+                REL_TYPE_CUSTOM_XML_PROPS,
+                REL_TYPE_THUMBNAIL,
+        }
+        inherited_relationshiplist = []
+        relationships = self.styleDocx.relationships
+        for rel in get_elements(
+                relationships, '/pr:Relationships/pr:Relationship'):
+            attr = rel.attrib
+            if (attr['Type'] in implicit_rel_types
+                    or get_elements(
+                        self.document, '(.//*[@*="%s"])[1]' % attr['Id'])):
+                inherited_relationshiplist.append(attr)
+        return inherited_relationshiplist
+
+    def contenttypes(self, inherited_files):
+        '''create [Content_Types].xml
         '''
         filename = '[Content_Types].xml'
         content_types = self.styleDocx.get_xmltree(filename)
 
-        parts = dict(
-                (x.attrib['PartName'], x.attrib['ContentType'])
-                for x in content_types.xpath('*') if 'PartName' in x.attrib)
-
+        types_tree = [['Types']]
         # Add support for filetypes
         filetypes = {
                 'rels': 'application/vnd.openxmlformats-package.relationships+xml',
@@ -1489,34 +1568,37 @@ class DocxComposer:
                 'png': 'image/png',
                 'emf': 'image/x-emf',
         }
-
-        required_content_types = [
-                ['/word/document.xml', CONTENT_TYPE_DOC_MAIN, True],
-                ['/word/styles.xml', CONTENT_TYPE_STYLES, True],
-                ['/word/numbering.xml', CONTENT_TYPE_NUMBERING, True],
-                ['/word/footnotes.xml', CONTENT_TYPE_FOOTNOTES, True],
-                ['/docProps/core.xml', CONTENT_TYPE_CORE_PROPERTIES, True],
-                ['/docProps/app.xml', CONTENT_TYPE_EXTENDED_PROPERTIES, True],
-                ['/docProps/custom.xml', CONTENT_TYPE_CUSTOM_PROPERTIES, True],
-        ]
-        types_tree = [['Types']]
-        for part, ctype in parts.items():
-            for item in required_content_types:
-                if part == item[0]:
-                    ctype = item[1]
-                    item[2] = False
-                    break
-            types_tree.append(
-                [['Override', {'PartName': part, 'ContentType': ctype}]])
-        for item in required_content_types:
-            if item[2]:
-                types_tree.append([['Override', {
-                    'PartName': item[0], 'ContentType': item[1],
-                }]])
-
         for ext, ctype in filetypes.items():
             types_tree.append(
                     [['Default', {'Extension': ext, 'ContentType': ctype}]])
+        for elem in get_elements(content_types, '/ct:Types/ct:Default'):
+            ext = elem.attrib['Extension']
+            if ext in filetypes:
+                continue
+            types_tree.append([['Default', {
+                'Extension': ext, 'ContentType': elem.attrib['ContentType']
+            }]])
+
+        required_content_types = [
+                ('/docProps/core.xml', CONTENT_TYPE_CORE_PROPERTIES),
+                ('/docProps/app.xml', CONTENT_TYPE_EXTENDED_PROPERTIES),
+                ('/docProps/custom.xml', CONTENT_TYPE_CUSTOM_PROPERTIES),
+                ('/word/document.xml', CONTENT_TYPE_DOC_MAIN),
+                ('/word/styles.xml', CONTENT_TYPE_STYLES),
+                ('/word/numbering.xml', CONTENT_TYPE_NUMBERING),
+                ('/word/footnotes.xml', CONTENT_TYPE_FOOTNOTES),
+        ]
+        for name, ctype in required_content_types:
+            types_tree.append([['Override', {
+                'PartName': name, 'ContentType': ctype,
+            }]])
+        for elem in get_elements(content_types, '/ct:Types/ct:Override'):
+            name = elem.attrib['PartName']
+            if name[1:] not in inherited_files:
+                continue
+            types_tree.append([['Override', {
+                'PartName': name, 'ContentType': elem.attrib['ContentType']
+            }]])
 
         return make_element_tree(types_tree, nsprefixes['ct'])
 
@@ -1596,53 +1678,31 @@ class DocxComposer:
                     [['w:doNotSaveAsSingleFile']]]
         return make_element_tree(web_tree)
 
-    def relationshiplist(self):
-        relationships = self.styleDocx.relationships
+    def document_relationships(self, stylerels):
+        rel_list = []
+        docrel_list, first_rid = self._relationships_map['document']
+        rel_list.extend(docrel_list)
+        required_rel_types = (
+                (REL_TYPE_STYLES, 'styles.xml'),
+                (REL_TYPE_NUMBERING, 'numbering.xml'),
+                (REL_TYPE_FOOTNOTES, 'footnotes.xml'),
+        )
+        for rel_type, target in required_rel_types:
+            rid = 'rId%d' % (first_rid + len(rel_list) + 1)
+            rel_list.append({'Id': rid, 'Type': rel_type, 'Target': target})
+        rel_list.extend(stylerels)
+        return make_relationships(rel_list)
 
-        relationshiplist = [x.attrib for x in relationships.xpath('*')]
-
-        required_rel_types = [
-                [REL_TYPE_STYLES, 'styles.xml', True],
-                [REL_TYPE_NUMBERING, 'numbering.xml', True],
-                [REL_TYPE_FOOTNOTES, 'footnotes.xml', True],
-        ]
-        for attributes in relationshiplist:
-            rel_type = attributes['Type']
-            for item in required_rel_types:
-                if rel_type == item[0]:
-                    attributes['Target'] = item[1]
-                    item[2] = False
-                    break
-        for item in required_rel_types:
-            if item[2]:
-                rid = 'rId%d' % (len(relationshiplist) + 1)
-                relationshiplist.append(
-                        {'Id': rid, 'Type': item[0], 'Target': item[1]})
-
-        return relationshiplist
-
-    def wordrelationships(self, part):
-        '''
-          Generate a Word relationships file
-          This function copied from 'python-docx' library
-        '''
-        # Default list of relationships
-        rel_tree = [['Relationships']]
-        for attributes in self._relationships_map[part]:
-            rel_tree.append([['Relationship', attributes]])
-
-        return make_element_tree(rel_tree, nsprefixes['pr'])
+    def footnotes_relationships(self):
+        return make_relationships(self._relationships_map['footnotes'][0])
 
     def rootrelationships(self):
         rel_list = [
-                (REL_TYPE_DOC, 'word/document.xml'),
                 (REL_TYPE_CORE, 'docProps/core.xml'),
                 (REL_TYPE_APP, 'docProps/app.xml'),
                 (REL_TYPE_CUSTOM, 'docProps/custom.xml'),
+                (REL_TYPE_DOC, 'word/document.xml'),
         ]
-        rel_tree = [['Relationships']]
-        for rid, (rtype, target) in enumerate(rel_list, 1):
-            rel_tree.append([['Relationship', {
-                'Id': 'rId%d' % rid, 'Type': rtype, 'Target': target
-            }]])
-        return make_element_tree(rel_tree, nsprefixes['pr'])
+        return make_relationships(
+                {'Id': 'rId%d' % rid, 'Type': rtype, 'Target': target}
+                for rid, (rtype, target) in enumerate(rel_list, 1))
