@@ -24,7 +24,7 @@ Install
 
 Use pip::
 
-   pip install git+https://github.com/amedama41/sphinx-docxbuilder.git
+   pip install git+https://github.com/amedama41/docxbuilder.git
 
 *****
 Usage
