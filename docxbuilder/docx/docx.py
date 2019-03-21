@@ -18,6 +18,7 @@ import copy
 import datetime
 import io
 import os
+import posixpath
 import re
 import time
 import six
@@ -855,7 +856,9 @@ def get_left(ind):
     return ind.get(norm_name('w:start'), '0')
 
 def create_rels_path(path):
-    return '%s/_rels/%s.rels' % (os.path.dirname(path), os.path.basename(path))
+    return posixpath.join(
+            posixpath.dirname(path), '_rels',
+            posixpath.basename(path) + '.rels')
 
 def make_relationships(relationships):
     '''Generate a relationships
@@ -1006,11 +1009,10 @@ class DocxDocument:
         for attr in rel_attrs:
             if attr.get('TargetMode', 'Internal') == 'External':
                 continue
-            filepath = attr['Target']
+            filepath = posixpath.normpath(
+                    posixpath.join(basedir, attr['Target']))
             if filepath.startswith('/'):
                 filepath = filepath[1:]
-            else:
-                filepath = basedir + '/' + filepath
             rel_files.add(filepath)
             rel_filepath = create_rels_path(filepath)
             rel_xml = self.get_xmltree(rel_filepath)
@@ -1020,12 +1022,12 @@ class DocxDocument:
                         rel_files,
                         (r.attrib for r in get_elements(
                             rel_xml, '/pr:Relationships/pr:Relationship')),
-                        os.path.dirname(filepath))
+                        posixpath.dirname(filepath))
 
     def collect_all_relation_files(self, rel_attrs):
         rel_files = set()
         self.collect_relation_files(
-                rel_files, rel_attrs, os.path.dirname(self.docpath))
+                rel_files, rel_attrs, posixpath.dirname(self.docpath))
         return rel_files
 
 ############
