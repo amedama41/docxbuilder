@@ -1030,6 +1030,26 @@ class DocxDocument:
                 rel_files, rel_attrs, posixpath.dirname(self.docpath))
         return rel_files
 
+    def collect_num_ids(self, rel_attrs):
+        """Collect num id used in files referenced by rel_attrs
+        """
+        num_ids = set()
+        val_attr = norm_name('w:val')
+        for attr in rel_attrs:
+            if attr.get('TargetMode', 'Internal') == 'External':
+                continue
+            filepath = posixpath.normpath(
+                    posixpath.join(self.docpath, attr['Target']))
+            if filepath.startswith('/'):
+                filepath = filepath[1:]
+            xml = self.get_xmltree(filepath)
+            if xml is None:
+                continue
+            num_id_elems = get_elements(xml, '//w:numId')
+            num_ids.update(
+                    [int(num_id.get(val_attr)) for num_id in num_id_elems])
+        return num_ids
+
 ############
 # Numbering
     def get_numbering_style_id(self, style):
@@ -1062,6 +1082,29 @@ class DocxDocument:
 
 ##########
 
+class IdElements(object):
+    def __init__(self, elems, attr, to_int=int, init_id=0):
+        self._next_id = init_id
+        self._elems = dict((to_int(elem.get(attr)), elem) for elem in elems)
+        self._attr = attr
+        self._to_int = to_int
+
+    def next_id(self):
+        while self._next_id in self._elems:
+            self._next_id += 1
+        next_id = self._next_id
+        self._next_id += 1
+        return next_id
+
+    def append(self, elem):
+        self._elems[self._to_int(elem.get(self._attr))] = elem
+
+    def get(self, key, default=None):
+        return self._elems.get(self._to_int(key), default)
+
+    def __iter__(self):
+        return iter(self._elems.items())
+
 #
 # DocxComposer Class
 #
@@ -1076,12 +1119,12 @@ class DocxComposer:
         self.styleDocx = DocxDocument(stylefile)
 
         self._style_info = self.styleDocx.extract_style_info()
-        self._abstract_nums = self.styleDocx.get_elems_from_numbering(
-                'w:abstractNum')
-        self._max_abstract_num_id = get_max_attribute(
-                self._abstract_nums, norm_name('w:abstractNumId'))
-        self._numids = self.styleDocx.get_elems_from_numbering('w:num')
-        self._max_num_id = get_max_attribute(self._numids, norm_name('w:numId'))
+        self._abstract_nums = IdElements(
+                self.styleDocx.get_elems_from_numbering('w:abstractNum'),
+                norm_name('w:abstractNumId'))
+        self._nums = IdElements(
+                self.styleDocx.get_elems_from_numbering('w:num'),
+                norm_name('w:numId'), init_id=1)
         self.images = self.styleDocx.get_number_of_medias()
 
         self._hyperlink_rid_map = {} # target => relationship id
@@ -1235,12 +1278,10 @@ class DocxComposer:
         footnotes_relationships = self.footnotes_relationships()
         rootrelationships = self.rootrelationships()
 
-        numbering = make_element_tree(['w:numbering'])
-        numbering.extend(self._abstract_nums)
-        numbering.extend(self._numids)
-
         footnotes = make_element_tree([['w:footnotes']])
         footnotes.extend(self._footnote_list)
+
+        numbering = self.numbering(inherited_relationshiplist, footnotes)
 
         # Serialize our trees into out zip file
         treesandfiles = [
@@ -1285,19 +1326,12 @@ class DocxComposer:
         if num_id is None:
             return []
 
-        def find_elem(elems, attr, value):
-            for elem in elems:
-                if elem.get(attr, None) == value:
-                    return elem
-            return None
-
-        num = find_elem(self._numids, norm_name('w:numId'), num_id)
+        num = self._nums.get(num_id)
         if num is None:
             return []
 
         abst_num_id = get_attribute(num, 'w:abstractNumId', 'w:val')
-        abstract_num = find_elem(
-                self._abstract_nums, norm_name('w:abstractNumId'), abst_num_id)
+        abstract_num = self._abstract_nums.get(abst_num_id)
         if abstract_num is None:
             return []
 
@@ -1331,8 +1365,7 @@ class DocxComposer:
         '''
            Create a new numbering definition
         '''
-        self._max_abstract_num_id += 1
-        abstract_num_id = self._max_abstract_num_id
+        abstract_num_id = self._abstract_nums.next_id()
         typ = self.__class__.num_format_map.get(typ, 'decimal')
         lvl_tree = [
                 ['w:lvl', {'w:ilvl': '0'}],
@@ -1357,14 +1390,13 @@ class DocxComposer:
         ])
         self._abstract_nums.append(abstnum)
 
-        self._max_num_id += 1
-        num_id = self._max_num_id
+        num_id = self._nums.next_id()
         num_tree = [
                 ['w:num', {'w:numId': str(num_id)}],
                 [['w:abstractNumId', {'w:val': str(abstract_num_id)}]],
         ]
         num = make_element_tree(num_tree)
-        self._numids.append(num)
+        self._nums.append(num)
         return num_id
 
     def get_default_style_names(self):
@@ -1708,3 +1740,30 @@ class DocxComposer:
         return make_relationships(
                 {'Id': 'rId%d' % rid, 'Type': rtype, 'Target': target}
                 for rid, (rtype, target) in enumerate(rel_list, 1))
+
+    def numbering(self, inherited_relationshiplist, footnotes):
+        """Create numbering.xml from nums and abstract nums in use
+        """
+        used_num_ids = self.styleDocx.collect_num_ids(
+                inherited_relationshiplist)
+        val_attr = norm_name('w:val')
+        def update_used_num_ids(xml):
+            elems = get_elements(xml, '//w:numId')
+            used_num_ids.update((int(num_id.get(val_attr)) for num_id in elems))
+        update_used_num_ids(self.styleDocx.styles)
+        update_used_num_ids(self.document)
+        update_used_num_ids(footnotes)
+
+        nums = [num for num_id, num in self._nums if num_id in used_num_ids]
+        get_abst_num_id = lambda num: int(
+                get_elements(num, 'w:abstractNumId')[-1].get(val_attr))
+        abst_num_ids = set((get_abst_num_id(num) for num in nums))
+        abstract_nums = [
+                abst_num for abst_num_id, abst_num in self._abstract_nums
+                if abst_num_id in abst_num_ids
+        ]
+
+        numbering = make_element_tree(['w:numbering'])
+        numbering.extend(abstract_nums)
+        numbering.extend(nums)
+        return numbering
