@@ -995,10 +995,22 @@ class DocxDocument:
             '//w:sdt[w:sdtPr/w:docPartObj/w:docPartGallery[@w:val="Cover Pages"]]')
         return coverpages[0] if coverpages else None
 
-    def get_number_of_medias(self):
-        media_list = filter(lambda fname: fname.startswith('word/media/'),
-                            self.docx.namelist())
-        return len(list(media_list))
+    def get_relationship_ids(self):
+        rids = []
+        id_attr = norm_name('Id')
+        for rel in get_elements(self.relationships, 'pr:Relationship'):
+            m = re.match(r'rId(\d+)', rel.get(id_attr))
+            if m is not None:
+                rids.append(int(m.group(1)))
+        return rids
+
+    def get_image_numbers(self):
+        img_nums = []
+        for path in self.docx.namelist():
+            m = re.match(r'word/media/image(\d+)\.\w+', path)
+            if m is not None:
+                img_nums.append(int(m.group(1)))
+        return img_nums
 
     def collect_items(self, zip_docxfile, collected_files):
         # Add & compress support files
@@ -1082,6 +1094,18 @@ class DocxDocument:
 
 ##########
 
+class IdPool(object):
+    def __init__(self, used_ids=[], init_id=1):
+        self._used_ids = set(used_ids)
+        self._next_id = init_id
+
+    def next_id(self):
+        while self._next_id in self._used_ids:
+            self._next_id += 1
+        next_id = self._next_id
+        self._next_id += 1
+        return next_id
+
 class IdElements(object):
     def __init__(self, elems, attr, to_int=int, init_id=0):
         self._next_id = init_id
@@ -1125,10 +1149,16 @@ class DocxComposer:
         self._nums = IdElements(
                 self.styleDocx.get_elems_from_numbering('w:num'),
                 norm_name('w:numId'), init_id=1)
-        self.images = self.styleDocx.get_number_of_medias()
 
+        # document part -> (relationships, relationship id pool)
+        self._relationships_map = {
+                'document': ([], IdPool(self.styleDocx.get_relationship_ids())),
+                'footnotes': ([], IdPool([])),
+        }
+        self._add_required_relationships()
         self._hyperlink_rid_map = {} # target => relationship id
         self._image_info_map = {} # imagepath => (relationship id, imagename)
+        self._img_num_pool = IdPool(self.styleDocx.get_image_numbers())
 
         self._footnote_list = get_special_footnotes(self.styleDocx.footnotes)
         self._footnote_id_map = {} # docname#id => footnote id
@@ -1140,16 +1170,6 @@ class DocxComposer:
 
         self.document = make_element_tree([['w:document'], [['w:body']]])
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
-        def rid_to_int(rid):
-            m = re.match(r'rId(\d+)', rid)
-            return int(m.group(1)) if m else 0
-        max_rid = get_max_attribute(
-                self.styleDocx.relationships, norm_name('Id'), rid_to_int)
-        # document part -> (relationships, first relationship id)
-        self._relationships_map = {
-                'document': ([], max_rid),
-                'footnotes': ([], 0),
-        }
 
         coverpage = self.styleDocx.get_coverpage() if has_coverpage else None
         if coverpage is not None:
@@ -1494,6 +1514,19 @@ class DocxComposer:
         self._style_info[new_style_name] = StyleInfo(new_style)
         return True
 
+    def _add_required_relationships(self):
+        relationships, id_pool = self._relationships_map['document']
+        required_rel_types = (
+                (REL_TYPE_STYLES, 'styles.xml'),
+                (REL_TYPE_NUMBERING, 'numbering.xml'),
+                (REL_TYPE_FOOTNOTES, 'footnotes.xml'),
+        )
+        for rel_type, target in required_rel_types:
+            relationships.append({
+                'Id': 'rId%d' % id_pool.next_id(),
+                'Type': rel_type, 'Target': target
+            })
+
     def add_hyperlink_relationship(self, target, part):
         rid_map = self._hyperlink_rid_map.get(target)
         if rid_map is not None:
@@ -1503,8 +1536,8 @@ class DocxComposer:
         else:
             rid_map = {}
 
-        relationships, first_rid = self._relationships_map[part]
-        rid = 'rId%d' % (first_rid + len(relationships) + 1)
+        relationships, id_pool = self._relationships_map[part]
+        rid = 'rId%d' % id_pool.next_id()
         relationships.append({
             'Id': rid,
             'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
@@ -1527,13 +1560,11 @@ class DocxComposer:
             _, picext = os.path.splitext(imagepath)
             if picext == '.jpg':
                 picext = '.jpeg'
-            self.images += 1
             rid_map = {}
-            picname = 'image%d%s' % (self.images, picext)
+            picname = 'image%d%s' % (self._img_num_pool.next_id(), picext)
 
-        relationships, first_rid = self._relationships_map[part]
-        # Calculate relationship ID to the first available
-        rid = 'rId%d' % (first_rid + len(relationships) + 1)
+        relationships, id_pool = self._relationships_map[part]
+        rid = 'rId%d' % id_pool.next_id()
         relationships.append({
             'Id': rid,
             'Type': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
@@ -1714,16 +1745,8 @@ class DocxComposer:
 
     def document_relationships(self, stylerels):
         rel_list = []
-        docrel_list, first_rid = self._relationships_map['document']
+        docrel_list, _ = self._relationships_map['document']
         rel_list.extend(docrel_list)
-        required_rel_types = (
-                (REL_TYPE_STYLES, 'styles.xml'),
-                (REL_TYPE_NUMBERING, 'numbering.xml'),
-                (REL_TYPE_FOOTNOTES, 'footnotes.xml'),
-        )
-        for rel_type, target in required_rel_types:
-            rid = 'rId%d' % (first_rid + len(rel_list) + 1)
-            rel_list.append({'Id': rid, 'Type': rel_type, 'Target': target})
         rel_list.extend(stylerels)
         return make_relationships(rel_list)
 
