@@ -1322,7 +1322,6 @@ class DocxComposer:
         xml_files.append(('word/footnotes.xml', self._footnotes))
         xml_files.append(('word/numbering.xml', numbering))
         xml_files.append(('word/styles.xml', self.styleDocx.styles))
-        xml_files.append(('word/webSettings.xml', self.websettings()))
 
         inherited_files = self.styleDocx.collect_all_relation_files(
                 inherited_rel_attrs + numbering_rel_attrs)
@@ -1610,7 +1609,7 @@ class DocxComposer:
                 REL_TYPE_SETTINGS,
                 REL_TYPE_STYLES_WITH_EFFECTS,
                 REL_TYPE_THEME,
-                # REL_TYPE_WEB_SETTINGS,
+                REL_TYPE_WEB_SETTINGS,
                 REL_TYPE_CUSTOM_XML,
                 REL_TYPE_CUSTOM_XML_PROPS,
                 REL_TYPE_THUMBNAIL,
@@ -1735,15 +1734,6 @@ class DocxComposer:
                 break
         xmlns = 'http://purl.oclc.org/ooxml/officeDocument/customProperties'
         return make_element_tree(props_tree, xmlns)
-
-    def websettings(self):
-        '''
-          Generate websettings
-          This function copied from 'python-docx' library
-        '''
-        web_tree = [['w:webSettings'], [['w:allowPNG']],
-                    [['w:doNotSaveAsSingleFile']]]
-        return make_element_tree(web_tree)
 
     def make_document_rels(self, stylerels):
         rel_list = []
