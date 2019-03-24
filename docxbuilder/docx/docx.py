@@ -1040,7 +1040,7 @@ class DocxDocument:
                             rel_xml, '/pr:Relationships/pr:Relationship')),
                         posixpath.dirname(filepath))
 
-    def collect_all_relation_files(self, *rel_attrs):
+    def collect_all_relation_files(self, rel_attrs):
         rel_files = set()
         self.collect_relation_files(
                 rel_files, rel_attrs, posixpath.dirname(self.docpath))
@@ -1325,7 +1325,7 @@ class DocxComposer:
         xml_files.append(('word/webSettings.xml', self.websettings()))
 
         inherited_files = self.styleDocx.collect_all_relation_files(
-                *inherited_rel_attrs, *numbering_rel_attrs)
+                inherited_rel_attrs + numbering_rel_attrs)
         content_types = self.make_content_types(inherited_files)
         xml_files.append(('[Content_Types].xml', content_types))
 
