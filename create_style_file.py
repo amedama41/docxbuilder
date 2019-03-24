@@ -18,7 +18,7 @@ def create_style_file():
                 addfile(path, rootpath + filename + '/')
             else:
                 style_file.write(path, rootpath + filename)
-    addfile(os.path.join(base_dir, 'style_file'), '')
+    addfile(os.path.join(base_dir, 'style_file/docx'), '')
     style_file.close()
 
 if __name__ == '__main__':
