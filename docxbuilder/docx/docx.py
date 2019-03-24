@@ -224,7 +224,7 @@ def get_max_attribute(elems, attribute, to_int=int):
     '''
        Get the maximum integer attribute among the specified elems
     '''
-    if len(elems) == 0:
+    if not elems:
         return 0
     return max(map(lambda e: to_int(e.get(attribute)), elems))
 
@@ -951,6 +951,10 @@ class DocxDocument:
     def footnotes(self):
         return self.get_xmltree('word/footnotes.xml')
 
+    @property
+    def numbering_relationships(self):
+        return self.get_xmltree(create_rels_path('word/numbering.xml'))
+
     def get_xmltree(self, fname):
         '''
           Extract a document tree from the docx file
@@ -1036,7 +1040,7 @@ class DocxDocument:
                             rel_xml, '/pr:Relationships/pr:Relationship')),
                         posixpath.dirname(filepath))
 
-    def collect_all_relation_files(self, rel_attrs):
+    def collect_all_relation_files(self, *rel_attrs):
         rel_files = set()
         self.collect_relation_files(
                 rel_files, rel_attrs, posixpath.dirname(self.docpath))
@@ -1129,6 +1133,15 @@ class IdElements(object):
     def __iter__(self):
         return iter(self._elems.items())
 
+def collect_used_rel_attrs(relationships, xml, used_rel_types=set()):
+    if relationships is None:
+        return []
+    used_rel_attrs = []
+    for rel in get_elements(relationships, 'pr:Relationship'):
+        if (rel.get('Type') in used_rel_types
+                or get_elements(xml, '(.//*[@*="%s"])[1]' % rel.get('Id'))):
+            used_rel_attrs.append(rel.attrib)
+    return used_rel_attrs
 #
 # DocxComposer Class
 #
@@ -1160,10 +1173,11 @@ class DocxComposer:
         self._image_info_map = {} # imagepath => (relationship id, imagename)
         self._img_num_pool = IdPool(self.styleDocx.get_image_numbers())
 
-        self._footnote_list = get_special_footnotes(self.styleDocx.footnotes)
+        self._footnotes = make_element_tree([['w:footnotes']])
+        self._footnotes.extend(get_special_footnotes(self.styleDocx.footnotes))
         self._footnote_id_map = {} # docname#id => footnote id
         self._max_footnote_id = get_max_attribute(
-                self._footnote_list, norm_name('w:id'))
+                get_elements(self._footnotes, 'w:footnote'), norm_name('w:id'))
 
         self._run_style_property_cache = {}
         self._table_margin_cache = {}
@@ -1283,47 +1297,43 @@ class DocxComposer:
     def asbytes(self, props, custom_props):
         '''Generate the composed document as docx binary.
         '''
-        coreproperties = self.coreproperties(props)
-        appproperties = self.appproperties(custom_props)
-        customproperties = self.customproperties(custom_props)
-        websettings = self.websettings()
-
-        inherited_relationshiplist = self.inherited_relationshiplist()
-        inherited_files = self.styleDocx.collect_all_relation_files(
-                inherited_relationshiplist)
-
-        contenttypes = self.contenttypes(inherited_files)
-        document_relationships = self.document_relationships(
-                inherited_relationshiplist)
-        footnotes_relationships = self.footnotes_relationships()
-        rootrelationships = self.rootrelationships()
-
-        footnotes = make_element_tree([['w:footnotes']])
-        footnotes.extend(self._footnote_list)
-
-        numbering = self.numbering(inherited_relationshiplist, footnotes)
-
-        # Serialize our trees into out zip file
-        treesandfiles = [
-                ('_rels/.rels', rootrelationships),
-                ('docProps/core.xml', coreproperties),
-                ('docProps/app.xml', appproperties),
-                ('docProps/custom.xml', customproperties),
-                ('word/_rels/document.xml.rels', document_relationships),
-                ('word/_rels/footnotes.xml.rels', footnotes_relationships),
-                ('word/document.xml', self.document),
-                ('word/footnotes.xml', footnotes),
-                ('word/numbering.xml', numbering),
-                ('word/styles.xml', self.styleDocx.styles),
-                ('word/webSettings.xml', websettings),
-                ('[Content_Types].xml', contenttypes),
+        xml_files = [
+                ('_rels/.rels', self.make_root_rels()),
+                ('docProps/app.xml', self.make_app(custom_props)),
+                ('docProps/core.xml', self.make_core(props)),
+                ('docProps/custom.xml', self.make_custom(custom_props)),
         ]
+
+        inherited_rel_attrs = self.collect_inherited_rel_attrs()
+        numbering = self.make_numbering(inherited_rel_attrs)
+
+        document_rels = self.make_document_rels(inherited_rel_attrs)
+        xml_files.append(('word/_rels/document.xml.rels', document_rels))
+        footnotes_rels = self.make_footnotes_rels()
+        if footnotes_rels is not None:
+            xml_files.append(('word/_rels/footnotes.xml.rels', footnotes_rels))
+        numbering_rel_attrs = collect_used_rel_attrs(
+                self.styleDocx.numbering_relationships, numbering)
+        if numbering_rel_attrs:
+            numbering_rels = self.make_numbering_rels(numbering_rel_attrs)
+            xml_files.append(('word/_rels/numbering.xml.rels', numbering_rels))
+
+        xml_files.append(('word/document.xml', self.document))
+        xml_files.append(('word/footnotes.xml', self._footnotes))
+        xml_files.append(('word/numbering.xml', numbering))
+        xml_files.append(('word/styles.xml', self.styleDocx.styles))
+        xml_files.append(('word/webSettings.xml', self.websettings()))
+
+        inherited_files = self.styleDocx.collect_all_relation_files(
+                *inherited_rel_attrs, *numbering_rel_attrs)
+        content_types = self.make_content_types(inherited_files)
+        xml_files.append(('[Content_Types].xml', content_types))
 
         bytes_io = io.BytesIO()
         with zipfile.ZipFile(
                 bytes_io, mode='w', compression=zipfile.ZIP_DEFLATED) as zip:
             self.styleDocx.collect_items(zip, inherited_files)
-            for xmlpath, xml in treesandfiles:
+            for xmlpath, xml in xml_files:
                 treestring = etree.tostring(
                     xml, xml_declaration=True,
                     encoding='UTF-8', standalone='yes')
@@ -1587,9 +1597,9 @@ class DocxComposer:
     def append_footnote(self, fid, contents):
         footnote = make_element_tree([['w:footnote', {'w:id': str(fid)}]])
         footnote.extend(contents)
-        self._footnote_list.append(footnote)
+        self._footnotes.append(footnote)
 
-    def inherited_relationshiplist(self):
+    def collect_inherited_rel_attrs(self):
         """Collect relationships inherited from style file.
         """
         implicit_rel_types = {
@@ -1605,18 +1615,10 @@ class DocxComposer:
                 REL_TYPE_CUSTOM_XML_PROPS,
                 REL_TYPE_THUMBNAIL,
         }
-        inherited_relationshiplist = []
-        relationships = self.styleDocx.relationships
-        for rel in get_elements(
-                relationships, '/pr:Relationships/pr:Relationship'):
-            attr = rel.attrib
-            if (attr['Type'] in implicit_rel_types
-                    or get_elements(
-                        self.document, '(.//*[@*="%s"])[1]' % attr['Id'])):
-                inherited_relationshiplist.append(attr)
-        return inherited_relationshiplist
+        return collect_used_rel_attrs(
+                self.styleDocx.relationships, self.document, implicit_rel_types)
 
-    def contenttypes(self, inherited_files):
+    def make_content_types(self, inherited_files):
         '''create [Content_Types].xml
         '''
         filename = '[Content_Types].xml'
@@ -1667,7 +1669,7 @@ class DocxComposer:
 
         return make_element_tree(types_tree, nsprefixes['ct'])
 
-    def coreproperties(self, props):
+    def make_core(self, props):
         '''Create core properties (common document properties referred to in
            the 'Dublin Core' specification).
         '''
@@ -1686,7 +1688,7 @@ class DocxComposer:
 
         return make_element_tree(coreprops_tree)
 
-    def appproperties(self, custom_props):
+    def make_app(self, custom_props):
         '''Create app-specific properties.
            This function is based on 'python-docx' library
         '''
@@ -1718,7 +1720,7 @@ class DocxComposer:
 
         return make_element_tree(appprops_tree, nsprefixes['ep'])
 
-    def customproperties(self, custom_props):
+    def make_custom(self, custom_props):
         props_tree = [['Properties']]
         # User defined pid must start from 2
         for pid, (name, value) in enumerate(custom_props.items(), 2):
@@ -1743,17 +1745,23 @@ class DocxComposer:
                     [['w:doNotSaveAsSingleFile']]]
         return make_element_tree(web_tree)
 
-    def document_relationships(self, stylerels):
+    def make_document_rels(self, stylerels):
         rel_list = []
         docrel_list, _ = self._relationships_map['document']
         rel_list.extend(docrel_list)
         rel_list.extend(stylerels)
         return make_relationships(rel_list)
 
-    def footnotes_relationships(self):
-        return make_relationships(self._relationships_map['footnotes'][0])
+    def make_footnotes_rels(self):
+        rel_list, _ = self._relationships_map['footnotes']
+        if not rel_list:
+            return None
+        return make_relationships(rel_list)
 
-    def rootrelationships(self):
+    def make_numbering_rels(self, numbering_rel_attrs):
+        return make_relationships(numbering_rel_attrs)
+
+    def make_root_rels(self):
         rel_list = [
                 (REL_TYPE_CORE, 'docProps/core.xml'),
                 (REL_TYPE_APP, 'docProps/app.xml'),
@@ -1764,18 +1772,17 @@ class DocxComposer:
                 {'Id': 'rId%d' % rid, 'Type': rtype, 'Target': target}
                 for rid, (rtype, target) in enumerate(rel_list, 1))
 
-    def numbering(self, inherited_relationshiplist, footnotes):
+    def make_numbering(self, inherited_rel_attrs):
         """Create numbering.xml from nums and abstract nums in use
         """
-        used_num_ids = self.styleDocx.collect_num_ids(
-                inherited_relationshiplist)
+        used_num_ids = self.styleDocx.collect_num_ids(inherited_rel_attrs)
         val_attr = norm_name('w:val')
         def update_used_num_ids(xml):
             elems = get_elements(xml, '//w:numId')
             used_num_ids.update((int(num_id.get(val_attr)) for num_id in elems))
         update_used_num_ids(self.styleDocx.styles)
         update_used_num_ids(self.document)
-        update_used_num_ids(footnotes)
+        update_used_num_ids(self._footnotes)
 
         nums = [num for num_id, num in self._nums if num_id in used_num_ids]
         get_abst_num_id = lambda num: int(
@@ -1789,4 +1796,12 @@ class DocxComposer:
         numbering = make_element_tree(['w:numbering'])
         numbering.extend(abstract_nums)
         numbering.extend(nums)
+
+        for elem in get_elements(numbering, '//w:lvlPicBulletId'):
+            bullet_id = elem.get(val_attr)
+            num_pic_bullet_elems = get_elements(
+                    self.styleDocx.numbering,
+                    'w:numPicBullet[@w:numPicBulletId="%s"]' % bullet_id)
+            if num_pic_bullet_elems:
+                numbering.insert(0, num_pic_bullet_elems[-1])
         return numbering
