@@ -1,4 +1,5 @@
 docxbuilder/docx/style.docx
+style_file/build/
 **/__pycache__
 *.pyc
 
