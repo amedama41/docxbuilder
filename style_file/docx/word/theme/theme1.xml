@@ -41,7 +41,7 @@
     </a:clrScheme>
     <a:fontScheme name="Office">
       <a:majorFont>
-        <a:latin typeface="Arial"/>
+        <a:latin typeface="Georgia"/>
         <a:ea typeface=""/>
         <a:cs typeface=""/>
         <a:font script="Jpan" typeface="ＭＳ ゴシック"/>
@@ -75,7 +75,7 @@
         <a:font script="Uigh" typeface="Microsoft Uighur"/>
       </a:majorFont>
       <a:minorFont>
-        <a:latin typeface="Century"/>
+        <a:latin typeface="Helvetica"/>
         <a:ea typeface=""/>
         <a:cs typeface=""/>
         <a:font script="Jpan" typeface="ＭＳ 明朝"/>

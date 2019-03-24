@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
 <w:styles xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" mc:Ignorable="w14">
   <w:docDefaults>
     <w:rPrDefault>
@@ -94,7 +94,6 @@
     <w:next w:val="a"/>
     <w:link w:val="40"/>
     <w:uiPriority w:val="9"/>
-    <w:semiHidden/>
     <w:unhideWhenUsed/>
     <w:qFormat/>
     <w:pPr>
@@ -116,7 +115,6 @@
     <w:next w:val="a"/>
     <w:link w:val="50"/>
     <w:uiPriority w:val="9"/>
-    <w:semiHidden/>
     <w:unhideWhenUsed/>
     <w:qFormat/>
     <w:pPr>
@@ -825,50 +823,50 @@
     <w:basedOn w:val="a"/>
     <w:next w:val="a"/>
     <w:autoRedefine/>
-    <w:uiPriority w:val="39" />
+    <w:uiPriority w:val="39"/>
   </w:style>
   <w:style w:type="paragraph" w:styleId="toc 2">
-    <w:name w:val="toc 2" />
-    <w:basedOn w:val="a" />
-    <w:next w:val="a" />
-    <w:autoRedefine />
-    <w:uiPriority w:val="39" />
-    <w:unhideWhenUsed />
+    <w:name w:val="toc 2"/>
+    <w:basedOn w:val="a"/>
+    <w:next w:val="a"/>
+    <w:autoRedefine/>
+    <w:uiPriority w:val="39"/>
+    <w:unhideWhenUsed/>
     <w:pPr>
-      <w:ind w:left="210" w:leftChars="100" />
+      <w:ind w:left="210" w:leftChars="100"/>
     </w:pPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="toc 3">
-    <w:name w:val="toc 3" />
-    <w:basedOn w:val="a" />
-    <w:next w:val="a" />
-    <w:autoRedefine />
-    <w:uiPriority w:val="39" />
-    <w:unhideWhenUsed />
+    <w:name w:val="toc 3"/>
+    <w:basedOn w:val="a"/>
+    <w:next w:val="a"/>
+    <w:autoRedefine/>
+    <w:uiPriority w:val="39"/>
+    <w:unhideWhenUsed/>
     <w:pPr>
-      <w:ind w:left="420" w:leftChars="200" />
+      <w:ind w:left="420" w:leftChars="200"/>
     </w:pPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="toc 4">
-    <w:name w:val="toc 4" />
-    <w:basedOn w:val="a" />
-    <w:next w:val="a" />
-    <w:autoRedefine />
-    <w:uiPriority w:val="39" />
-    <w:unhideWhenUsed />
+    <w:name w:val="toc 4"/>
+    <w:basedOn w:val="a"/>
+    <w:next w:val="a"/>
+    <w:autoRedefine/>
+    <w:uiPriority w:val="39"/>
+    <w:unhideWhenUsed/>
     <w:pPr>
-      <w:ind w:left="630" w:leftChars="300" />
+      <w:ind w:left="630" w:leftChars="300"/>
     </w:pPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="toc 5">
-    <w:name w:val="toc 5" />
-    <w:basedOn w:val="a" />
-    <w:next w:val="a" />
-    <w:autoRedefine />
-    <w:uiPriority w:val="39" />
-    <w:unhideWhenUsed />
+    <w:name w:val="toc 5"/>
+    <w:basedOn w:val="a"/>
+    <w:next w:val="a"/>
+    <w:autoRedefine/>
+    <w:uiPriority w:val="39"/>
+    <w:unhideWhenUsed/>
     <w:pPr>
-      <w:ind w:left="840" w:leftChars="400" />
+      <w:ind w:left="840" w:leftChars="400"/>
     </w:pPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="af0">
@@ -917,7 +915,6 @@
     <w:rPr>
       <w:vertAlign w:val="superscript"/>
     </w:rPr>
-    <w:semiHidden/>
     <w:uiPriority w:val="99"/>
     <w:unhideWhenUsed/>
   </w:style>
@@ -943,18 +940,78 @@
       <w:sz w:val="20"/>
       <w:szCs w:val="20"/>
     </w:rPr>
-    <w:semiHidden/>
     <w:uiPriority w:val="99"/>
     <w:unhideWhenUsed/>
   </w:style>
   <w:style w:type="paragraph" w:styleId="Bibliography">
     <w:basedOn w:val="a"/>
     <w:name w:val="Bibliography"/>
-    <w:semiHidden/>
     <w:uiPriority w:val="99"/>
     <w:unhideWhenUsed/>
     <w:rPr>
       <w:color w:val="808080"/>
     </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:customStye="1" w:styleId="Transition">
+    <w:name w:val="Transition"/>
+    <w:qFormat/>
+    <w:unhideWhenUsed/>
+    <w:pPr>
+      <w:spacing w:before="0" w:beforeAutospacing="0" w:after="100" w:afterAutospacing="0"/>
+      <w:rPr>
+        <w:sz w:val="16"/>
+      </w:rPr>
+      <w:pBdr>
+        <w:bottom w:val="single" w:sz="8" w:space="1"/>
+      </w:pBdr>
+    </w:pPr>
+  </w:style>
+  <w:style w:type="paragraph" w:customStye="1" w:styleId="Table Bottom Margin">
+    <w:name w:val="Table Bottom Margin"/>
+    <w:semiHidden/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:spacing w:before="0" w:beforeAutospacing="0" w:after="0" w:afterAutospacing="0"/>
+      <w:rPr>
+        <w:sz w:val="16"/>
+      </w:rPr>
+    </w:pPr>
+  </w:style>
+  <w:style w:type="paragraph" w:customStye="0" w:styleId="Body Text">
+    <w:name w:val="Body Text"/>
+    <w:qFormat/>
+    <w:unhideWhenUsed/>
+    <w:basedOn w:val="a"/>
+  </w:style>
+  <w:style w:type="paragraph" w:customStye="1" w:styleId="Math Block">
+    <w:name w:val="Math Block"/>
+    <w:semiHidden/>
+    <w:qFormat/>
+    <w:unhideWhenUsed/>
+    <w:basedOn w:val="a"/>
+  </w:style>
+  <w:style w:type="paragraph" w:customStye="1" w:styleId="Figure">
+    <w:name w:val="Figure"/>
+    <w:qFormat/>
+    <w:unhideWhenUsed/>
+    <w:basedOn w:val="a"/>
+  </w:style>
+  <w:style w:type="paragraph" w:customStye="1" w:styleId="Heading">
+    <w:name w:val="Heading"/>
+    <w:semiHidden/>
+    <w:qFormat/>
+    <w:basedOn w:val="a"/>
+  </w:style>
+  <w:style w:type="paragraph" w:customStye="1" w:styleId="Rubric Title Heading">
+    <w:name w:val="Rubric Title Heading"/>
+    <w:qFormat/>
+    <w:unhideWhenUsed/>
+    <w:basedOn w:val="TitleHeading"/>
+  </w:style>
+  <w:style w:type="table" w:customStye="0" w:styleId="List Table">
+    <w:name w:val="List Table"/>
+    <w:semiHidden/>
+    <w:qFormat/>
+    <w:basedOn w:val="a1"/>
   </w:style>
 </w:styles>
