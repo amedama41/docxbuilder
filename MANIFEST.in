@@ -1,4 +1,4 @@
 include LICENSE
-include docxbuilder/docx/LICENSE
+include docxbuilder/docx/LICENSE.python-docx
 include create_style_file.py
 recursive-include style_file/docx *
