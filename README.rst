@@ -24,7 +24,7 @@ Install
 
 Use pip::
 
-   pip install git+https://github.com/amedama41/docxbuilder.git
+   pip install docxbuilder
 
 *****
 Usage
