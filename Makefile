@@ -1,5 +1,6 @@
 dist:
-	python setup.py sdist bdist_wheel
+	python setup.py sdist
+	python setup.py bdist_wheel
 
 clean:
 	-rm -rf docxbuilder/docx/style.docx build/ dist/ *.egg-info
@@ -7,4 +8,7 @@ clean:
 upload: clean dist
 	python -m twine upload --repository pypi dist/*
 
-.PHONY: dist clean upload
+test: clean dist
+	python -m twine upload --repository testpypi dist/*
+
+.PHONY: dist clean upload test
