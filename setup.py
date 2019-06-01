@@ -21,7 +21,6 @@ setup(
     url='https://github.com/amedama41/docxbuilder',
     author='amedama41',
     author_email='kamo.devel41@gmail.com',
-    license='MIT',
     keywords=['sphinx', 'extension', 'docx', 'OpenXML'],
     packages=[
         'docxbuilder',
@@ -39,6 +38,7 @@ setup(
     },
     classifiers=[
         'Framework :: Sphinx :: Extension',
+        'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Topic :: Documentation :: Sphinx',
