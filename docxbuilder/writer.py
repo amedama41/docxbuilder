@@ -21,13 +21,13 @@
     :license: BSD, see LICENSE for details.
 """
 
+import hashlib
 import os
 import re
 import sys
 
 from docutils import nodes, writers
 from lxml import etree
-from six.moves.urllib import parse
 from sphinx import addnodes
 from sphinx.environment.adapters.toctree import TocTree
 from sphinx.ext import graphviz
@@ -112,8 +112,9 @@ def has_caption(image_node):
     return caption_index is not None
 
 def make_bookmark_name(docname, id):
-    # Office could not handle bookmark names including hash characters
-    return '%s/%s' % (parse.quote(docname), id)
+    # The pattern Office enables to handle as a bookmark is ^(?!\d)\w{1,40}$
+    hash = hashlib.md5(('%s/%s' % (docname, id)).encode('utf8'))
+    return '_' + hash.hexdigest()
 
 def count_colspec(table_node):
     tgroup = next(
