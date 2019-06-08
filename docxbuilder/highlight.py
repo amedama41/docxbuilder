@@ -110,8 +110,11 @@ class DocxFormatter(Formatter):
             outfile.write(r'</w:r>')
 
 class DocxPygmentsBridge(PygmentsBridge):
-    def __init__(self, dest, stylename, trim_doctest_flags):
-        PygmentsBridge.__init__(self, dest, stylename, trim_doctest_flags)
+    def __init__(self, dest, stylename, trim_doctest_flags=None):
+        if trim_doctest_flags is not None:
+            PygmentsBridge.__init__(self, dest, stylename, trim_doctest_flags)
+        else:
+            PygmentsBridge.__init__(self, dest, stylename)
         self.formatter = DocxFormatter
 
     def highlight_block(self, source, lang, *args, **kwargs):

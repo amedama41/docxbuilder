@@ -28,7 +28,7 @@ import sys
 
 from docutils import nodes, writers
 from lxml import etree
-from sphinx import addnodes
+from sphinx import addnodes, version_info
 from sphinx.environment.adapters.toctree import TocTree
 from sphinx.ext import graphviz
 from sphinx.locale import admonitionlabels, _
@@ -45,6 +45,12 @@ except ImportError as exp:
     Image = None
 
 # Utility functions
+
+def is_sphinx_version_lower_than(version):
+    """Return true if current Sphinx version is less than specified version
+    """
+    major, minor, patch, _, _ = version_info
+    return (major, minor, patch) < version
 
 def get_image_size(filename):
     if Image is None:
@@ -693,10 +699,12 @@ class DocxTranslator(nodes.NodeVisitor):
         self._basic_indent = self._docx.get_indent('List Paragraph', 320)
         self._language = builder.config.highlight_language
         self._linenothreshold = sys.maxsize
+        if is_sphinx_version_lower_than((1, 8, 0)):
+            trim_doctest_flags = builder.config.trim_doctest_flags
+        else:
+            trim_doctest_flags = None
         self._highlighter = DocxPygmentsBridge(
-                'html',
-                builder.config.pygments_style,
-                builder.config.trim_doctest_flags)
+                'html', builder.config.pygments_style, trim_doctest_flags)
         self._numsec_map = builder.make_numsec_map()
         self._numfig_map = builder.make_numfig_map()
         self._bookmark_id = 0
@@ -2151,8 +2159,9 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_refcount(self, node):
         pass
 
-    def visit_displaymath(self, node):
-        self.visit_math_block_node(node, node.get('latex'))
+    if is_sphinx_version_lower_than((1, 8, 0)):
+        def visit_displaymath(self, node):
+            self.visit_math_block_node(node, node.get('latex'))
 
     def visit_todo_node(self, node):
         self.visit_admonition_node(node)
