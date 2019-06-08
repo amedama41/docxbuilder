@@ -671,6 +671,11 @@ class Contenxt(object):
         return self.width - self.indent - self.right_indent
 
 class DocxTranslator(nodes.NodeVisitor):
+    """Visitor to generate a docx document.
+
+    :var builder: Sphinx builder.
+    """
+
     def __init__(self, document, builder):
         nodes.NodeVisitor.__init__(self, document)
         self._builder = builder
@@ -875,6 +880,15 @@ class DocxTranslator(nodes.NodeVisitor):
         return 'docx-landscape' in node.get('classes')
 
     def visit_admonition_node(self, node, add_title=False):
+        """Insert a table of admonition represented by the node.
+
+        This function shall be called from visit method for the node
+
+        :param node: A node which represents an admonition.
+        :param add_title: If add_title is true, the text corresponding to
+            the node tagname is used as the admonition title. If false,
+            the first child of the node is used.
+        """
         self._append_bookmark_start(node.get('ids', []))
         self._doc_stack.append(ContentsList())
         if add_title:
@@ -884,6 +898,16 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def depart_admonition_node(
             self, node, style=None, align='center', margin=1000):
+        """Insert a table of admonition represented by the node.
+
+        This function shall be called from depart method for the node
+
+        :param node: A node which represents an admonition.
+        :param style: A style name applied to the admonition table. If
+            style is None, the node's admonition class or tagname is used.
+        :param align: Alignment of the admonition table.
+        :param margin: A total margin between the table and page.
+        """
         contents = self._doc_stack.pop()
         table_width = self._ctx_stack[-1].width - margin
         if style is None:
@@ -921,6 +945,19 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_image_node(self, node, alt, get_filepath):
+        """Insert an image represented by the node.
+
+        This function shall be called from visit method for the node
+
+        :param node: A node which represents an image.
+        :param alt: An alternative text used when get_filepath is unable to
+            return a valid image path. alt may be a tuple of the text and
+            a string which specified an language in order to highlight the
+            text.
+        :param get_filepath: A function which extract a path of the image
+            from the node. This function must take the translator as first
+            parameter, and the node as second parameter.
+        """
         self._append_bookmark_start(node.get('ids', []))
 
         if not isinstance(self._doc_stack[-1], Paragraph):
