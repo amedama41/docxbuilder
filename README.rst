@@ -99,7 +99,7 @@ The below code is a configuration example:
 .. code:: python
 
    docx_documents = [
-       (master_doc, 'docxbuilder.docx', {
+       ('index', 'docxbuilder.docx', {
             'title': project,
             'creator': author,
             'subject': 'A manual of docxbuilder',
