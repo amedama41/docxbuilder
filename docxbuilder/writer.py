@@ -639,11 +639,10 @@ class FixedTopParagraphList(ContentsList):
                 self._top_paragraph.append(contents)
                 return
             if self._available_top_paragraph:
+                self._available_top_paragraph = False
                 if isinstance(contents, Paragraph) and contents._style is None:
                     self._top_paragraph.append(contents)
                     return
-                else:
-                    self._available_top_paragraph = False
         super(FixedTopParagraphList, self).append(contents)
 
 class DefinitionListItem(ContentsList):
