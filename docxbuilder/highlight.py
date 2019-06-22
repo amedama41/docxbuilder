@@ -9,15 +9,6 @@ class DocxFormatter(Formatter):
         self.hl_lines = options.get('hl_lines', [])
         self.linenostart = options.get('linenostart', 1)
         self.trim_last_line_break = options.get('trim_last_line_break', False)
-        self.color_mapping = {}
-        for _, style in self.style:
-            for color in style['color'], style['bgcolor'], style['border']:
-                if color and color not in self.color_mapping:
-                    self.color_mapping[color] = r'%02x%02x%02x' % (
-                        int(color[0:2], 16),
-                        int(color[2:4], 16),
-                        int(color[4:6], 16)
-                    )
 
     def format_unencoded(self, tokensource, outfile):
         lines = [[]]
@@ -30,11 +21,9 @@ class DocxFormatter(Formatter):
                 style = self.style.style_for_token(ttype)
                 buf = []
                 if style['bgcolor']:
-                    buf.append(r'<w:shd w:themeFill="%s" />' %
-                               self.color_mapping[style['bgcolor']])
+                    buf.append(r'<w:shd w:themeFill="%s" />' % style['bgcolor'])
                 if style['color']:
-                    buf.append(r'<w:color w:val="%s" />' %
-                               self.color_mapping[style['color']])
+                    buf.append(r'<w:color w:val="%s" />' % style['color'])
                 if style['bold']:
                     buf.append(r'<w:b />')
                 if style['italic']:
@@ -43,7 +32,7 @@ class DocxFormatter(Formatter):
                     buf.append(r'<w:u />')
                 if style['border']:
                     buf.append(r'<w:bdr w:val="single" w:space="0" w:color="%s" />' %
-                               self.color_mapping[style['border']])
+                               style['border'])
 
                 style = ''.join(buf)
                 value = saxutils.escape(value)
