@@ -1252,11 +1252,12 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_line(self, node):
         self._append_bookmark_start(node.get('ids', []))
+        if self._line_block_level != 1 or not is_first_class_child(node):
+            self._doc_stack[-1].add_break()
         indent = ''.join('    ' for _ in range(self._line_block_level - 1))
         self._doc_stack[-1].add_text(indent)
 
     def depart_line(self, node):
-        self._doc_stack[-1].add_break()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_block_quote(self, node):
