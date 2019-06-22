@@ -117,6 +117,11 @@ def has_caption(image_node):
     caption_index = parent.first_child_matching_class(nodes.caption, index + 1)
     return caption_index is not None
 
+def is_first_class_child(node):
+    parent = node.parent
+    first_child_index = parent.first_child_matching_class(node.__class__)
+    return parent[first_child_index] is node
+
 def make_bookmark_name(docname, id):
     # The pattern Office enables to handle as a bookmark is ^(?!\d)\w{1,40}$
     hash = hashlib.md5(('%s/%s' % (docname, id)).encode('utf8'))
@@ -1610,9 +1615,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_option(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        parent = node.parent
-        first_option_index = parent.first_child_matching_class(nodes.option)
-        if parent[first_option_index] is not node:
+        if not is_first_class_child(node):
             self._doc_stack[-1].add_text(', ')
 
     def depart_option(self, node):
@@ -1996,9 +1999,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_signature_line(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        parent = node.parent
-        first_option_index = parent.first_child_matching_class(node.__class__)
-        if parent[first_option_index] is not node:
+        if not is_first_class_child(node):
             self._doc_stack[-1].add_break()
 
     def depart_desc_signature_line(self, node):
