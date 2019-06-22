@@ -543,10 +543,12 @@ class LiteralBlock(ParagraphElement):
 
     def to_xml(self):
         highlighted, style_id, indent, right_indent, keep_lines = self._args
+        highlighted = etree.fromstring(highlighted)
         p = docx.make_paragraph(
                 indent, right_indent, style_id, None,
-                keep_lines, self._keep_next, None)
-        p.extend(etree.fromstring(highlighted))
+                keep_lines, self._keep_next, None,
+                properties=docx.get_paragraph_properties(highlighted))
+        p.extend(docx.get_paragraph_contents(highlighted))
         return p
 
 class LiteralBlockTable(TableElement):
@@ -572,7 +574,6 @@ class LiteralBlockTable(TableElement):
                         top=None, left=108, bottom=None, right=108),
                 ])
         no_spacing = docx.make_paragraph_spacing_property(before=0, after=0)
-        shading = docx.make_paragraph_shading_property('clear')
         lineno_border = docx.make_paragraph_border_property(
                 top=None, bottom=None, left=None, right=None)
         middle_border = docx.make_paragraph_border_property(
@@ -595,18 +596,22 @@ class LiteralBlockTable(TableElement):
                 spacing = no_spacing
             cell1 = docx.make_cell(0, True, None, 1, None, valign='top')
             keep_next = self._is_keep_next(index)
+            p1_props = docx.get_paragraph_properties(org_row[0][0])
+            p1_props.extend([spacing, lineno_border])
             p1 = docx.make_paragraph(
                     None, None, style_id, 'right', False, keep_next, None,
-                    properties=[spacing, shading, lineno_border])
-            p1.extend(org_row[0][0])
+                    properties=p1_props)
+            p1.extend(docx.get_paragraph_contents(org_row[0][0]))
             cell1.append(p1)
             row.append(cell1)
 
             cell2 = docx.make_cell(1, False, 0.99, 1, None, valign='top')
+            p2_props = docx.get_paragraph_properties(org_row[1][0])
+            p2_props.extend([no_spacing, border.get(index, middle_border)])
             p2 = docx.make_paragraph(
                     None, None, style_id, None, False, False, None,
-                    properties=[no_spacing, border.get(index, middle_border)])
-            p2.extend(org_row[1][0])
+                    properties=p2_props)
+            p2.extend(docx.get_paragraph_contents(org_row[1][0]))
             cell2.append(p2)
             row.append(cell2)
             table.append(row)

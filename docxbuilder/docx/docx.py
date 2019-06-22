@@ -400,6 +400,20 @@ def make_default_page_margin():
 
 # Paragraphs and Runs
 
+def get_properties_tree(prop):
+    tree = [[prop.tag, prop.attrib]]
+    tree.extend((get_properties_tree(child_prop) for child_prop in prop))
+    return tree
+
+def get_paragraph_properties(paragraph):
+    props = get_elements(paragraph, 'w:pPr')
+    if not props:
+        return []
+    return [get_properties_tree(prop) for prop in props[0]]
+
+def get_paragraph_contents(paragraph):
+    return get_elements(paragraph, '*[not(self::w:pPr)]')
+
 def add_page_break_before_to_first_paragraph(xml):
     paragraphs = get_elements(xml, '//w:p')
     if not paragraphs:

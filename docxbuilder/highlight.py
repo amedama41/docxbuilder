@@ -71,6 +71,10 @@ class DocxFormatter(Formatter):
                 '<w:p xmlns:w='
                 '"http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
                 '>')
+        outfile.write(
+                '<w:pPr>'
+                '<w:shd w:val="clear" w:color="auto" w:fill="%s"/>'
+                '</w:pPr>' % self.style.background_color[1:7])
         for lineno, tokens in enumerate(lines, 1):
             self.output_line(outfile, lineno, tokens)
             if lineno != len(lines):
@@ -82,13 +86,19 @@ class DocxFormatter(Formatter):
                 '<w:tbl xmlns:w='
                 '"http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
                 '>')
+        bgcolor = self.style.background_color[1:7]
         for lineno, tokens in enumerate(lines, 1):
             outfile.write('<w:tr>')
             outfile.write('<w:tc><w:p>')
+            outfile.write('<w:pPr><w:shd w:val="clear"/></w:pPr>')
             outfile.write(
                 '<w:r><w:t>%d</w:t></w:r>' % (self.linenostart + lineno - 1))
             outfile.write('</w:p></w:tc>')
             outfile.write('<w:tc><w:p>')
+            outfile.write(
+                    '<w:pPr>'
+                    '<w:shd w:val="clear" w:color="auto" w:fill="%s"/>'
+                    '</w:pPr>' % bgcolor)
             self.output_line(outfile, lineno, tokens)
             outfile.write('</w:p></w:tc>')
             outfile.write('</w:tr>')
