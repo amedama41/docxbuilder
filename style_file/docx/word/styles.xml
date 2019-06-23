@@ -321,6 +321,7 @@
       <w:color w:val="E74C3C"/>
       <w:sz w:val="20"/>
       <w:szCs w:val="20"/>
+      <w:noProof/>
     </w:rPr>
   </w:style>
   <w:style w:type="character" w:styleId="Strong">
@@ -405,6 +406,7 @@
       <w:rFonts w:ascii="Consolas" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
       <w:sz w:val="20"/>
       <w:szCs w:val="20"/>
+      <w:noProof/>
     </w:rPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="Caption">
