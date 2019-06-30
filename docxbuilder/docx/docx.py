@@ -432,10 +432,9 @@ def make_run_style_property(style_id):
 def make_paragraph(
         indent, right_indent, style, align, keep_lines, keep_next, list_info,
         properties=None):
-    style_tree = [
-            ['w:pPr'],
-            [['w:pStyle', {'w:val': style}]],
-    ]
+    style_tree = [['w:pPr']]
+    if style is not None:
+        style_tree.append([['w:pStyle', {'w:val': style}]])
     ind_attrs = {}
     if list_info is not None:
         num_id, list_level = list_info

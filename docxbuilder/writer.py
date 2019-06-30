@@ -202,10 +202,8 @@ class BookmarkEnd(BookmarkElement):
         return docx.make_bookmark_end(self._id)
 
 class Paragraph(ParagraphElement):
-    default_style_id = None
-
     def __init__(self, indent=None, right_indent=None,
-                 paragraph_style=None, align=None,
+                 paragraph_style=None, is_default_style=True, align=None,
                  keep_lines=False, keep_next=False,
                  list_info=None, preserve_space=False):
         self._contents_stack = [[]]
@@ -214,10 +212,15 @@ class Paragraph(ParagraphElement):
         self._indent = indent
         self._right_indent = right_indent
         self._style = paragraph_style
+        self._is_default_style = is_default_style
         self._align = align
         self._keep_lines = keep_lines
         self._keep_next = keep_next
         self._list_info = list_info
+
+    @property
+    def is_default_style(self):
+        return self._is_default_style
 
     def add_text(self, text):
         style = {}
@@ -278,12 +281,8 @@ class Paragraph(ParagraphElement):
             raise RuntimeError('Can not append %s' % to_error_string(contents))
 
     def to_xml(self):
-        if self._style is not None:
-            style_id = self._style
-        else:
-            style_id = type(self).default_style_id
         p = docx.make_paragraph(
-                self._indent, self._right_indent, style_id, self._align,
+                self._indent, self._right_indent, self._style, self._align,
                 self._keep_lines, self._keep_next, self._list_info)
         p.extend(self._contents_stack[0])
         return p
@@ -650,7 +649,7 @@ class FixedTopParagraphList(ContentsList):
                 return
             if self._available_top_paragraph:
                 self._available_top_paragraph = False
-                if isinstance(contents, Paragraph) and contents._style is None:
+                if isinstance(contents, Paragraph) and contents.is_default_style:
                     self._top_paragraph.append(contents)
                     return
         super(FixedTopParagraphList, self).append(contents)
@@ -729,7 +728,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._bullet_list_id = self._docx.get_bullet_list_num_id('List Bullet')
         self._bullet_list_indents = self._docx.get_numbering_left('List Bullet')
         self._number_list_indent = self._docx.get_numbering_left('List Number')[0]
-        Paragraph.default_style_id = self._docx.get_style_id('Body Text')
+        self._default_paragraph_style_stack = []
+        self._append_default_paragraph_style('Body Text')
 
     def asbytes(self):
         props = self._builder.doc_properties
@@ -740,6 +740,13 @@ class DocxTranslator(nodes.NodeVisitor):
                     'invalid value is found in docx_documents "%s"' % key)
         core_props.setdefault('language', self._builder.config.language or 'en')
         return self._docx.asbytes(core_props, custom_props)
+
+    def _append_default_paragraph_style(self, style_name):
+        self._default_paragraph_style_stack.append(
+                self._docx.get_style_id(style_name))
+
+    def _pop_default_paragraph_style(self):
+        self._default_paragraph_style_stack.pop()
 
     def _pop_and_append(self):
         contents = self._doc_stack.pop()
@@ -770,10 +777,15 @@ class DocxTranslator(nodes.NodeVisitor):
             self, indent=None, right_indent=None, style=None, align=None,
             keep_lines=False, keep_next=False,
             list_info=None, preserve_space=False):
-        style_id = self._docx.get_style_id(style) if style is not None else None
+        if style is not None:
+            style_id = self._docx.get_style_id(style)
+            is_default_style = False
+        else:
+            style_id = self._default_paragraph_style_stack[-1]
+            is_default_style = True
         return Paragraph(
-                indent, right_indent, style_id, align, keep_lines, keep_next,
-                list_info, preserve_space)
+                indent, right_indent, style_id, is_default_style, align,
+                keep_lines, keep_next, list_info, preserve_space)
 
     def _append_table(
             self, table_style, table_width, colsize_list, is_indent, align=None,
