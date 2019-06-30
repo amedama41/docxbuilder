@@ -986,6 +986,15 @@
     <w:unhideWhenUsed/>
     <w:basedOn w:val="a"/>
   </w:style>
+  <w:style w:type="paragraph" w:customStye="1" w:styleId="Legend">
+    <w:name w:val="Legend"/>
+    <w:qFormat/>
+    <w:unhideWhenUsed/>
+    <w:basedOn w:val="a"/>
+    <w:rPr>
+      <w:sz w:val="18"/>
+    </w:rPr>
+  </w:style>
   <w:style w:type="paragraph" w:customStye="1" w:styleId="Math Block">
     <w:name w:val="Math Block"/>
     <w:semiHidden/>

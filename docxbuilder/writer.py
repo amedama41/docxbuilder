@@ -1417,8 +1417,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_legend(self, node):
         self._append_bookmark_start(node.get('ids', []))
+        self._append_default_paragraph_style('Legend')
 
     def depart_legend(self, node):
+        self._pop_default_paragraph_style()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_footnote(self, node):
@@ -2326,6 +2328,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 ('Literal Block', default_pargraph, True, False),
                 ('Math Block', default_pargraph, True, False),
                 ('Figure', default_pargraph, True, False),
+                ('Legend', default_pargraph, True, False),
                 ('Caption', default_pargraph, False, True),
                 ('Table Caption', 'Caption', True, False),
                 ('Image Caption', 'Caption', True, False),
