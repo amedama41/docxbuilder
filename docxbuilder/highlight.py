@@ -2,6 +2,39 @@ from xml.sax import saxutils
 from pygments.formatter import Formatter
 from sphinx.highlighting import PygmentsBridge
 
+# Not use achromatic colors, which are unsuitable for highlight
+HIGHLIGHT_COLOR_MAP = {
+        # 'black': [0x00, 0x00, 0x00],
+        'blue': [0x00, 0x00, 0xFF],
+        'cyan': [0x00, 0xFF, 0xFF],
+        'darkBlue': [0x00, 0x00, 0x8B],
+        'darkCyan': [0x00, 0x8B, 0x8B],
+        # 'darkGray': [0xA9, 0xA9, 0xA9],
+        'darkGreen': [0x00, 0x64, 0x00],
+        'darkMagenta': [0x80, 0x00, 0x80],
+        'darkRed': [0x8B, 0x00, 0x00],
+        'darkYellow': [0x80, 0x80, 0x00],
+        'green': [0x00, 0xFF, 0x00],
+        # 'lightGray': [0xD3, 0xD3, 0xD3],
+        'magenta': [0xFF, 0x00, 0xFF],
+        'red': [0xFF, 0x00, 0x00],
+        # 'white': [0xFF, 0xFF, 0xFF],
+        'yellow': [0xFF, 0xFF, 0x00],
+}
+
+def get_highlight_color_name(hex_highlight_color):
+    """Get color name nearest from the argument.
+    """
+    highlight_rgb = [0, 0, 0]
+    for i in range(3):
+        highlight_rgb[i] = int(hex_highlight_color[i * 2 + 1:i * 2 + 3], 16)
+    def dist(rgb):
+        return sum((c1 - c2) ** 2 for c1, c2 in zip(rgb, highlight_rgb))
+    color_name, _ = min(
+            ((name, dist(rgb)) for name, rgb in HIGHLIGHT_COLOR_MAP.items()),
+            key=lambda name_and_dist: name_and_dist[1])
+    return color_name
+
 class DocxFormatter(Formatter):
     def __init__(self, **options):
         super(DocxFormatter, self).__init__(**options)
@@ -9,6 +42,7 @@ class DocxFormatter(Formatter):
         self.hl_lines = options.get('hl_lines', [])
         self.linenostart = options.get('linenostart', 1)
         self.trim_last_line_break = options.get('trim_last_line_break', False)
+        self.highlight = get_highlight_color_name(self.style.highlight_color)
 
     def format_unencoded(self, tokensource, outfile):
         lines = [[]]
@@ -97,7 +131,7 @@ class DocxFormatter(Formatter):
         for text, style in tokens:
             outfile.write(r'<w:r>')
             if lineno in self.hl_lines:
-                style += r'<w:highlight w:val="yellow" />' # TODO: color
+                style += r'<w:highlight w:val="%s" />' % self.highlight
             if style:
                 outfile.write(r'<w:rPr>%s</w:rPr>' % style)
             if text.find(' ') != -1:
