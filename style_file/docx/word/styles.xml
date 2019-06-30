@@ -447,6 +447,12 @@
       <w:bCs/>
     </w:rPr>
   </w:style>
+  <w:style w:type="paragraph" w:customStye="1" w:styleId="Definition">
+    <w:name w:val="Definition"/>
+    <w:qFormat/>
+    <w:unhideWhenUsed/>
+    <w:basedOn w:val="a"/>
+  </w:style>
   <w:style w:type="paragraph" w:styleId="aa">
     <w:name w:val="List Bullet"/>
     <w:basedOn w:val="a"/>

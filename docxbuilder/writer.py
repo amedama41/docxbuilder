@@ -1565,8 +1565,10 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_definition(self, node):
         self._append_bookmark_start(node.get('ids', []))
         self._ctx_stack[-1].indent += self._basic_indent
+        self._append_default_paragraph_style('Definition')
 
     def depart_definition(self, node):
+        self._pop_default_paragraph_style()
         self._ctx_stack[-1].indent -= self._basic_indent
         self._append_bookmark_end(node.get('ids', []))
 
@@ -2325,6 +2327,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 ('Footnote Text', default_pargraph, False, False),
                 ('Bibliography', default_pargraph, False, False),
                 ('Definition Term', default_pargraph, True, False),
+                ('Definition', default_pargraph, True, False),
                 ('Literal Block', default_pargraph, True, False),
                 ('Math Block', default_pargraph, True, False),
                 ('Figure', default_pargraph, True, False),
