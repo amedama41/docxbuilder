@@ -2326,22 +2326,22 @@ class DocxTranslator(nodes.NodeVisitor):
         self._docx.create_empty_paragraph_style(
                 'Table Bottom Margin', 0, False, True)
 
-        default_pargraph, _, default_table = self._docx.get_default_style_names()
+        default_paragraph, _, default_table = self._docx.get_default_style_names()
         paragraph_styles = [
-                ('Body Text', default_pargraph, False, False),
-                ('Footnote Text', default_pargraph, False, False),
-                ('Bibliography', default_pargraph, False, False),
-                ('Definition Term', default_pargraph, True, False),
-                ('Definition', default_pargraph, True, False),
-                ('Literal Block', default_pargraph, True, False),
-                ('Math Block', default_pargraph, True, False),
-                ('Figure', default_pargraph, True, False),
-                ('Legend', default_pargraph, True, False),
-                ('Caption', default_pargraph, False, True),
+                ('Body Text', default_paragraph, False, False),
+                ('Footnote Text', default_paragraph, False, False),
+                ('Bibliography', default_paragraph, False, False),
+                ('Definition Term', default_paragraph, True, False),
+                ('Definition', default_paragraph, True, False),
+                ('Literal Block', default_paragraph, True, False),
+                ('Math Block', default_paragraph, True, False),
+                ('Figure', default_paragraph, True, False),
+                ('Legend', default_paragraph, True, False),
+                ('Caption', default_paragraph, False, True),
                 ('Table Caption', 'Caption', True, False),
                 ('Image Caption', 'Caption', True, False),
                 ('Literal Caption', 'Caption', True, False),
-                ('Heading', default_pargraph, True, True),
+                ('Heading', default_paragraph, True, True),
                 ('Title Heading', 'Heading', True, True),
                 ('TOC Heading', 'Title Heading', False, False),
                 ('Rubric Title Heading', 'Title Heading', True, False),
