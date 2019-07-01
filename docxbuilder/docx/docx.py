@@ -87,6 +87,7 @@ CONTENT_TYPE_DOC_MAIN = 'application/vnd.openxmlformats-officedocument.wordproce
 CONTENT_TYPE_STYLES = 'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml'
 CONTENT_TYPE_NUMBERING = 'application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml'
 CONTENT_TYPE_FOOTNOTES = 'application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml'
+CONTENT_TYPE_SETTINGS = 'application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml'
 CONTENT_TYPE_CORE_PROPERTIES = 'application/vnd.openxmlformats-package.core-properties+xml'
 CONTENT_TYPE_EXTENDED_PROPERTIES = 'application/vnd.openxmlformats-officedocument.extended-properties+xml'
 CONTENT_TYPE_CUSTOM_PROPERTIES = 'application/vnd.openxmlformats-officedocument.custom-properties+xml'
@@ -981,6 +982,10 @@ class DocxDocument:
         return self._get_rel_target_xml(REL_TYPE_FOOTNOTES)
 
     @property
+    def settings(self):
+        return self._get_rel_target_xml(REL_TYPE_SETTINGS)
+
+    @property
     def numbering_relationships(self):
         return self.get_xmltree(
                 create_rels_path(self._get_rel_target_path(REL_TYPE_NUMBERING)))
@@ -1326,7 +1331,7 @@ class DocxComposer:
             right = right or based_right
         return self._table_margin_cache.setdefault(style_id, (left, right))
 
-    def asbytes(self, props, custom_props):
+    def asbytes(self, set_update_fields, props, custom_props):
         '''Generate the composed document as docx binary.
         '''
         xml_files = [
@@ -1349,11 +1354,13 @@ class DocxComposer:
         if numbering_rel_attrs:
             numbering_rels = self.make_numbering_rels(numbering_rel_attrs)
             xml_files.append(('word/_rels/numbering.xml.rels', numbering_rels))
+        settings = self.make_settings(set_update_fields)
 
         xml_files.append(('word/document.xml', self.document))
         xml_files.append(('word/footnotes.xml', self._footnotes))
         xml_files.append(('word/numbering.xml', numbering))
         xml_files.append(('word/styles.xml', self.styleDocx.styles))
+        xml_files.append(('word/settings.xml', settings))
 
         inherited_files = self.styleDocx.collect_all_relation_files(
                 inherited_rel_attrs + numbering_rel_attrs)
@@ -1561,6 +1568,7 @@ class DocxComposer:
                 (REL_TYPE_STYLES, 'styles.xml'),
                 (REL_TYPE_NUMBERING, 'numbering.xml'),
                 (REL_TYPE_FOOTNOTES, 'footnotes.xml'),
+                (REL_TYPE_SETTINGS, 'settings.xml'),
         )
         for rel_type, target in required_rel_types:
             relationships.append({
@@ -1638,7 +1646,6 @@ class DocxComposer:
                 REL_TYPE_ENDNOTES,
                 REL_TYPE_FONT_TABLE,
                 REL_TYPE_GLOSSARY_DOCUMENT,
-                REL_TYPE_SETTINGS,
                 REL_TYPE_STYLES_WITH_EFFECTS,
                 REL_TYPE_THEME,
                 REL_TYPE_WEB_SETTINGS,
@@ -1685,6 +1692,7 @@ class DocxComposer:
                 ('/word/styles.xml', CONTENT_TYPE_STYLES),
                 ('/word/numbering.xml', CONTENT_TYPE_NUMBERING),
                 ('/word/footnotes.xml', CONTENT_TYPE_FOOTNOTES),
+                ('/word/settings.xml', CONTENT_TYPE_SETTINGS),
         ]
         for name, ctype in required_content_types:
             types_tree.append([['Override', {
@@ -1827,3 +1835,19 @@ class DocxComposer:
             if num_pic_bullet_elems:
                 numbering.insert(0, num_pic_bullet_elems[-1])
         return numbering
+
+    def make_settings(self, set_update_fields):
+        """Create settings.xml.
+
+        If set_update_fields is true, w:updateFields is set
+        """
+        settings = self.styleDocx.settings
+        if settings is None:
+            settings = make_element_tree([['w:settings']])
+        if set_update_fields:
+            update_fields = get_elements(settings, 'w:updateFields')
+            if update_fields:
+                update_fields[-1].attrib[norm_name('w:val')] = 'true'
+            else:
+                settings.append(make_element_tree([['w:updateFields']]))
+        return settings

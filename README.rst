@@ -64,6 +64,10 @@ Configuration
      - If this value is true, the coverpage of the style file is inserted
        to generated documents.
      - ``True``
+   * - docx_update_fields
+     - If this value is true, be asked to update fields when opening the
+       document.
+     - ``False``
    * - docx_pagebreak_before_section
      - Specify a section level. Before each sections which level is larger
        than or equal to this option value, a page break is inserted.

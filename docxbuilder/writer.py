@@ -739,7 +739,9 @@ class DocxTranslator(nodes.NodeVisitor):
             self._builder._logger.warning(
                     'invalid value is found in docx_documents "%s"' % key)
         core_props.setdefault('language', self._builder.config.language or 'en')
-        return self._docx.asbytes(core_props, custom_props)
+        return self._docx.asbytes(
+                self._builder.config.docx_update_fields,
+                core_props, custom_props)
 
     def _append_default_paragraph_style(self, style_name):
         self._default_paragraph_style_stack.append(
