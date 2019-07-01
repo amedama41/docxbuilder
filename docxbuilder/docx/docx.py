@@ -873,6 +873,10 @@ def create_rels_path(path):
             posixpath.dirname(path), '_rels',
             posixpath.basename(path) + '.rels')
 
+def get_relation_target(relationships, rel_type):
+    return get_attribute(
+            relationships, 'pr:Relationship[@Type="%s"]' % rel_type, 'Target')
+
 def make_relationships(relationships):
     '''Generate a relationships
     '''
@@ -948,25 +952,38 @@ class DocxDocument:
           Constructor
         '''
         self.docx = zipfile.ZipFile(docxfile)
-        docpath = get_attribute(
-                self.get_xmltree('_rels/.rels'),
-                'pr:Relationship[@Type="%s"]' % REL_TYPE_DOC, 'Target')
+        docpath = get_relation_target(
+                self.get_xmltree('_rels/.rels'), REL_TYPE_DOC)
         if docpath.startswith('/'):
             docpath = docpath[1:]
 
         self.docpath = docpath
         self.document = self.get_xmltree(docpath)
         self.relationships = self.get_xmltree(create_rels_path(docpath))
-        self.numbering = self.get_xmltree('word/numbering.xml')
-        self.styles = self.get_xmltree('word/styles.xml')
+        self.numbering = self._get_rel_target_xml(REL_TYPE_NUMBERING)
+        self.styles = self._get_rel_target_xml(REL_TYPE_STYLES)
+
+    def _get_rel_target_path(self, rel_type):
+        target = get_relation_target(self.relationships, rel_type)
+        if target is None:
+            return None
+        return posixpath.normpath(
+                posixpath.join(posixpath.dirname(self.docpath), target))
+
+    def _get_rel_target_xml(self, rel_type):
+        target_path = self._get_rel_target_path(rel_type)
+        if target_path is None:
+            return None
+        return self.get_xmltree(target_path)
 
     @property
     def footnotes(self):
-        return self.get_xmltree('word/footnotes.xml')
+        return self._get_rel_target_xml(REL_TYPE_FOOTNOTES)
 
     @property
     def numbering_relationships(self):
-        return self.get_xmltree(create_rels_path('word/numbering.xml'))
+        return self.get_xmltree(
+                create_rels_path(self._get_rel_target_path(REL_TYPE_NUMBERING)))
 
     def get_xmltree(self, fname):
         '''
