@@ -1237,6 +1237,8 @@ class DocxComposer:
         return None
 
     def get_style_id(self, style_name):
+        if style_name is None:
+            return None
         style_info = self.get_style_info(style_name)
         if style_info is None:
             return style_name

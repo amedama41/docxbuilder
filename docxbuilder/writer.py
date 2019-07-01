@@ -791,12 +791,12 @@ class DocxTranslator(nodes.NodeVisitor):
             self, table_style, table_width, colsize_list, is_indent, align=None,
             in_single_page=False, row_splittable=True,
             header_in_all_page=False, fit_content=False):
-        if table_style is not None:
-            table_style = self._docx.get_style_id(table_style)
+        self._append_default_paragraph_style(None)
+        table_style_id = self._docx.get_style_id(table_style)
         indent = self._ctx_stack[-1].indent if is_indent else 0
         keep_next = 3 if in_single_page else 1
         t = Table(
-                table_style,
+                table_style_id,
                 (table_width, float(table_width) / self._ctx_stack[-1].width),
                 colsize_list, indent, align,
                 keep_next, not row_splittable, header_in_all_page, fit_content)
@@ -810,6 +810,7 @@ class DocxTranslator(nodes.NodeVisitor):
         # Append a paragaph as a margin between the table and the next element
         self._doc_stack[-1].append(
                 self._make_paragraph(style='Table Bottom Margin'))
+        self._pop_default_paragraph_style()
 
     def _add_table_cell(self, morerows=0, morecols=0):
         t = self._doc_stack[-1]
@@ -911,6 +912,7 @@ class DocxTranslator(nodes.NodeVisitor):
             the first child of the node is used.
         """
         self._append_bookmark_start(node.get('ids', []))
+        self._append_default_paragraph_style(None)
         self._doc_stack.append(ContentsList())
         if add_title:
             p = self._make_paragraph()
@@ -963,6 +965,7 @@ class DocxTranslator(nodes.NodeVisitor):
             for c in body_contents:
                 t.append(c)
         self._pop_and_append_table()
+        self._pop_default_paragraph_style()
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_image_node(self, node, alt, get_filepath):
