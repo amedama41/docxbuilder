@@ -771,6 +771,8 @@ class DocxTranslator(nodes.NodeVisitor):
             keep_lines=False, keep_next=False,
             list_info=None, preserve_space=False):
         style_id = self._docx.get_style_id(style) if style is not None else None
+        if align == 'default':
+            align = 'center'
         return Paragraph(
                 indent, right_indent, style_id, align, keep_lines, keep_next,
                 list_info, preserve_space)
@@ -782,6 +784,8 @@ class DocxTranslator(nodes.NodeVisitor):
         if table_style is not None:
             table_style = self._docx.get_style_id(table_style)
         indent = self._ctx_stack[-1].indent if is_indent else 0
+        if align == 'default':
+            align = 'center'
         keep_next = 3 if in_single_page else 1
         t = Table(
                 table_style,
@@ -1365,7 +1369,7 @@ class DocxTranslator(nodes.NodeVisitor):
         if align == 'left':
             self._append_new_ctx(
                 right_indent=self._ctx_stack[-1].right_indent + delta_width)
-        elif align == 'center':
+        elif align == 'center' or align == 'default':
             padding = delta_width // 2
             self._append_new_ctx(
                 indent=self._ctx_stack[-1].indent + padding,
