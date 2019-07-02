@@ -1373,6 +1373,11 @@ class DocxTranslator(nodes.NodeVisitor):
         elif align == 'right':
             self._append_new_ctx(
                 indent=self._ctx_stack[-1].indent + delta_width)
+        else:
+            self._logger.warning(
+                    'Unknown figure align: %s' % align, location=node)
+            self._append_new_ctx(
+                right_indent=self._ctx_stack[-1].right_indent + delta_width)
 
     def depart_figure(self, node):
         self._ctx_stack.pop()
