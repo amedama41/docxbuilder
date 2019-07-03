@@ -785,6 +785,8 @@ class DocxTranslator(nodes.NodeVisitor):
         else:
             style_id = self._default_paragraph_style_stack[-1]
             is_default_style = True
+        if align == 'default':
+            align = 'center'
         return Paragraph(
                 indent, right_indent, style_id, is_default_style, align,
                 keep_lines, keep_next, list_info, preserve_space)
@@ -796,6 +798,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_default_paragraph_style(None)
         table_style_id = self._docx.get_style_id(table_style)
         indent = self._ctx_stack[-1].indent if is_indent else 0
+        if align == 'default':
+            align = 'center'
         keep_next = 3 if in_single_page else 1
         t = Table(
                 table_style_id,
@@ -1382,7 +1386,7 @@ class DocxTranslator(nodes.NodeVisitor):
         if align == 'left':
             self._append_new_ctx(
                 right_indent=self._ctx_stack[-1].right_indent + delta_width)
-        elif align == 'center':
+        elif align == 'center' or align == 'default':
             padding = delta_width // 2
             self._append_new_ctx(
                 indent=self._ctx_stack[-1].indent + padding,
@@ -1390,6 +1394,11 @@ class DocxTranslator(nodes.NodeVisitor):
         elif align == 'right':
             self._append_new_ctx(
                 indent=self._ctx_stack[-1].indent + delta_width)
+        else:
+            self._logger.warning(
+                    'Unknown figure align: %s' % align, location=node)
+            self._append_new_ctx(
+                right_indent=self._ctx_stack[-1].right_indent + delta_width)
 
     def depart_figure(self, node):
         self._ctx_stack.pop()
