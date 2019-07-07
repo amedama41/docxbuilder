@@ -519,8 +519,10 @@ def make_border_info(border_attrs):
             border_info[key] = convert(val)
     return border_info
 
-def make_section_prop_paragraph(section_prop):
+def make_section_prop_paragraph(section_prop, has_title_page=None):
     section_prop = copy.deepcopy(section_prop)
+    if has_title_page is not None:
+        set_title_page(section_prop, has_title_page)
     p = make_element_tree([['w:p'], [['w:pPr']]])
     p[0].append(section_prop)
     return p
@@ -1228,20 +1230,22 @@ class DocxComposer:
         self._id += 1
         return self._id
 
-    def get_each_orient_section_properties(self):
+    def get_section_properties(self):
+        result = {'portrait': [], 'landscape': []}
         section_props = self.styleDocx.get_section_properties()
         if not section_props:
             section_props = [make_element_tree([['w:sectPr']])]
-        first = section_props[0]
-        if not get_elements(first, 'w:pgSz'):
-            first.append(make_default_page_size())
-        if not get_elements(first, 'w:pgMar'):
-            first.append(make_default_page_margin())
-        first_orient = get_orient(first)
-        for sect_prop in section_props[1:]:
-            if get_orient(sect_prop) != first_orient:
-                return first, sect_prop
-        return first, rotate_orient(copy.deepcopy(first))
+        first_orient = get_orient(section_props[0])
+        for prop in section_props:
+            if not get_elements(prop, 'w:pgSz'):
+                prop.append(make_default_page_size())
+            if not get_elements(prop, 'w:pgMar'):
+                prop.append(make_default_page_margin())
+            result[get_orient(prop)].append(prop)
+        for o1, o2 in [('portrait', 'landscape'), ('landscape', 'portrait')]:
+            if not result[o1]:
+                result[o1].append(rotate_orient(copy.deepcopy(result[o2][0])))
+        return first_orient, result
 
     def get_style_info(self, style_name):
         style_info = self._style_info.get(style_name, None)

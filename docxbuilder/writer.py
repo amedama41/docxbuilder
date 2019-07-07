@@ -479,52 +479,74 @@ class SectionPropertyManager(object):
         self._default_orient = default_orient
         self._sect_props = sect_props
         self._current_orient = self._default_orient
-        self._last_orient = None
+        self._current_sect_index = {'portrait': 0, 'landscape': 0}
+        self._last_section = None
         self._no_title_page = [False, False] # [current, last]
 
     def get_current_section(self):
-        return self._sect_props[self._current_orient]
+        orient, index = self._current_section
+        return self._sect_props[orient][index]
 
     def get_last_section(self):
-        if self._last_orient is None:
-            orient = self._current_orient
+        if self._last_section is None:
+            orient, index = self._current_section
             no_title_page = self._no_title_page[0]
         else:
-            orient = self._last_orient
+            orient, index = self._last_section
             no_title_page = self._no_title_page[1]
-        return self._sect_props[orient], no_title_page
+        return self._sect_props[orient][index], no_title_page
 
     def rotate_to(self, orient=None):
         if orient is None:
             orient = self._default_orient
         if self._current_orient != orient:
-            if self._last_orient is not None:
+            if self._last_section is not None:
                 # last_orient must be equal to orient, then addition of section
                 # property is enable to be postponed
-                self._last_orient = None
+                self._last_section = None
                 self._no_title_page[0] = self._no_title_page[1]
             else:
-                self._last_orient = self._current_orient
+                self._last_section = self._current_section
                 self._no_title_page[1] = self._no_title_page[0]
                 self._no_title_page[0] = True
             self._current_orient = orient
 
+    def set_current_section(self, index, orient=None):
+        if orient is None:
+            orient = self._default_orient
+        if index >= len(self._sect_props[orient]):
+            raise RuntimeError("Not found %dth %s section" % (index, orient))
+        if self._last_section is None:
+            self._last_section = self._current_section
+            self._no_title_page[1] = self._no_title_page[0]
+            self._no_title_page[0] = False
+        else:
+            if self._last_section == (orient, index):
+                self._last_section = None
+                self._no_title_page[0] = self._no_title_page[1]
+            else:
+                self._no_title_page[0] = False
+        self._current_orient = orient
+        self._current_sect_index[orient] = index
+
     def pop_last_section(self):
-        if self._last_orient is None:
+        if self._last_section is None:
             return None
-        section_prop = self._sect_props[self._last_orient]
-        self._last_orient = None
+        orient, index = self._last_section
+        section_prop = self._sect_props[orient][index]
+        self._last_section = None
         return section_prop, self._no_title_page[1]
 
+    @property
+    def _current_section(self):
+        current_orient = self._current_orient
+        current_index = self._current_sect_index[current_orient]
+        return (current_orient, current_index)
+
 class Document(object):
-    def __init__(self, body, sect_props):
+    def __init__(self, body, default_orient, sect_props):
         self._body = body
         self._add_pagebreak = False
-        default_orient = docx.get_orient(sect_props[0])
-        sect_props = {
-                default_orient: sect_props[0],
-                docx.get_orient(sect_props[1]): sect_props[1],
-        }
         self._section = SectionPropertyManager(default_orient, sect_props)
 
     def add_pagebreak(self):
@@ -538,6 +560,9 @@ class Document(object):
 
     def set_page_oriented(self, orient=None):
         self._section.rotate_to(orient)
+
+    def set_section(self, index, orient):
+        self._section.set_current_section(index, orient)
 
     def get_current_page_width(self):
         return docx.get_contents_width(self._section.get_current_section())
@@ -558,9 +583,8 @@ class Document(object):
         section = self._section.pop_last_section()
         if section is not None:
             section_prop, no_title_page = section
-            if no_title_page:
-                docx.set_title_page(section_prop, False)
-            self._body.append(docx.make_section_prop_paragraph(section_prop))
+            self._body.append(docx.make_section_prop_paragraph(
+                section_prop, False if no_title_page else None))
 
 class LiteralBlock(ParagraphElement):
     def __init__(self, highlighted, style_id, indent, right_indent, keep_lines):
@@ -726,10 +750,9 @@ class DocxTranslator(nodes.NodeVisitor):
                     os.path.dirname(__file__), 'docx/style.docx')
         self._docx = docx.DocxComposer(
                 stylefile, builder.config['docx_coverpage'])
+        default_orient, sect_props = self._docx.get_section_properties()
         self._doc_stack = [
-                Document(
-                    self._docx.docbody,
-                    self._docx.get_each_orient_section_properties())
+                Document(self._docx.docbody, default_orient, sect_props)
         ]
         self._docname_stack = []
         self._section_level = 0
@@ -936,6 +959,18 @@ class DocxTranslator(nodes.NodeVisitor):
         if not isinstance(self._doc_stack[-1], Document):
             return False
         return 'docx-landscape' in node.get('classes')
+
+    def _set_section(self, node):
+        for cls in node.get('classes'):
+            match = re.match(
+                    r'^docx-section(?:-(portrait|landscape))?-(\d+)$', cls)
+            if not match:
+                continue
+            try:
+                self._doc_stack[0].set_section(
+                        int(match.group(2)), match.group(1))
+            except Exception as e:
+                self._logger.warning(e, location=node)
 
     def visit_admonition_node(self, node, add_title=False):
         """Insert a table of admonition represented by the node.
@@ -1154,6 +1189,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_end(node.get('ids', []))
 
     def visit_section(self, node):
+        self._set_section(node)
         config = self._builder.config
         if (self._section_level < config.docx_pagebreak_before_section
                 and isinstance(self._doc_stack[-1], Document)):
