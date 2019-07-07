@@ -474,29 +474,27 @@ class TOC(SdtElement):
                 self._maxlevel, self._bookmark, self._paragraph_width,
                 self._outlines)
 
-class Document(object):
-    def __init__(self, body, sect_props):
-        self._body = body
-        self._add_pagebreak = False
-        self._default_orient = docx.get_orient(sect_props[0])
-        self._sect_props = {
-                self._default_orient: sect_props[0],
-                docx.get_orient(sect_props[1]): sect_props[1],
-        }
+class SectionPropertyManager(object):
+    def __init__(self, default_orient, sect_props):
+        self._default_orient = default_orient
+        self._sect_props = sect_props
         self._current_orient = self._default_orient
         self._last_orient = None
+        self._no_title_page = [False, False] # [current, last]
 
-    def add_pagebreak(self):
-        self._add_pagebreak = True
+    def get_current_section(self):
+        return self._sect_props[self._current_orient]
 
-    def add_last_section_property(self):
-        if self._last_orient is not None:
-            orient = self._last_orient
-        else:
+    def get_last_section(self):
+        if self._last_orient is None:
             orient = self._current_orient
-        self._body.append(self._sect_props[orient])
+            no_title_page = self._no_title_page[0]
+        else:
+            orient = self._last_orient
+            no_title_page = self._no_title_page[1]
+        return self._sect_props[orient], no_title_page
 
-    def set_page_oriented(self, orient=None):
+    def rotate_to(self, orient=None):
         if orient is None:
             orient = self._default_orient
         if self._current_orient != orient:
@@ -504,15 +502,48 @@ class Document(object):
                 # last_orient must be equal to orient, then addition of section
                 # property is enable to be postponed
                 self._last_orient = None
+                self._no_title_page[0] = self._no_title_page[1]
             else:
                 self._last_orient = self._current_orient
+                self._no_title_page[1] = self._no_title_page[0]
+                self._no_title_page[0] = True
             self._current_orient = orient
 
+    def pop_last_section(self):
+        if self._last_orient is None:
+            return None
+        section_prop = self._sect_props[self._last_orient]
+        self._last_orient = None
+        return section_prop, self._no_title_page[1]
+
+class Document(object):
+    def __init__(self, body, sect_props):
+        self._body = body
+        self._add_pagebreak = False
+        default_orient = docx.get_orient(sect_props[0])
+        sect_props = {
+                default_orient: sect_props[0],
+                docx.get_orient(sect_props[1]): sect_props[1],
+        }
+        self._section = SectionPropertyManager(default_orient, sect_props)
+
+    def add_pagebreak(self):
+        self._add_pagebreak = True
+
+    def add_last_section_property(self):
+        section_prop, no_title_page = self._section.get_last_section()
+        if no_title_page:
+            docx.set_title_page(section_prop, False)
+        self._body.append(section_prop)
+
+    def set_page_oriented(self, orient=None):
+        self._section.rotate_to(orient)
+
     def get_current_page_width(self):
-        return docx.get_contents_width(self._sect_props[self._current_orient])
+        return docx.get_contents_width(self._section.get_current_section())
 
     def get_current_page_height(self):
-        return docx.get_contents_height(self._sect_props[self._current_orient])
+        return docx.get_contents_height(self._section.get_current_section())
 
     def append(self, contents):
         xml = contents.to_xml()
@@ -524,13 +555,12 @@ class Document(object):
         self._body.append(xml)
 
     def _add_section_prop_if_necessary(self):
-        if self._last_orient is not None:
-            self._body.append(docx.make_section_prop_paragraph(
-                self._sect_props[self._last_orient]))
-            for sect_prop in self._sect_props.values():
-                docx.set_title_page(sect_prop, False)
-                docx.set_title_page(sect_prop, False)
-            self._last_orient = None
+        section = self._section.pop_last_section()
+        if section is not None:
+            section_prop, no_title_page = section
+            if no_title_page:
+                docx.set_title_page(section_prop, False)
+            self._body.append(docx.make_section_prop_paragraph(section_prop))
 
 class LiteralBlock(ParagraphElement):
     def __init__(self, highlighted, style_id, indent, right_indent, keep_lines):
