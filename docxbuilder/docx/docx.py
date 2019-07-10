@@ -365,6 +365,26 @@ def set_title_page(section_prop, is_title_page):
         return
     title_page[0].attrib[norm_name('w:val')] = value
 
+def set_page_number(section_prop, page_number=None):
+    page_number_type = get_elements(section_prop, 'w:pgNumType')
+    if not page_number_type:
+        if page_number is not None:
+            section_prop.append(
+                    make_element_tree(
+                        [['w:pgNumType', {'w:start': str(page_number)}]]))
+        return
+    if page_number is None:
+        del page_number_type[-1].attrib[norm_name('w:start')]
+    else:
+        page_number_type[-1].attrib[norm_name('w:start')] = str(page_number)
+
+def copy_section_property(section_prop, is_continuous_section):
+    section_prop = copy.deepcopy(section_prop)
+    if is_continuous_section:
+        set_title_page(section_prop, False)
+        set_page_number(section_prop, page_number=None)
+    return section_prop
+
 def get_contents_width(section_property):
     width = get_contents_size(section_property, 'w:w', ('w:left', 'w:right'))
     cols_elems = get_elements(section_property, 'w:cols')
@@ -519,10 +539,7 @@ def make_border_info(border_attrs):
             border_info[key] = convert(val)
     return border_info
 
-def make_section_prop_paragraph(section_prop, has_title_page=None):
-    section_prop = copy.deepcopy(section_prop)
-    if has_title_page is not None:
-        set_title_page(section_prop, has_title_page)
+def make_section_prop_paragraph(section_prop):
     p = make_element_tree([['w:p'], [['w:pPr']]])
     p[0].append(section_prop)
     return p

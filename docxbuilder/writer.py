@@ -554,8 +554,7 @@ class Document(object):
 
     def add_last_section_property(self):
         section_prop, no_title_page = self._section.get_last_section()
-        if no_title_page:
-            docx.set_title_page(section_prop, False)
+        section_prop = docx.copy_section_property(section_prop, no_title_page)
         self._body.append(section_prop)
 
     def set_page_oriented(self, orient=None):
@@ -581,10 +580,11 @@ class Document(object):
 
     def _add_section_prop_if_necessary(self):
         section = self._section.pop_last_section()
-        if section is not None:
-            section_prop, no_title_page = section
-            self._body.append(docx.make_section_prop_paragraph(
-                section_prop, False if no_title_page else None))
+        if section is None:
+            return
+        section_prop, no_title_page = section
+        section_prop = docx.copy_section_property(section_prop, no_title_page)
+        self._body.append(docx.make_section_prop_paragraph(section_prop))
 
 class LiteralBlock(ParagraphElement):
     def __init__(self, highlighted, style_id, indent, right_indent, keep_lines):
