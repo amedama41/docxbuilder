@@ -724,9 +724,6 @@
         <w:right w:w="108" w:type="dxa"/>
       </w:tblCellMar>
     </w:tblPr>
-    <w:tcPr>
-      <w:vAlign w:val="center"/>
-    </w:tcPr>
     <w:tblStylePr w:type="firstCol">
       <w:pPr>
         <w:wordWrap/>
