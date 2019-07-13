@@ -49,6 +49,7 @@ nsprefixes = {
     'dc': "http://purl.org/dc/elements/1.1/",
     'dcterms': "http://purl.org/dc/terms/",
     'dcmitype': "http://purl.org/dc/dcmitype/",
+    'ds': 'http://purl.oclc.org/ooxml/officeDocument/customXml',
     'xsi': "http://www.w3.org/2001/XMLSchema-instance",
     'ep': 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties',
     # Content Types (we're just making up our own namespaces here to save time)
@@ -91,6 +92,9 @@ CONTENT_TYPE_SETTINGS = 'application/vnd.openxmlformats-officedocument.wordproce
 CONTENT_TYPE_CORE_PROPERTIES = 'application/vnd.openxmlformats-package.core-properties+xml'
 CONTENT_TYPE_EXTENDED_PROPERTIES = 'application/vnd.openxmlformats-officedocument.extended-properties+xml'
 CONTENT_TYPE_CUSTOM_PROPERTIES = 'application/vnd.openxmlformats-officedocument.custom-properties+xml'
+CONTENT_TYPE_CUSTOM_XML_DATA_STORAGE_PROPERTIES = 'application/vnd.openxmlformats-officedocument.customXmlProperties+xml'
+
+COVER_PAGE_PROPERTY_ITEMID = '{55AF091B-3C7A-41E3-B477-F2FDAA23CFDA}'
 
 #####################
 
@@ -291,6 +295,15 @@ CORE_PROPERTY_KEYS = (
         ('dcterms', 'modified', {'xsi:type': 'dcterms:W3CDTF'}),
 )
 
+COVER_PAGE_PROPERTY_KEYS = {
+        'Abstract': str,
+        'CompanyAddress': str,
+        'CompanyEmail': str,
+        'CompanyFax': str,
+        'CompanyPhone': str,
+        'PublishDate': convert_to_W3CDTF_string,
+}
+
 CUSTOM_PROPERTY_TYPES = (
         (bool, 'vt:bool', lambda v: str(v).lower()),
         (six.integer_types, 'vt:i8', str),
@@ -301,6 +314,7 @@ CUSTOM_PROPERTY_TYPES = (
 
 def separate_core_and_custom_properties(props):
     core_props = {}
+    cover_page_props = {}
     custom_props = {}
     invalid_prop_keys = []
 
@@ -309,6 +323,18 @@ def separate_core_and_custom_properties(props):
     for key, value in props.items():
         if key in core_prop_keys:
             core_props[key] = value
+            continue
+        cover_page_prop_key = key
+        to_str = COVER_PAGE_PROPERTY_KEYS.get(cover_page_prop_key)
+        if to_str is None:
+            cover_page_prop_key = key[0].upper() + key[1:]
+            to_str = COVER_PAGE_PROPERTY_KEYS.get(cover_page_prop_key)
+        if to_str is not None:
+            value = to_str(value)
+            if value is None:
+                invalid_prop_keys.append(key)
+                continue
+            cover_page_props[cover_page_prop_key] = value
             continue
         for prop_type, _, _ in CUSTOM_PROPERTY_TYPES:
             if isinstance(value, prop_type):
@@ -340,7 +366,7 @@ def separate_core_and_custom_properties(props):
         else:
             core_props[doctime] = value
 
-    return core_props, custom_props, invalid_prop_keys
+    return core_props, cover_page_props, custom_props, invalid_prop_keys
 
 def get_orient(section_prop):
     page_size = get_elements(section_prop, 'w:pgSz')[0]
@@ -1000,6 +1026,30 @@ class DocxDocument:
             return None
         return self.get_xmltree(target_path)
 
+    def get_custom_xml_path(self, itemid):
+        rels = get_elements(
+            self.relationships,
+            'pr:Relationship[@Type="%s"]' % REL_TYPE_CUSTOM_XML)
+        docpath_dir = posixpath.dirname(self.docpath)
+        for rel in rels:
+            target = rel.attrib['Target']
+            custom_xml_path = posixpath.normpath(
+                    posixpath.join(docpath_dir, target))
+            custom_xml_rel = self.get_xmltree(create_rels_path(custom_xml_path))
+            if custom_xml_rel is None:
+                continue
+            props_target = get_relation_target(
+                    custom_xml_rel, REL_TYPE_CUSTOM_XML_PROPS)
+            if props_target is None:
+                continue
+            props = self.get_xmltree(posixpath.normpath(posixpath.join(
+                posixpath.dirname(custom_xml_path), props_target)))
+            if props is None:
+                continue
+            if get_attribute(props, '/ds:datastoreItem', 'ds:itemID') == itemid:
+                return custom_xml_path
+        return None
+
     @property
     def footnotes(self):
         return self._get_rel_target_xml(REL_TYPE_FOOTNOTES)
@@ -1073,6 +1123,14 @@ class DocxDocument:
             if m is not None:
                 img_nums.append(int(m.group(1)))
         return img_nums
+
+    def get_custom_xml_numbers(self):
+        nums = []
+        for path in self.docx.namelist():
+            m = re.match(r'customXml/item(?:Props)?(\d+)\.xml', path)
+            if m is not None:
+                nums.append(int(m.group(1)))
+        return nums
 
     def collect_items(self, zip_docxfile, collected_files):
         # Add & compress support files
@@ -1200,6 +1258,28 @@ def collect_used_rel_attrs(relationships, xml, used_rel_types=set()):
                 or get_elements(xml, '(.//*[@*="%s"])[1]' % rel.get('Id'))):
             used_rel_attrs.append(rel.attrib)
     return used_rel_attrs
+
+class CoverPagePropertyInfo(object):
+    def __init__(self, does_create, info):
+        self.does_create = does_create
+        self._path_or_id = info
+
+    @property
+    def path(self):
+        return self._path_or_id
+
+    @property
+    def id(self):
+        return self._path_or_id
+
+def get_cover_page_prop_info(styleDocx):
+    path = styleDocx.get_custom_xml_path(COVER_PAGE_PROPERTY_ITEMID)
+    if path is None:
+        id_pool = IdPool(styleDocx.get_custom_xml_numbers())
+        return CoverPagePropertyInfo(True, id_pool.next_id())
+    else:
+        return CoverPagePropertyInfo(False, path)
+
 #
 # DocxComposer Class
 #
@@ -1226,7 +1306,8 @@ class DocxComposer:
                 'document': ([], IdPool(self.styleDocx.get_relationship_ids())),
                 'footnotes': ([], IdPool([])),
         }
-        self._add_required_relationships()
+        self._cover_page_prop_info = get_cover_page_prop_info(self.styleDocx)
+        self._add_required_relationships(self._cover_page_prop_info)
         self._hyperlink_rid_map = {} # target => relationship id
         self._image_info_map = {} # imagepath => (relationship id, imagename)
         self._img_num_pool = IdPool(self.styleDocx.get_image_numbers())
@@ -1356,13 +1437,15 @@ class DocxComposer:
             right = right or based_right
         return self._table_margin_cache.setdefault(style_id, (left, right))
 
-    def asbytes(self, set_update_fields, props, custom_props):
+    def asbytes(
+            self, set_update_fields,
+            core_props, custom_props, cover_page_props):
         '''Generate the composed document as docx binary.
         '''
         xml_files = [
                 ('_rels/.rels', self.make_root_rels()),
                 ('docProps/app.xml', self.make_app(custom_props)),
-                ('docProps/core.xml', self.make_core(props)),
+                ('docProps/core.xml', self.make_core(core_props)),
                 ('docProps/custom.xml', self.make_custom(custom_props)),
         ]
 
@@ -1391,6 +1474,14 @@ class DocxComposer:
                 inherited_rel_attrs + numbering_rel_attrs)
         content_types = self.make_content_types(inherited_files)
         xml_files.append(('[Content_Types].xml', content_types))
+
+        if self._cover_page_prop_info.does_create:
+            xml_files.extend(self.make_coverpage_props_items(cover_page_props))
+        else:
+            cover_page_props = self.make_cover_page_props(cover_page_props)
+            xml_files.append(
+                    (self._cover_page_prop_info.path, cover_page_props))
+            inherited_files.remove(self._cover_page_prop_info.path)
 
         bytes_io = io.BytesIO()
         with zipfile.ZipFile(
@@ -1587,7 +1678,7 @@ class DocxComposer:
         self._style_info[new_style_name] = StyleInfo(new_style)
         return True
 
-    def _add_required_relationships(self):
+    def _add_required_relationships(self, cover_page_prop_info):
         relationships, id_pool = self._relationships_map['document']
         required_rel_types = (
                 (REL_TYPE_STYLES, 'styles.xml'),
@@ -1599,6 +1690,12 @@ class DocxComposer:
             relationships.append({
                 'Id': 'rId%d' % id_pool.next_id(),
                 'Type': rel_type, 'Target': target
+            })
+        if cover_page_prop_info.does_create:
+            relationships.append({
+                'Id': 'rId%d' % id_pool.next_id(),
+                'Type': REL_TYPE_CUSTOM_XML,
+                'Target': '../customXml/item%d.xml' % cover_page_prop_info.id,
             })
 
     def add_hyperlink_relationship(self, target, part):
@@ -1723,6 +1820,12 @@ class DocxComposer:
             types_tree.append([['Override', {
                 'PartName': name, 'ContentType': ctype,
             }]])
+        if self._cover_page_prop_info.does_create:
+            name = '/customXml/itemProps%d.xml' % self._cover_page_prop_info.id
+            types_tree.append([['Override', {
+                'PartName': name,
+                'ContentType': CONTENT_TYPE_CUSTOM_XML_DATA_STORAGE_PROPERTIES,
+            }]])
         for elem in get_elements(content_types, '/ct:Types/ct:Override'):
             name = elem.attrib['PartName']
             if name[1:] not in inherited_files:
@@ -1799,6 +1902,38 @@ class DocxComposer:
                 break
         xmlns = 'http://purl.oclc.org/ooxml/officeDocument/customProperties'
         return make_element_tree(props_tree, xmlns)
+
+    def make_coverpage_props_items(self, props):
+        item_path = 'customXml/item%d.xml' % self._cover_page_prop_info.id
+        item = self.make_cover_page_props(props)
+        prop_path = 'customXml/itemProps%d.xml' % self._cover_page_prop_info.id
+        prop = self.make_cover_page_data_storage_props()
+        rels_path = create_rels_path(item_path)
+        rels = self.make_item_rels(posixpath.basename(prop_path))
+        return ((item_path, item), (prop_path, prop), (rels_path, rels))
+
+    def make_cover_page_props(self, props):
+        props_tree = [['CoverPageProperties']]
+        props_tree.extend(([[key, value]] for key, value in props.items()))
+        xmlns = 'http://schemas.microsoft.com/office/2006/coverPageProps'
+        return make_element_tree(props_tree, xmlns)
+
+    def make_cover_page_data_storage_props(self):
+        uri = 'http://schemas.microsoft.com/office/2006/coverPageProps'
+        props_tree = [
+                ['ds:datastoreItem', {'ds:itemID': COVER_PAGE_PROPERTY_ITEMID}],
+                [['ds:schemaRefs'],
+                    [['ds:schemaRef', {'ds:uri': uri}]],
+                ],
+        ]
+        return make_element_tree(props_tree)
+
+    def make_item_rels(self, target):
+        return make_relationships([{
+            'Id': 'rId1',
+            'Type': REL_TYPE_CUSTOM_XML_PROPS,
+            'Target': target,
+        }])
 
     def make_document_rels(self, stylerels):
         rel_list = []

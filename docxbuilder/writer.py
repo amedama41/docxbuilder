@@ -792,7 +792,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def asbytes(self):
         props = self._builder.doc_properties
-        core_props, custom_props, invalid_prop_keys = (
+        core_props, cover_page_props, custom_props, invalid_prop_keys = (
                 docx.separate_core_and_custom_properties(props))
         for key in invalid_prop_keys:
             self._builder._logger.warning(
@@ -800,7 +800,7 @@ class DocxTranslator(nodes.NodeVisitor):
         core_props.setdefault('language', self._builder.config.language or 'en')
         return self._docx.asbytes(
                 self._builder.config.docx_update_fields,
-                core_props, custom_props)
+                core_props, custom_props, cover_page_props)
 
     def _append_default_paragraph_style(self, style_name):
         self._default_paragraph_style_stack.append(
