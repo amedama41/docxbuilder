@@ -322,7 +322,7 @@ def classify_properties(props):
 
         if key == 'lastPrinted':
             time_fmt = '%Y-%m-%dT%H:%M:%S'
-            if isinstance(value, datetime.datetime):
+            if isinstance(value, (datetime.datetime, datetime.date)):
                 core_props['lastPrinted'] = value.strftime(time_fmt)
             else:
                 try:
