@@ -27,7 +27,6 @@ import re
 import sys
 
 from docutils import nodes, writers
-from lxml import etree
 from sphinx import addnodes, version_info
 from sphinx.environment.adapters.toctree import TocTree
 from sphinx.ext import graphviz
@@ -596,7 +595,7 @@ class LiteralBlock(ParagraphElement):
 
     def to_xml(self):
         highlighted, style_id, indent, right_indent, keep_lines = self._args
-        highlighted = etree.fromstring(highlighted)
+        highlighted = docx.fromstring(highlighted)[0]
         p = docx.make_paragraph(
                 indent, right_indent, style_id, None,
                 keep_lines, self._keep_next, None,
@@ -617,7 +616,7 @@ class LiteralBlockTable(TableElement):
 
     def to_xml(self):
         highlighted, top_space, style_id, table_width, indent = self._args
-        org_tbl = etree.fromstring(highlighted)
+        org_tbl = docx.fromstring(highlighted)[0]
         table = docx.make_table(
                 None, table_width[1], indent, None,
                 [table_width[0] * 0.1, table_width[0] * 0.9], False, True,

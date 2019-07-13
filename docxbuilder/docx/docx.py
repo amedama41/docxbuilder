@@ -163,7 +163,6 @@ def extract_nsmap(tag, attributes):
 
     return result
 
-
 def make_element_tree(arg, _xmlns=None):
     '''
 
@@ -228,6 +227,11 @@ def get_max_attribute(elems, attribute, to_int=int):
     if not elems:
         return 0
     return max(map(lambda e: to_int(e.get(attribute)), elems))
+
+def fromstring(xml):
+    """Parse string OOXML fragments"""
+    ns = ' '.join('xmlns:%s="%s"' % (k, v) for k, v in nsprefixes.items())
+    return etree.fromstring('<dummy %s>%s</dummy>' % (ns, xml)).getchildren()
 
 def local_to_utc(value):
     utc = datetime.datetime.utcfromtimestamp(time.mktime(value.timetuple()))
