@@ -585,6 +585,13 @@ class Document(object):
         section_prop = docx.copy_section_property(section_prop, no_title_page)
         self._body.append(docx.make_section_prop_paragraph(section_prop))
 
+class Raw(object):
+    def __init__(self, raw_xml):
+        self._raw_xml = raw_xml
+
+    def to_xml(self):
+        return self._raw_xml
+
 class LiteralBlock(ParagraphElement):
     def __init__(self, highlighted, style_id, indent, right_indent, keep_lines):
         self._args = [highlighted, style_id, indent, right_indent, keep_lines]
@@ -2009,8 +2016,21 @@ class DocxTranslator(nodes.NodeVisitor):
                 node, node.get('alt', node['uri']), get_filepath)
 
     def visit_raw(self, node):
-        raise nodes.SkipNode # TODO
-
+        if node.get('format', None) != 'docx':
+            raise nodes.SkipNode
+        if not isinstance(self._doc_stack[-1], Document):
+            # TODO: nested raw markup
+            self._logger.warning(
+                    'Not support nested raw markup', location=node)
+            raise nodes.SkipNode
+        try:
+            elems = docx.fromstring(node.rawsource)
+        except Exception as e:
+            self._logger.warning('Invalid raw markup', location=node)
+            raise nodes.SkipNode
+        for elem in elems:
+            self._doc_stack[-1].append(Raw(elem))
+        raise nodes.SkipNode
 
     def visit_toctree(self, node):
         if node.get('hidden', False):
