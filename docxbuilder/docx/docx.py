@@ -296,12 +296,12 @@ CORE_PROPERTY_KEYS = (
 )
 
 COVER_PAGE_PROPERTY_KEYS = {
-        'Abstract': str,
-        'CompanyAddress': str,
-        'CompanyEmail': str,
-        'CompanyFax': str,
-        'CompanyPhone': str,
-        'PublishDate': convert_to_W3CDTF_string,
+        'Abstract',
+        'CompanyAddress',
+        'CompanyEmail',
+        'CompanyFax',
+        'CompanyPhone',
+        'PublishDate',
 }
 
 CUSTOM_PROPERTY_TYPES = (
@@ -341,19 +341,30 @@ def classify_properties(props):
             core_props[doctime] = value
             return True
 
-        core_props[key] = value
-        return True
+        if isinstance(value, six.string_types):
+            core_props[key] = value
+            return True
+        if isinstance(value, (list, tuple)):
+            sep = ',' if key == 'keywords' else '; '
+            try:
+                core_props[key] = sep.join(value)
+                return True
+            except TypeError:
+                raise RuntimeError('Invalid value type')
+        raise RuntimeError('Invalid value type')
 
     def check_cover_page_props(key, value, cover_page_props):
-        to_str = COVER_PAGE_PROPERTY_KEYS.get(key)
-        if to_str is None:
+        if key not in COVER_PAGE_PROPERTY_KEYS:
             key = key[0].upper() + key[1:]
-            to_str = COVER_PAGE_PROPERTY_KEYS.get(key)
-        if to_str is None:
-            return False
-        value = to_str(value)
-        if value is None:
-            raise RuntimeError('Invalid value')
+            if key not in COVER_PAGE_PROPERTY_KEYS:
+                return False
+        if key == 'PublishDate':
+            value = convert_to_W3CDTF_string(value)
+            if value is None:
+                raise RuntimeError('Invalid value')
+        else:
+            if not isinstance(value, six.string_types):
+                raise RuntimeError('Invalid value')
         cover_page_props[key] = value
         return True
 
@@ -1854,11 +1865,6 @@ class DocxComposer:
             value = props.get(prop, None)
             if value is None:
                 continue
-            if isinstance(value, (list, tuple)):
-                if prop == 'keywords':
-                    value = ','.join(value)
-                else:
-                    value = '; '.join(value)
             value = xml_encode(value)
             coreprops_tree.append([['%s:%s' % (ns, prop), attr, value]])
 
