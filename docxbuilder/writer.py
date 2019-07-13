@@ -792,15 +792,14 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def asbytes(self):
         props = self._builder.doc_properties
-        core_props, cover_page_props, custom_props, invalid_prop_keys = (
-                docx.separate_core_and_custom_properties(props))
-        for key in invalid_prop_keys:
+        props, invalids = docx.classify_properties(props)
+        for key, reason in invalids.items():
             self._builder._logger.warning(
-                    'invalid value is found in docx_documents "%s"' % key)
-        core_props.setdefault('language', self._builder.config.language or 'en')
-        return self._docx.asbytes(
-                self._builder.config.docx_update_fields,
-                core_props, custom_props, cover_page_props)
+                    'invalid property is found in docx_documents "%s"(%s)'
+                    % (key, reason))
+        props['core'].setdefault(
+                'language', self._builder.config.language or 'en')
+        return self._docx.asbytes(self._builder.config.docx_update_fields, props)
 
     def _append_default_paragraph_style(self, style_name):
         self._default_paragraph_style_stack.append(

@@ -312,61 +312,71 @@ CUSTOM_PROPERTY_TYPES = (
         (datetime.datetime, 'vt:date', convert_to_W3CDTF_string),
 )
 
-def separate_core_and_custom_properties(props):
-    core_props = {}
-    cover_page_props = {}
-    custom_props = {}
-    invalid_prop_keys = []
-
+def classify_properties(props):
     core_prop_keys = set(key for _, key, _ in CORE_PROPERTY_KEYS)
+    def check_core_props(key, value, core_props):
+        if key not in core_prop_keys:
+            key = key[0].lower() + key[1:]
+            if key not in core_prop_keys:
+                return False
 
-    for key, value in props.items():
-        if key in core_prop_keys:
-            core_props[key] = value
-            continue
-        cover_page_prop_key = key
-        to_str = COVER_PAGE_PROPERTY_KEYS.get(cover_page_prop_key)
-        if to_str is None:
-            cover_page_prop_key = key[0].upper() + key[1:]
-            to_str = COVER_PAGE_PROPERTY_KEYS.get(cover_page_prop_key)
-        if to_str is not None:
-            value = to_str(value)
-            if value is None:
-                invalid_prop_keys.append(key)
+        if key == 'lastPrinted':
+            time_fmt = '%Y-%m-%dT%H:%M:%S'
+            if isinstance(value, datetime.datetime):
+                core_props['lastPrinted'] = value.strftime(time_fmt)
+            else:
+                try:
+                    datetime.datetime.strptime(value, time_fmt)
+                except ValueError:
+                    raise RuntimeError('Invalid value')
+                core_props['lastPrinted'] = value
+            return True
+
+        for doctime in ['created', 'modified']:
+            if key != doctime:
                 continue
-            cover_page_props[cover_page_prop_key] = value
-            continue
-        for prop_type, _, _ in CUSTOM_PROPERTY_TYPES:
-            if isinstance(value, prop_type):
-                custom_props[key] = value
-                break
-        else:
-            invalid_prop_keys.append(key)
-
-    time_fmt = '%Y-%m-%dT%H:%M:%S'
-    last_printed = core_props.get('lastPrinted', None)
-    if last_printed is not None:
-        if isinstance(last_printed, datetime.datetime):
-            core_props['lastPrinted'] = last_printed.strftime(time_fmt)
-        else:
-            try:
-                datetime.datetime.strptime(last_printed, time_fmt)
-            except ValueError:
-                invalid_prop_keys.append('lastPrinted')
-                del core_props['lastPrinted']
-
-    for doctime in ['created', 'modified']:
-        value = core_props.get(doctime, None)
-        if value is None:
-            continue
-        value = convert_to_W3CDTF_string(value)
-        if value is None:
-            invalid_prop_keys.append(doctime)
-            del core_props[doctime]
-        else:
+            value = convert_to_W3CDTF_string(value)
+            if value is None:
+                raise RuntimeError('Invalid value')
             core_props[doctime] = value
+            return True
 
-    return core_props, cover_page_props, custom_props, invalid_prop_keys
+        core_props[key] = value
+        return True
+
+    def check_cover_page_props(key, value, cover_page_props):
+        to_str = COVER_PAGE_PROPERTY_KEYS.get(key)
+        if to_str is None:
+            key = key[0].upper() + key[1:]
+            to_str = COVER_PAGE_PROPERTY_KEYS.get(key)
+        if to_str is None:
+            return False
+        value = to_str(value)
+        if value is None:
+            raise RuntimeError('Invalid value')
+        cover_page_props[key] = value
+        return True
+
+    def check_custom_props(key, value, custom_props):
+        for prop_type, _, _ in CUSTOM_PROPERTY_TYPES:
+            if not isinstance(value, prop_type):
+                continue
+            custom_props[key] = value
+            return True
+        raise RuntimeError('Invalid value type')
+
+    props_map = {'core': {}, 'cover_page': {}, 'custom': {}}
+    invalids = {}
+    for key, value in props.items():
+        try:
+            if check_core_props(key, value, props_map['core']):
+                continue
+            if check_cover_page_props(key, value, props_map['cover_page']):
+                continue
+            check_custom_props(key, value, props_map['custom'])
+        except Exception as e:
+            invalids[key] = str(e)
+    return props_map, invalids
 
 def get_orient(section_prop):
     page_size = get_elements(section_prop, 'w:pgSz')[0]
@@ -1437,16 +1447,14 @@ class DocxComposer:
             right = right or based_right
         return self._table_margin_cache.setdefault(style_id, (left, right))
 
-    def asbytes(
-            self, set_update_fields,
-            core_props, custom_props, cover_page_props):
+    def asbytes(self, set_update_fields, props):
         '''Generate the composed document as docx binary.
         '''
         xml_files = [
                 ('_rels/.rels', self.make_root_rels()),
-                ('docProps/app.xml', self.make_app(custom_props)),
-                ('docProps/core.xml', self.make_core(core_props)),
-                ('docProps/custom.xml', self.make_custom(custom_props)),
+                ('docProps/app.xml', self.make_app(props['custom'])),
+                ('docProps/core.xml', self.make_core(props['core'])),
+                ('docProps/custom.xml', self.make_custom(props['custom'])),
         ]
 
         inherited_rel_attrs = self.collect_inherited_rel_attrs()
@@ -1476,9 +1484,10 @@ class DocxComposer:
         xml_files.append(('[Content_Types].xml', content_types))
 
         if self._cover_page_prop_info.does_create:
-            xml_files.extend(self.make_coverpage_props_items(cover_page_props))
+            xml_files.extend(
+                    self.make_coverpage_props_items(props['cover_page']))
         else:
-            cover_page_props = self.make_cover_page_props(cover_page_props)
+            cover_page_props = self.make_cover_page_props(props['cover_page'])
             xml_files.append(
                     (self._cover_page_prop_info.path, cover_page_props))
             inherited_files.remove(self._cover_page_prop_info.path)
