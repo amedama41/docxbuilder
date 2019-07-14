@@ -295,6 +295,11 @@ CORE_PROPERTY_KEYS = (
         ('dcterms', 'modified', {'xsi:type': 'dcterms:W3CDTF'}),
 )
 
+APP_PROPERTY_KEYS = {
+        'Manager': six.string_types,
+        'Company': six.string_types,
+}
+
 COVER_PAGE_PROPERTY_KEYS = {
         'Abstract',
         'CompanyAddress',
@@ -353,6 +358,22 @@ def classify_properties(props):
                 raise RuntimeError('Invalid value type')
         raise RuntimeError('Invalid value type')
 
+    def check_app_props(key, value, app_props):
+        check_type = APP_PROPERTY_KEYS.get(key)
+        if check_type is None:
+            key = key[0].upper() + key[1:]
+            check_type = APP_PROPERTY_KEYS.get(key)
+        if check_type is None:
+            return False
+        if not isinstance(value, check_type):
+            raise RuntimeError('Invalid value type')
+        if isinstance(value, bool):
+            value = str(value).lower()
+        else:
+            value = str(value)
+        app_props[key] = value
+        return True
+
     def check_cover_page_props(key, value, cover_page_props):
         if key not in COVER_PAGE_PROPERTY_KEYS:
             key = key[0].upper() + key[1:]
@@ -376,11 +397,13 @@ def classify_properties(props):
             return True
         raise RuntimeError('Invalid value type')
 
-    props_map = {'core': {}, 'cover_page': {}, 'custom': {}}
+    props_map = {'core': {}, 'app': {}, 'cover_page': {}, 'custom': {}}
     invalids = {}
     for key, value in props.items():
         try:
             if check_core_props(key, value, props_map['core']):
+                continue
+            if check_app_props(key, value, props_map['app']):
                 continue
             if check_cover_page_props(key, value, props_map['cover_page']):
                 continue
@@ -1463,7 +1486,7 @@ class DocxComposer:
         '''
         xml_files = [
                 ('_rels/.rels', self.make_root_rels()),
-                ('docProps/app.xml', self.make_app(props['custom'])),
+                ('docProps/app.xml', self.make_app(props['app'])),
                 ('docProps/core.xml', self.make_core(props['core'])),
                 ('docProps/custom.xml', self.make_custom(props['custom'])),
         ]
@@ -1870,10 +1893,8 @@ class DocxComposer:
 
         return make_element_tree(coreprops_tree)
 
-    def make_app(self, custom_props):
-        '''Create app-specific properties.
-           This function is based on 'python-docx' library
-        '''
+    def make_app(self, props):
+        """Create app-specific properties."""
         appprops_tree = [
                 ['Properties'],
                 [['Template', 'Normal.dotm']],
@@ -1892,14 +1913,8 @@ class DocxComposer:
                 [['HyperlinksChanged', 'false']],
                 [['AppVersion', '12.0000']],
         ]
-        for key in ['Company', 'Manager']:
-            value = custom_props.get(key)
-            if value is None:
-                value = custom_props.get(key.lower())
-                if value is None:
-                    continue
-            appprops_tree.append([[key, xml_encode(value)]])
-
+        appprops_tree.extend(
+                ([[key, xml_encode(value)]] for key, value in props.items()))
         return make_element_tree(appprops_tree, nsprefixes['ep'])
 
     def make_custom(self, custom_props):
