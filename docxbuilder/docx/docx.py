@@ -1897,21 +1897,11 @@ class DocxComposer:
         """Create app-specific properties."""
         appprops_tree = [
                 ['Properties'],
-                [['Template', 'Normal.dotm']],
-                [['TotalTime', '6']],
-                [['Pages', '1']],
-                [['Words', '83']],
-                [['Characters', '475']],
-                [['Application', 'Microsoft Word 12.0.0']],
                 [['DocSecurity', '0']],
-                [['Lines', '12']],
-                [['Paragraphs', '8']],
                 [['ScaleCrop', 'false']],
                 [['LinksUpToDate', 'false']],
-                [['CharactersWithSpaces', '583']],
                 [['SharedDoc', 'false']],
                 [['HyperlinksChanged', 'false']],
-                [['AppVersion', '12.0000']],
         ]
         appprops_tree.extend(
                 ([[key, xml_encode(value)]] for key, value in props.items()))
