@@ -756,7 +756,7 @@ def make_table(
     ]
     return make_element_tree(table_tree)
 
-def make_row(index, is_head, cant_split, set_tbl_header):
+def make_row(index, is_head, cant_split, set_tbl_header, height):
     row_style_attrs = {
             'w:evenHBand': ('true' if index % 2 != 0 else 'false'),
             'w:oddHBand': ('true' if index % 2 == 0 else 'false'),
@@ -770,9 +770,13 @@ def make_row(index, is_head, cant_split, set_tbl_header):
         property_tree.append([['w:cantSplit']])
     if set_tbl_header:
         property_tree.append([['w:tblHeader']])
+    if height is not None:
+        property_tree.append(
+                [['w:trHeight', {'w:hRule': 'atLeast', 'w:val': str(height)}]])
     return make_element_tree([['w:tr'], property_tree])
 
-def make_cell(index, is_first_column, cellsize, grid_span, vmerge, valign=None):
+def make_cell(index, is_first_column, cellsize, grid_span, vmerge, rotation,
+              valign=None):
     cell_style = {
             'w:evenVBand': ('true' if index % 2 != 0 else 'false'),
             'w:oddVBand': ('true' if index % 2 == 0 else 'false'),
@@ -789,6 +793,8 @@ def make_cell(index, is_first_column, cellsize, grid_span, vmerge, valign=None):
         property_tree.append([['w:gridSpan', {'w:val': str(grid_span)}]])
     if vmerge is not None:
         property_tree.append([['w:vMerge', {'w:val': vmerge}]])
+    if rotation:
+        property_tree.append([['w:textDirection', {'w:val': 'tbLrV'}]])
     if valign is not None:
         property_tree.append([['w:vAlign', {'w:val': valign}]])
     return make_element_tree([['w:tc'], property_tree])

@@ -289,7 +289,8 @@ class Paragraph(ParagraphElement):
 class Table(TableElement):
     def __init__(
             self, table_style, table_width, colsize_list, indent, align,
-            keep_next, cant_split_row, set_table_header, fit_content):
+            keep_next, cant_split_row, set_table_header, rotation_header_height,
+            fit_content):
         self._style = table_style
         self._table_width = table_width
         self._colspec_list = []
@@ -306,6 +307,7 @@ class Table(TableElement):
         self._keep_next = keep_next
         self._cant_split_row = cant_split_row
         self._set_table_header = set_table_header
+        self._rotation_header_height = rotation_header_height
         self._fit_content = fit_content
 
     @property
@@ -400,24 +402,30 @@ class Table(TableElement):
     def make_row(self, index, row, is_head):
         # Non-first header needs tblHeader to be applied first row style
         set_tbl_header = is_head and (self._set_table_header or index > 0)
+        rotation = is_head and (self._rotation_header_height is not None)
+        if rotation:
+            height = self._rotation_header_height * self._table_width[0] // 100
+        else:
+            height = None
         row_elem = docx.make_row(
-                index, is_head, self._cant_split_row, set_tbl_header)
+                index, is_head, self._cant_split_row, set_tbl_header, height)
         keep_next = self._set_keep_next(is_head, index)
         for index, elem in enumerate(row):
             if elem is None: # Merged with the previous cell
                 continue
             vmerge, cell = elem
-            row_elem.append(self.make_cell(index, vmerge, cell, row, keep_next))
+            row_elem.append(
+                    self.make_cell(index, vmerge, cell, row, keep_next, rotation))
         return row_elem
 
-    def make_cell(self, index, vmerge, cell, row, keep_next):
+    def make_cell(self, index, vmerge, cell, row, keep_next, rotation):
         grid_span = self._get_grid_span(row, index)
         if self._fit_content:
             cellsize = None
         else:
             cellsize = sum(self._colsize_list[index:index + grid_span])
         cell_elem = docx.make_cell(
-                index, index < self._stub, cellsize, grid_span, vmerge)
+                index, index < self._stub, cellsize, grid_span, vmerge, rotation)
 
         contents_types = (ParagraphElement, TableElement, SdtElement)
         # The last element must be paragraph for Microsoft word
@@ -647,13 +655,13 @@ class LiteralBlockTable(TableElement):
             }
 
         for index, org_row in enumerate(org_tbl):
-            row = docx.make_row(index, False, False, False)
+            row = docx.make_row(index, False, False, False, None)
             if index == 0:
                 spacing = docx.make_paragraph_spacing_property(
                         before=(top_space or 0), after=0)
             else:
                 spacing = no_spacing
-            cell1 = docx.make_cell(0, True, None, 1, None, valign='top')
+            cell1 = docx.make_cell(0, True, None, 1, None, False, valign='top')
             keep_next = self._is_keep_next(index)
             p1_props = docx.get_paragraph_properties(org_row[0][0])
             p1_props.extend([spacing, lineno_border])
@@ -664,7 +672,7 @@ class LiteralBlockTable(TableElement):
             cell1.append(p1)
             row.append(cell1)
 
-            cell2 = docx.make_cell(1, False, 0.99, 1, None, valign='top')
+            cell2 = docx.make_cell(1, False, 0.99, 1, None, False, valign='top')
             p2_props = docx.get_paragraph_properties(org_row[1][0])
             p2_props.extend([no_spacing, border.get(index, middle_border)])
             p2 = docx.make_paragraph(
@@ -852,7 +860,8 @@ class DocxTranslator(nodes.NodeVisitor):
     def _append_table(
             self, table_style, table_width, colsize_list, is_indent, align=None,
             in_single_page=False, row_splittable=True,
-            header_in_all_page=False, fit_content=False):
+            header_in_all_page=False, rotation_header_height=None,
+            fit_content=False):
         self._append_default_paragraph_style(None)
         table_style_id = self._docx.get_style_id(table_style)
         indent = self._ctx_stack[-1].indent if is_indent else 0
@@ -863,7 +872,8 @@ class DocxTranslator(nodes.NodeVisitor):
                 table_style_id,
                 (table_width, float(table_width) / self._ctx_stack[-1].width),
                 colsize_list, indent, align,
-                keep_next, not row_splittable, header_in_all_page, fit_content)
+                keep_next, not row_splittable, header_in_all_page,
+                rotation_header_height, fit_content)
         self._doc_stack.append(t)
         self._append_new_ctx(indent=0, right_indent=0, width=table_width)
         return t
@@ -947,6 +957,14 @@ class DocxTranslator(nodes.NodeVisitor):
             return False
         return self._builder.config.docx_table_options.get(
                 option.replace('-', '_'), default_value)
+
+    def _get_rotation_header_height(self, classes):
+        for cls in reversed(classes):
+            match = re.match(r'^docx-rotation-header-(\d+)$', cls)
+            if not match:
+                continue
+            return int(match.group(1))
+        return None
 
     def _is_landscape_table(self, node):
         if not isinstance(self._doc_stack[-1], Document):
@@ -1399,6 +1417,7 @@ class DocxTranslator(nodes.NodeVisitor):
                     classes, 'row-splittable', True),
                 header_in_all_page=self._get_table_option(
                     classes, 'header-in-all-page', False),
+                rotation_header_height=self._get_rotation_header_height(classes),
                 fit_content=('colwidths-auto' in classes))
 
     def depart_tgroup(self, node):
