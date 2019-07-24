@@ -420,12 +420,15 @@ class Table(TableElement):
 
     def make_cell(self, index, vmerge, cell, row, keep_next, rotation):
         grid_span = self._get_grid_span(row, index)
+        is_stub = index < self._stub
         if self._fit_content:
             cellsize = None
+            no_wrap = True if is_stub else False
         else:
             cellsize = sum(self._colsize_list[index:index + grid_span])
+            no_wrap=None
         cell_elem = docx.make_cell(
-                index, index < self._stub, cellsize, grid_span, vmerge, rotation)
+                index, is_stub, cellsize, grid_span, vmerge, rotation, no_wrap)
 
         contents_types = (ParagraphElement, TableElement, SdtElement)
         # The last element must be paragraph for Microsoft word
@@ -661,7 +664,8 @@ class LiteralBlockTable(TableElement):
                         before=(top_space or 0), after=0)
             else:
                 spacing = no_spacing
-            cell1 = docx.make_cell(0, True, None, 1, None, False, valign='top')
+            cell1 = docx.make_cell(
+                    0, True, None, 1, None, False, no_wrap=True, valign='top')
             keep_next = self._is_keep_next(index)
             p1_props = docx.get_paragraph_properties(org_row[0][0])
             p1_props.extend([spacing, lineno_border])
@@ -672,7 +676,8 @@ class LiteralBlockTable(TableElement):
             cell1.append(p1)
             row.append(cell1)
 
-            cell2 = docx.make_cell(1, False, 0.99, 1, None, False, valign='top')
+            cell2 = docx.make_cell(
+                    1, False, 0.99, 1, None, False, no_wrap=False, valign='top')
             p2_props = docx.get_paragraph_properties(org_row[1][0])
             p2_props.extend([no_spacing, border.get(index, middle_border)])
             p2 = docx.make_paragraph(

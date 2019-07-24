@@ -776,7 +776,7 @@ def make_row(index, is_head, cant_split, set_tbl_header, height):
     return make_element_tree([['w:tr'], property_tree])
 
 def make_cell(index, is_first_column, cellsize, grid_span, vmerge, rotation,
-              valign=None):
+              no_wrap=None, valign=None):
     cell_style = {
             'w:evenVBand': ('true' if index % 2 != 0 else 'false'),
             'w:oddVBand': ('true' if index % 2 == 0 else 'false'),
@@ -795,6 +795,8 @@ def make_cell(index, is_first_column, cellsize, grid_span, vmerge, rotation,
         property_tree.append([['w:vMerge', {'w:val': vmerge}]])
     if rotation:
         property_tree.append([['w:textDirection', {'w:val': 'tbLrV'}]])
+    if no_wrap is not None:
+        property_tree.append([['w:noWrap', {'w:val': str(int(no_wrap))}]])
     if valign is not None:
         property_tree.append([['w:vAlign', {'w:val': valign}]])
     return make_element_tree([['w:tc'], property_tree])
