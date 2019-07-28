@@ -1189,7 +1189,7 @@ class DocxTranslator(nodes.NodeVisitor):
             right_indent = self._ctx_stack[-1].right_indent
             align = None
         else:
-            style = '%s Title Heading' % node.tagname.capitalize()
+            style = '%s Title Heading' % node.parent.tagname.capitalize()
             self._docx.create_style('paragraph', style, 'Title Heading', True)
             title_num = None
             indent = self._ctx_stack[-1].indent
@@ -1206,7 +1206,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_subtitle(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        style = '%s Subtitle Heading' % node.tagname.capitalize()
+        style = '%s Subtitle Heading' % node.parent.tagname.capitalize()
         self._docx.create_style('paragraph', style, 'Subtitle Heading', True)
         self._doc_stack.append(self._make_paragraph(
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
