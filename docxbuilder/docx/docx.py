@@ -794,7 +794,7 @@ def make_cell(index, is_first_column, cellsize, grid_span, vmerge, rotation,
     if vmerge is not None:
         property_tree.append([['w:vMerge', {'w:val': vmerge}]])
     if rotation:
-        property_tree.append([['w:textDirection', {'w:val': 'tbLrV'}]])
+        property_tree.append([['w:textDirection', {'w:val': 'tbRlV'}]])
     if no_wrap is not None:
         property_tree.append([['w:noWrap', {'w:val': str(int(no_wrap))}]])
     if valign is not None:
