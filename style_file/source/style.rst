@@ -65,7 +65,7 @@ Heading 5
 Body Text
 
 Definition Term
-   item
+   Definition
 
 .. code-block:: guess
    :caption: Literal Caption
@@ -74,8 +74,11 @@ Definition Term
 
 .. figure:: _static/figure.png
    :align: center
+   :figwidth: 50%
 
    Image Caption
+
+   Legend
 
 Footnote Reference [#FootnoteReference]_
 
