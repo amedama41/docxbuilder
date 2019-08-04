@@ -166,7 +166,7 @@ Table styles:
 * Field List
 * Admonition Note
 
-For more details, see `the documentation <https://docxbuilder.readthedocs.io/en/latest/>`.
+For more details, see `the documentation <https://docxbuilder.readthedocs.io/en/latest/>`_.
 
 ****
 TODO
