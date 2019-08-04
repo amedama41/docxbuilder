@@ -1,7 +1,7 @@
 Cooperation with third party extensions
 =======================================
 
-Docxbuilder supports third party extensions which generate well-formed `docutils document tree <docutils_dtd>`_
+Docxbuilder supports third party extensions which generate well-formed `docutils document tree`_
 
 However, there are some extensions to generate the tree with their original docutils nodes.
 Because Docxbuilder does not support the nodes, the all nodes are ignored when building the document.
@@ -27,6 +27,5 @@ you must define the function to handle the node in ``conf.py``.
        translator = docxbuilder.DocxBuilder.default_translator_class
        setattr(translator, 'visit_plantuml', docx_visit_plantuml)
 
-.. _`docutils_dtd`: http://docutils.sourceforge.net/docs/ref/doctree.html
-
+.. _`docutils document tree`: http://docutils.sourceforge.net/docs/ref/doctree.html
 

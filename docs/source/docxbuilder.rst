@@ -123,9 +123,9 @@ Notes
 =====
 
 If the title of a rubiric directive is "Footnotes", Docxbuilder ignores the title as the latex write does
-(see `sphinx documents <rubric_doc>`_).
+(see `sphinx documents`_).
 
-.. _`rubric_doc`: http://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-rubric
+.. _`sphinx documents`: http://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-rubric
 
 TODO
 ====
