@@ -1145,6 +1145,10 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_start_of_file(self, node):
         self._docname_stack.append(node['docname'])
         self._append_bookmark_start([''])
+        config = self._builder.config
+        if (self._section_level < config.docx_pagebreak_before_file
+                and isinstance(self._doc_stack[-1], Document)):
+            self._doc_stack[-1].add_pagebreak()
         self._append_bookmark_start(node.get('ids', []))
 
     def depart_start_of_file(self, node):

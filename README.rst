@@ -72,6 +72,11 @@ Configuration
      - Specify a section level. Before each sections which level is larger
        than or equal to this option value, a page break is inserted.
      - ``0``. No page break is inserted.
+   * - docx_pagebreak_before_file
+     - Specify a section level. Before each first content of file which appears
+       in section level larger than or equal to this option value,
+       a page break is inserted.
+     - ``0``. No page break is inserted.
    * - docx_pagebreak_after_table_of_contents
      - Specify a section level. After each table of contents which appears
        in section level larger than or equal to this option value,
