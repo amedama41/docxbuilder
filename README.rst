@@ -2,6 +2,10 @@
 docxbuilder
 ###########
 
+.. image:: https://readthedocs.org/projects/docxbuilder/badge/?version=latest
+   :target: https://docxbuilder.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
+
 Docxbuilder is a Sphinx extension to build docx formatted documents.
 
 .. note::
@@ -161,6 +165,8 @@ Table styles:
 * Table
 * Field List
 * Admonition Note
+
+For more details, see `the documentation <https://docxbuilder.readthedocs.io/en/latest/>`.
 
 ****
 TODO
