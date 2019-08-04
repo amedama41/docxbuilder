@@ -1105,6 +1105,8 @@ class DocxTranslator(nodes.NodeVisitor):
             alt_lang = None
         try:
             filepath = get_filepath(self, node)
+            if filepath is None or not os.path.exists(filepath):
+                raise RuntimeError('Failed to get filepath')
             width, height = self._get_image_scaled_size(node, filepath)
             rid = self._docx.add_image_relationship(
                     filepath, self._relationship_stack[-1])
