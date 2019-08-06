@@ -25,6 +25,7 @@ This extension enables to generate docx document.
    docprops
    third_party_extensions
    api
+   release_history
 
 
 Indices and tables
