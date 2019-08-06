@@ -868,7 +868,7 @@ def _make_toc_hyperlink(text, anchor):
             [['w:r'], [['w:t', text]]],
             [['w:r'], [['w:rPr'], [['w:webHidden']]], [['w:tab']]],
             [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
-            [['w:r'],
+            [['w:r'], [['w:rPr'], [['w:webHidden']]],
                 [['w:instrText',
                     r' PAGEREF %s \h ' % anchor, {'xml:space': 'preserve'}
                 ]]
