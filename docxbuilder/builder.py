@@ -24,6 +24,7 @@ from docxbuilder.writer import DocxWriter, DocxTranslator
 
 
 class DocxBuilder(Builder):
+    # pylint: disable=attribute-defined-outside-init
     name = 'docx'
     format = 'docx'
     out_suffix = '.docx'
@@ -44,13 +45,13 @@ class DocxBuilder(Builder):
         for entry in self.config.docx_documents:
             if entry[0] not in self.env.all_docs:
                 self._logger.warning(
-                        'unknown document %s is found '
-                        'in docx_documents' % entry[0])
+                    'unknown document %s is found '
+                    'in docx_documents' % entry[0])
                 continue
             if not entry[1]:
                 self._logger.warning(
-                        'invalid filename %s s found for %s '
-                        'in docx_documents' % (entry[1]. entry[0]))
+                    'invalid filename %s s found for %s '
+                    'in docx_documents' % (entry[1]. entry[0]))
                 continue
             self._docx_documents.append(entry)
         if not self._docx_documents:
@@ -82,20 +83,20 @@ class DocxBuilder(Builder):
                 if prefix is None:
                     continue
                 _, num_map = numfig_map.setdefault(figtype, (prefix, {}))
-                for id, num in info.items():
-                    key = '%s/%s' % (docname, id)
+                for node_id, num in info.items():
+                    key = '%s/%s' % (docname, node_id)
                     num_map[key] = num
         return numfig_map
 
     def make_numsec_map(self):
         numsec_map = {}
         for docname, info in self.env.toc_secnumbers.items():
-            for id, num in info.items():
-                key = '%s/%s' % (docname, id)
+            for node_id, num in info.items():
+                key = '%s/%s' % (docname, node_id)
                 numsec_map[key] = num
         return numsec_map
 
-    def write(self, *ignored):
+    def write(self, *_ignored): # pylint: disable=arguments-differ
         docnames = self.env.all_docs
 
         self._logger.info('preparing documents... ', nonl=True)
@@ -136,8 +137,8 @@ def insert_all_toctrees(tree, env, traversed):
             try:
                 traversed.append(includefile)
                 subtree = insert_all_toctrees(
-                        env.get_doctree(includefile), env, traversed)
-            except Exception:
+                    env.get_doctree(includefile), env, traversed)
+            except Exception: # pylint: disable=broad-except
                 continue
             start_of_file = addnodes.start_of_file(docname=includefile)
             start_of_file.children = subtree.children

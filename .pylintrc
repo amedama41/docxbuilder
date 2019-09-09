@@ -1,0 +1,30 @@
+[MASTER]
+persistent=yes
+cache-size=500
+
+[MESSAGES CONTROL]
+disable=missing-docstring,
+        too-few-public-methods,
+        too-many-arguments,
+        too-many-instance-attributes,
+        too-many-locals,
+        useless-object-inheritance
+
+[REPORTS]
+
+[BASIC]
+extension-pkg-whitelist=lxml
+
+[TYPECHECK]
+
+[VARIABLES]
+
+[SIMILARITIES]
+
+[MISCELLANEOUS]
+notes=FIXME,XXX
+
+[FORMAT]
+max-module-lines=3000
+indent-string='    '
+good-names=e,ns,id
