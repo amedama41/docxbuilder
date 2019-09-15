@@ -15,7 +15,7 @@
   <w:latentStyles w:defLockedState="0" w:defUIPriority="0" w:defSemiHidden="0" w:defUnhideWhenUsed="0" w:defQFormat="0" w:count="267">
     <w:lsdException w:name="No Spacing" w:uiPriority="1" w:qFormat="1"/>
   </w:latentStyles>
-  <w:style w:type="paragraph" w:default="1" w:styleId="a">
+  <w:style w:type="paragraph" w:default="1" w:styleId="NormalParagraph">
     <w:name w:val="Normal"/>
     <w:qFormat/>
     <w:pPr>
@@ -26,11 +26,11 @@
       <w:sz w:val="21"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="1">
+  <w:style w:type="paragraph" w:styleId="Heading1">
     <w:name w:val="heading 1"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
-    <w:link w:val="10"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
+    <w:link w:val="Heading1Char"/>
     <w:uiPriority w:val="9"/>
     <w:qFormat/>
     <w:pPr>
@@ -46,11 +46,11 @@
       <w:bCs/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="2">
+  <w:style w:type="paragraph" w:styleId="Heading2">
     <w:name w:val="heading 2"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
-    <w:link w:val="20"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
+    <w:link w:val="Heading2Char"/>
     <w:uiPriority w:val="9"/>
     <w:unhideWhenUsed/>
     <w:qFormat/>
@@ -67,11 +67,11 @@
       <w:bCs/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="3">
+  <w:style w:type="paragraph" w:styleId="Heading3">
     <w:name w:val="heading 3"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
-    <w:link w:val="30"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
+    <w:link w:val="Heading3Char"/>
     <w:uiPriority w:val="9"/>
     <w:unhideWhenUsed/>
     <w:qFormat/>
@@ -88,11 +88,11 @@
       <w:bCs/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="4">
+  <w:style w:type="paragraph" w:styleId="Heading4">
     <w:name w:val="heading 4"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
-    <w:link w:val="40"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
+    <w:link w:val="Heading4Char"/>
     <w:uiPriority w:val="9"/>
     <w:unhideWhenUsed/>
     <w:qFormat/>
@@ -109,11 +109,11 @@
       <w:szCs w:val="24"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="5">
+  <w:style w:type="paragraph" w:styleId="Heading5">
     <w:name w:val="heading 5"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
-    <w:link w:val="50"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
+    <w:link w:val="Heading5Char"/>
     <w:uiPriority w:val="9"/>
     <w:unhideWhenUsed/>
     <w:qFormat/>
@@ -130,13 +130,13 @@
       <w:szCs w:val="22"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="character" w:default="1" w:styleId="a0">
+  <w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont">
     <w:name w:val="Default Paragraph Font"/>
     <w:uiPriority w:val="1"/>
     <w:semiHidden/>
     <w:unhideWhenUsed/>
   </w:style>
-  <w:style w:type="table" w:default="1" w:styleId="a1">
+  <w:style w:type="table" w:default="1" w:styleId="NormalTable">
     <w:name w:val="Normal Table"/>
     <w:uiPriority w:val="99"/>
     <w:semiHidden/>
@@ -151,16 +151,16 @@
       </w:tblCellMar>
     </w:tblPr>
   </w:style>
-  <w:style w:type="numbering" w:default="1" w:styleId="a2">
+  <w:style w:type="numbering" w:default="1" w:styleId="NoList">
     <w:name w:val="No List"/>
     <w:uiPriority w:val="99"/>
     <w:semiHidden/>
     <w:unhideWhenUsed/>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="10">
+  <w:style w:type="character" w:customStyle="1" w:styleId="Heading1Char">
     <w:name w:val="見出し 1 (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="1"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="Heading1"/>
     <w:uiPriority w:val="9"/>
     <w:rPr>
       <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
@@ -168,11 +168,11 @@
       <w:szCs w:val="28"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="a3">
+  <w:style w:type="paragraph" w:styleId="Title">
     <w:name w:val="Title"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
-    <w:link w:val="a4"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
+    <w:link w:val="TitleChar"/>
     <w:uiPriority w:val="10"/>
     <w:qFormat/>
     <w:pPr>
@@ -186,10 +186,10 @@
       <w:szCs w:val="32"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="a4">
+  <w:style w:type="character" w:customStyle="1" w:styleId="TitleChar">
     <w:name w:val="表題 (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="a3"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="Title"/>
     <w:uiPriority w:val="10"/>
     <w:rPr>
       <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
@@ -197,11 +197,11 @@
       <w:szCs w:val="32"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="a5">
+  <w:style w:type="paragraph" w:styleId="Subtitle">
     <w:name w:val="Subtitle"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
-    <w:link w:val="a6"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
+    <w:link w:val="SubtitleChar"/>
     <w:uiPriority w:val="11"/>
     <w:qFormat/>
     <w:pPr>
@@ -212,46 +212,46 @@
       <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="a6">
+  <w:style w:type="character" w:customStyle="1" w:styleId="SubtitleChar">
     <w:name w:val="副題 (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="a5"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="Subtitle"/>
     <w:uiPriority w:val="11"/>
     <w:rPr>
       <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="20">
+  <w:style w:type="character" w:customStyle="1" w:styleId="Heading2Char">
     <w:name w:val="見出し 2 (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="2"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="Heading2"/>
     <w:uiPriority w:val="9"/>
     <w:rPr>
       <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="30">
+  <w:style w:type="character" w:customStyle="1" w:styleId="Heading3Char">
     <w:name w:val="見出し 3 (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="3"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="Heading3"/>
     <w:uiPriority w:val="9"/>
     <w:rPr>
       <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="40">
+  <w:style w:type="character" w:customStyle="1" w:styleId="Heading4Char">
     <w:name w:val="見出し 4 (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="4"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="Heading4"/>
     <w:uiPriority w:val="9"/>
     <w:semiHidden/>
     <w:rPr>
       <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="a7">
+  <w:style w:type="paragraph" w:styleId="ListParagraph">
     <w:name w:val="List Paragraph"/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
     <w:uiPriority w:val="34"/>
     <w:qFormat/>
     <w:rsid w:val="002C20D3"/>
@@ -259,10 +259,10 @@
       <w:ind w:leftChars="400" w:left="480"/>
     </w:pPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="50">
+  <w:style w:type="character" w:customStyle="1" w:styleId="Heading5Char">
     <w:name w:val="見出し 5 (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="5"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="Heading5"/>
     <w:uiPriority w:val="9"/>
     <w:semiHidden/>
     <w:rPr>
@@ -271,8 +271,8 @@
   </w:style>
   <w:style w:type="paragraph" w:styleId="TitleHeading">
     <w:name w:val="Title Heading"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
     <w:uiPriority w:val="10"/>
     <w:unhideWhenUsed/>
     <w:qFormat/>
@@ -289,8 +289,8 @@
   </w:style>
   <w:style w:type="paragraph" w:styleId="SubtitleHeading">
     <w:name w:val="Subtitle Heading"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
     <w:uiPriority w:val="10"/>
     <w:unhideWhenUsed/>
     <w:qFormat/>
@@ -305,7 +305,7 @@
   </w:style>
   <w:style w:type="character" w:styleId="Emphasis">
     <w:name w:val="Emphasis"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:uiPriority w:val="20"/>
     <w:qFormat/>
     <w:rPr>
@@ -315,7 +315,7 @@
   </w:style>
   <w:style w:type="character" w:customStyle="1" w:styleId="Literal">
     <w:name w:val="Literal"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:rPr>
       <w:rFonts w:ascii="Consolas" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
       <w:color w:val="E74C3C"/>
@@ -326,7 +326,7 @@
   </w:style>
   <w:style w:type="character" w:styleId="Strong">
     <w:name w:val="Strong"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:uiPriority w:val="22"/>
     <w:qFormat/>
     <w:rPr>
@@ -336,21 +336,21 @@
   </w:style>
   <w:style w:type="character" w:customStyle="1" w:styleId="Superscript">
     <w:name w:val="Superscript"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:rPr>
       <w:vertAlign w:val="superscript"/>
     </w:rPr>
   </w:style>
   <w:style w:type="character" w:customStyle="1" w:styleId="Subscript">
     <w:name w:val="Subscript"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:rPr>
       <w:vertAlign w:val="subscript"/>
     </w:rPr>
   </w:style>
   <w:style w:type="character" w:customStyle="1" w:styleId="Problematic">
     <w:name w:val="Problematic"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:rPr>
       <w:rFonts w:ascii="Helvetica" w:eastAsiaTheme="majorEastAsia" w:hAnsi="Helvetica"/>
       <w:u w:val="single"/>
@@ -359,7 +359,7 @@
   </w:style>
   <w:style w:type="character" w:customStyle="1" w:styleId="TitleReference">
     <w:name w:val="Title Reference"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:rPr>
       <w:rFonts w:ascii="Century Gothic" w:eastAsiaTheme="majorEastAsia" w:hAnsi="Century Gothic"/>
       <w:vertAlign w:val="baseline"/>
@@ -367,14 +367,14 @@
   </w:style>
   <w:style w:type="character" w:customStyle="1" w:styleId="Abbreviation">
     <w:name w:val="Abbreviation"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:rPr>
       <w:b/>
     </w:rPr>
   </w:style>
   <w:style w:type="character" w:styleId="Hyperlink">
     <w:name w:val="Hyperlink"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:uiPriority w:val="99"/>
     <w:unhideWhenUsed/>
     <w:rPr>
@@ -391,7 +391,7 @@
   </w:style>
   <w:style w:type="paragraph" w:customStyle="1" w:styleId="LiteralBlock">
     <w:name w:val="Literal Block"/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
     <w:qFormat/>
     <w:pPr>
       <w:pBdr>
@@ -412,7 +412,7 @@
   </w:style>
   <w:style w:type="paragraph" w:styleId="Caption">
     <w:name w:val="Caption"/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
     <w:qFormat/>
     <w:rPr>
       <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
@@ -440,7 +440,7 @@
   </w:style>
   <w:style w:type="paragraph" w:customStyle="1" w:styleId="DefinitionTerm">
     <w:name w:val="Definition Term"/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
     <w:qFormat/>
     <w:rPr>
       <w:b/>
@@ -451,11 +451,11 @@
     <w:name w:val="Definition"/>
     <w:qFormat/>
     <w:unhideWhenUsed/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="aa">
+  <w:style w:type="paragraph" w:styleId="ListBullet">
     <w:name w:val="List Bullet"/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
     <w:pPr>
       <w:contextualSpacing/>
       <w:numPr>
@@ -465,7 +465,7 @@
   </w:style>
   <w:style w:type="paragraph" w:styleId="ListNumber">
     <w:name w:val="List Number"/>
-    <w:basedOn w:val="aa"/>
+    <w:basedOn w:val="ListBullet"/>
     <w:uiPriority w:val="34"/>
     <w:qFormat/>
     <w:pPr>
@@ -711,7 +711,7 @@
   </w:style>
   <w:style w:type="table" w:customStyle="1" w:styleId="FieldList">
     <w:name w:val="Field List"/>
-    <w:basedOn w:val="a1"/>
+    <w:basedOn w:val="NormalTable"/>
     <w:qFormat/>
     <w:pPr>
       <w:jc w:val="both"/>
@@ -737,7 +737,7 @@
   </w:style>
   <w:style w:type="table" w:customStyle="1" w:styleId="OptionList">
     <w:name w:val="Option List"/>
-    <w:basedOn w:val="a1"/>
+    <w:basedOn w:val="NormalTable"/>
     <w:uiPriority w:val="99"/>
     <w:tblPr>
       <w:tblStyleRowBandSize w:val="1"/>
@@ -760,10 +760,10 @@
       </w:pPr>
     </w:tblStylePr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="ac">
+  <w:style w:type="paragraph" w:styleId="BalloonText">
     <w:name w:val="Balloon Text"/>
-    <w:basedOn w:val="a"/>
-    <w:link w:val="ad"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:link w:val="BalloonTextChar"/>
     <w:pPr>
       <w:spacing w:after="0"/>
     </w:pPr>
@@ -773,19 +773,19 @@
       <w:szCs w:val="18"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="ad">
+  <w:style w:type="character" w:customStyle="1" w:styleId="BalloonTextChar">
     <w:name w:val="吹き出し (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="ac"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="BalloonText"/>
     <w:rPr>
       <w:rFonts w:ascii="ヒラギノ角ゴ ProN W3" w:eastAsia="ヒラギノ角ゴ ProN W3"/>
       <w:sz w:val="18"/>
       <w:szCs w:val="18"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="ae">
+  <w:style w:type="paragraph" w:styleId="NoSpacing">
     <w:name w:val="No Spacing"/>
-    <w:link w:val="af"/>
+    <w:link w:val="NoSpacingChar"/>
     <w:uiPriority w:val="1"/>
     <w:qFormat/>
     <w:pPr>
@@ -797,10 +797,10 @@
       <w:szCs w:val="22"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="af">
+  <w:style w:type="character" w:customStyle="1" w:styleId="NoSpacingChar">
     <w:name w:val="行間詰め (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="ae"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="NoSpacing"/>
     <w:uiPriority w:val="1"/>
     <w:rPr>
       <w:kern w:val="0"/>
@@ -810,7 +810,7 @@
   </w:style>
   <w:style w:type="paragraph" w:styleId="TOCHeading">
     <w:name w:val="TOC Heading"/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
     <w:qFormat/>
     <w:pPr>
       <w:widowControl/>
@@ -826,15 +826,15 @@
   </w:style>
   <w:style w:type="paragraph" w:styleId="toc 1">
     <w:name w:val="toc 1"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
     <w:autoRedefine/>
     <w:uiPriority w:val="39"/>
   </w:style>
   <w:style w:type="paragraph" w:styleId="toc 2">
     <w:name w:val="toc 2"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
     <w:autoRedefine/>
     <w:uiPriority w:val="39"/>
     <w:unhideWhenUsed/>
@@ -844,8 +844,8 @@
   </w:style>
   <w:style w:type="paragraph" w:styleId="toc 3">
     <w:name w:val="toc 3"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
     <w:autoRedefine/>
     <w:uiPriority w:val="39"/>
     <w:unhideWhenUsed/>
@@ -855,8 +855,8 @@
   </w:style>
   <w:style w:type="paragraph" w:styleId="toc 4">
     <w:name w:val="toc 4"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
     <w:autoRedefine/>
     <w:uiPriority w:val="39"/>
     <w:unhideWhenUsed/>
@@ -866,8 +866,8 @@
   </w:style>
   <w:style w:type="paragraph" w:styleId="toc 5">
     <w:name w:val="toc 5"/>
-    <w:basedOn w:val="a"/>
-    <w:next w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:next w:val="NormalParagraph"/>
     <w:autoRedefine/>
     <w:uiPriority w:val="39"/>
     <w:unhideWhenUsed/>
@@ -875,10 +875,10 @@
       <w:ind w:left="840" w:leftChars="400"/>
     </w:pPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="af0">
+  <w:style w:type="paragraph" w:styleId="Header">
     <w:name w:val="header"/>
-    <w:basedOn w:val="a"/>
-    <w:link w:val="af1"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:link w:val="HeaderChar"/>
     <w:pPr>
       <w:tabs>
         <w:tab w:val="center" w:pos="4252"/>
@@ -887,18 +887,18 @@
       <w:snapToGrid w:val="0"/>
     </w:pPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="af1">
+  <w:style w:type="character" w:customStyle="1" w:styleId="HeaderChar">
     <w:name w:val="ヘッダー (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="af0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="Header"/>
     <w:rPr>
       <w:sz w:val="21"/>
     </w:rPr>
   </w:style>
-  <w:style w:type="paragraph" w:styleId="af2">
+  <w:style w:type="paragraph" w:styleId="Footer">
     <w:name w:val="footer"/>
-    <w:basedOn w:val="a"/>
-    <w:link w:val="af3"/>
+    <w:basedOn w:val="NormalParagraph"/>
+    <w:link w:val="FooterChar"/>
     <w:pPr>
       <w:tabs>
         <w:tab w:val="center" w:pos="4252"/>
@@ -907,16 +907,16 @@
       <w:snapToGrid w:val="0"/>
     </w:pPr>
   </w:style>
-  <w:style w:type="character" w:customStyle="1" w:styleId="af3">
+  <w:style w:type="character" w:customStyle="1" w:styleId="FooterChar">
     <w:name w:val="フッター (文字)"/>
-    <w:basedOn w:val="a0"/>
-    <w:link w:val="af2"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:link w:val="Footer"/>
     <w:rPr>
       <w:sz w:val="21"/>
     </w:rPr>
   </w:style>
   <w:style w:type="character" w:styleId="FootnoteReference">
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:name w:val="footnote reference"/>
     <w:rPr>
       <w:vertAlign w:val="superscript"/>
@@ -926,7 +926,7 @@
   </w:style>
   <w:style w:type="character" w:styleId="FootnoteTextChar" w:customStyle="1">
     <w:name w:val="Footnote Text Char"/>
-    <w:basedOn w:val="a0"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
     <w:link w:val="FootnoteText"/>
     <w:rPr>
       <w:sz w:val="20"/>
@@ -936,7 +936,7 @@
     <w:uiPriority w:val="99"/>
   </w:style>
   <w:style w:type="paragraph" w:styleId="FootnoteText">
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
     <w:link w:val="FootnoteTextChar"/>
     <w:name w:val="footnote text"/>
     <w:pPr>
@@ -950,7 +950,7 @@
     <w:unhideWhenUsed/>
   </w:style>
   <w:style w:type="paragraph" w:styleId="Bibliography">
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
     <w:name w:val="Bibliography"/>
     <w:uiPriority w:val="99"/>
     <w:unhideWhenUsed/>
@@ -987,13 +987,13 @@
     <w:name w:val="Body Text"/>
     <w:qFormat/>
     <w:unhideWhenUsed/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
   </w:style>
   <w:style w:type="paragraph" w:customStye="1" w:styleId="Legend">
     <w:name w:val="Legend"/>
     <w:qFormat/>
     <w:unhideWhenUsed/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
     <w:rPr>
       <w:sz w:val="18"/>
     </w:rPr>
@@ -1003,19 +1003,19 @@
     <w:semiHidden/>
     <w:qFormat/>
     <w:unhideWhenUsed/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
   </w:style>
   <w:style w:type="paragraph" w:customStye="1" w:styleId="Figure">
     <w:name w:val="Figure"/>
     <w:qFormat/>
     <w:unhideWhenUsed/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
   </w:style>
   <w:style w:type="paragraph" w:customStye="1" w:styleId="Heading">
     <w:name w:val="Heading"/>
     <w:semiHidden/>
     <w:qFormat/>
-    <w:basedOn w:val="a"/>
+    <w:basedOn w:val="NormalParagraph"/>
   </w:style>
   <w:style w:type="paragraph" w:customStye="1" w:styleId="Rubric Title Heading">
     <w:name w:val="Rubric Title Heading"/>
@@ -1027,6 +1027,6 @@
     <w:name w:val="List Table"/>
     <w:semiHidden/>
     <w:qFormat/>
-    <w:basedOn w:val="a1"/>
+    <w:basedOn w:val="NormalTable"/>
   </w:style>
 </w:styles>
