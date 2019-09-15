@@ -460,6 +460,8 @@ class Table(TableElement):
         return grid_span
 
     def _set_keep_next(self, is_head, index):
+        if index == len(self._head if is_head else self._body) - 1:
+            return True
         if self._keep_next == 0:
             return False
         if self._keep_next == 1:
