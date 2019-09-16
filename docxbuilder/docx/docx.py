@@ -1832,6 +1832,11 @@ class DocxComposer: # pylint: disable=too-many-public-methods
             'gif': 'image/gif',
             'png': 'image/png',
             'emf': 'image/x-emf',
+            'tiff': 'image/tiff',
+            'tif': 'image/tiff',
+            'bmp': 'image/bmp',
+            'ico': 'image/vnd.microsoft.icon',
+            'webp': 'image/webp',
         }
         for ext, ctype in filetypes.items():
             types_tree.append(
