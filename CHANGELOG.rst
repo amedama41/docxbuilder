@@ -1,3 +1,13 @@
+Release 1.1.1 (2019-09-16)
+--------------------------
+
+Enhancement
+***********
+
+* Support BMP/TIFF/ICO/WEBP image format
+* Rename style id in order to enhance human readability
+* Not to display only table margin paragraph in order to avoid empty page
+
 Release 1.1.0 (2019-08-06)
 --------------------------
 
