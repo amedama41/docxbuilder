@@ -11,13 +11,13 @@ class CustomBuild(build.build, object):
 
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASEDIR, 'README.rst'), 'r') as f:
-    long_description = f.read()
+    LONG_DESCRIPTION = f.read()
 
 setup(
     name='docxbuilder',
-    version='1.1.0',
+    version='1.1.1',
     description='Sphinx docx builder extension',
-    long_description=long_description,
+    long_description=LONG_DESCRIPTION,
     url='https://github.com/amedama41/docxbuilder',
     author='amedama41',
     author_email='kamo.devel41@gmail.com',
