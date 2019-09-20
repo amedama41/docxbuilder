@@ -200,8 +200,12 @@ class BookmarkEnd(BookmarkElement):
         return docx.make_bookmark_end(self._id)
 
 class Paragraph(ParagraphElement):
+    DEFAULT_STYLE = 0
+    DOCXBUILDER_STYLE = 1
+    TABLE_BOTTOM_MARGIN_STYLE = 2
+
     def __init__(self, indent=None, right_indent=None,
-                 paragraph_style=None, is_default_style=True, align=None,
+                 paragraph_style=None, style_kind=DEFAULT_STYLE, align=None,
                  keep_lines=False, keep_next=False,
                  list_info=None, preserve_space=False):
         self._contents_stack = [[]]
@@ -210,7 +214,7 @@ class Paragraph(ParagraphElement):
         self._indent = indent
         self._right_indent = right_indent
         self._style = paragraph_style
-        self._is_default_style = is_default_style
+        self._style_kind = style_kind
         self._align = align
         self._keep_lines = keep_lines
         self._keep_next = keep_next
@@ -218,7 +222,11 @@ class Paragraph(ParagraphElement):
 
     @property
     def is_default_style(self):
-        return self._is_default_style
+        return self._style_kind == Paragraph.DEFAULT_STYLE
+
+    @property
+    def is_table_bottom_margin_style(self):
+        return self._style_kind == Paragraph.TABLE_BOTTOM_MARGIN_STYLE
 
     def add_text(self, text):
         style = {}
@@ -563,6 +571,7 @@ class Document(object):
         self._body = body
         self._add_pagebreak = False
         self._section = SectionPropertyManager(default_orient, sect_props)
+        self._last_table_bottom_margin_index = None
 
     def add_pagebreak(self):
         self._add_pagebreak = True
@@ -589,17 +598,33 @@ class Document(object):
         if not isinstance(contents, BookmarkElement):
             self._add_section_prop_if_necessary()
             if self._add_pagebreak:
+                self._remove_last_table_bottom_margin_paragraph()
                 docx.add_page_break_before_to_first_paragraph(xml)
                 self._add_pagebreak = False
+            if Document._is_table_bottom_margin_paragraph(contents):
+                self._last_table_bottom_margin_index = len(self._body)
+            else:
+                self._last_table_bottom_margin_index = None
         self._body.append(xml)
+
+    def _remove_last_table_bottom_margin_paragraph(self):
+        if self._last_table_bottom_margin_index is not None:
+            del self._body[self._last_table_bottom_margin_index]
+        self._last_table_bottom_margin_index = None
 
     def _add_section_prop_if_necessary(self):
         section = self._section.pop_last_section()
         if section is None:
             return
+        self._remove_last_table_bottom_margin_paragraph()
         section_prop, no_title_page = section
         section_prop = docx.copy_section_property(section_prop, no_title_page)
         self._body.append(docx.make_section_prop_paragraph(section_prop))
+
+    @staticmethod
+    def _is_table_bottom_margin_paragraph(contents):
+        return (isinstance(contents, Paragraph)
+                and contents.is_table_bottom_margin_style)
 
 class Raw(object):
     def __init__(self, raw_xml):
@@ -763,6 +788,8 @@ class DocxTranslator(nodes.NodeVisitor):
     :var builder: Sphinx builder.
     """
 
+    TABLE_BOTTOM_MARGIN_STYLE_NAME = 'Table Bottom Margin'
+
     def __init__(self, document, builder):
         nodes.NodeVisitor.__init__(self, document)
         self._builder = builder
@@ -858,14 +885,17 @@ class DocxTranslator(nodes.NodeVisitor):
             list_info=None, preserve_space=False):
         if style is not None:
             style_id = self._docx.get_style_id(style)
-            is_default_style = False
+            if style_id == DocxTranslator.TABLE_BOTTOM_MARGIN_STYLE_NAME:
+                style_kind = Paragraph.TABLE_BOTTOM_MARGIN_STYLE
+            else:
+                style_kind = Paragraph.DOCXBUILDER_STYLE
         else:
             style_id = self._default_paragraph_style_stack[-1]
-            is_default_style = True
+            style_kind = Paragraph.DEFAULT_STYLE
         if align == 'default':
             align = 'center'
         return Paragraph(
-            indent, right_indent, style_id, is_default_style, align,
+            indent, right_indent, style_id, style_kind, align,
             keep_lines, keep_next, list_info, preserve_space)
 
     def _append_table(
@@ -894,7 +924,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._pop_and_append()
         # Append a paragaph as a margin between the table and the next element
         self._doc_stack[-1].append(
-            self._make_paragraph(style='Table Bottom Margin'))
+            self._make_paragraph(
+                style=DocxTranslator.TABLE_BOTTOM_MARGIN_STYLE_NAME))
         self._pop_default_paragraph_style()
 
     def _add_table_cell(self, morerows=0, morecols=0):
@@ -1350,7 +1381,8 @@ class DocxTranslator(nodes.NodeVisitor):
         if isinstance(self._doc_stack[-1], LiteralBlockTable):
             self._pop_and_append()
             self._doc_stack[-1].append(
-                self._make_paragraph(style='Table Bottom Margin'))
+                self._make_paragraph(
+                    style=DocxTranslator.TABLE_BOTTOM_MARGIN_STYLE_NAME))
         else:
             self._pop_and_append()
         self._append_bookmark_end(node.get('ids', []))
@@ -2442,7 +2474,7 @@ class DocxTranslator(nodes.NodeVisitor):
     def _create_docxbuilder_styles(self):
         self._docx.create_empty_paragraph_style('Transition', 100, True, False)
         self._docx.create_empty_paragraph_style(
-            'Table Bottom Margin', 0, False, True)
+            DocxTranslator.TABLE_BOTTOM_MARGIN_STYLE_NAME, 0, False, True)
 
         default_paragraph, _, default_table = self._docx.get_default_style_names()
         paragraph_styles = [
