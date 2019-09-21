@@ -44,7 +44,7 @@
         <a:latin typeface="Georgia"/>
         <a:ea typeface=""/>
         <a:cs typeface=""/>
-        <a:font script="Jpan" typeface="ＭＳ ゴシック"/>
+        <a:font script="Jpan" typeface="游ゴシック Medium"/>
         <a:font script="Hang" typeface="맑은 고딕"/>
         <a:font script="Hans" typeface="宋体"/>
         <a:font script="Hant" typeface="新細明體"/>
@@ -78,7 +78,7 @@
         <a:latin typeface="Helvetica"/>
         <a:ea typeface=""/>
         <a:cs typeface=""/>
-        <a:font script="Jpan" typeface="ＭＳ 明朝"/>
+        <a:font script="Jpan" typeface="游ゴシック Medium"/>
         <a:font script="Hang" typeface="맑은 고딕"/>
         <a:font script="Hans" typeface="宋体"/>
         <a:font script="Hant" typeface="新細明體"/>

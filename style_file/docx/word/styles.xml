@@ -181,7 +181,7 @@
       <w:outlineLvl w:val="0"/>
     </w:pPr>
     <w:rPr>
-      <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
+      <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="游ゴシック体" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
       <w:sz w:val="32"/>
       <w:szCs w:val="32"/>
     </w:rPr>
@@ -192,7 +192,7 @@
     <w:link w:val="Title"/>
     <w:uiPriority w:val="10"/>
     <w:rPr>
-      <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
+      <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="游ゴシック体" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
       <w:sz w:val="32"/>
       <w:szCs w:val="32"/>
     </w:rPr>
@@ -209,7 +209,7 @@
       <w:outlineLvl w:val="1"/>
     </w:pPr>
     <w:rPr>
-      <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
+      <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="游ゴシック体" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
     </w:rPr>
   </w:style>
   <w:style w:type="character" w:customStyle="1" w:styleId="SubtitleChar">
@@ -218,7 +218,7 @@
     <w:link w:val="Subtitle"/>
     <w:uiPriority w:val="11"/>
     <w:rPr>
-      <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
+      <w:rFonts w:asciiTheme="majorHAnsi" w:eastAsia="游ゴシック体" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/>
     </w:rPr>
   </w:style>
   <w:style w:type="character" w:customStyle="1" w:styleId="Heading2Char">
@@ -317,7 +317,7 @@
     <w:name w:val="Literal"/>
     <w:basedOn w:val="DefaultParagraphFont"/>
     <w:rPr>
-      <w:rFonts w:ascii="Consolas" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
+      <w:rFonts w:ascii="Consolas" w:eastAsia="ＭＳ ゴシック" w:hansitheme="majorhansi"/>
       <w:color w:val="E74C3C"/>
       <w:sz w:val="20"/>
       <w:szCs w:val="20"/>
@@ -386,7 +386,7 @@
     <w:name w:val="Desc Name"/>
     <w:basedOn w:val="Strong"/>
     <w:rPr>
-      <w:rFonts w:ascii="Consolas" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
+      <w:rFonts w:ascii="Consolas" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi"/>
     </w:rPr>
   </w:style>
   <w:style w:type="paragraph" w:customStyle="1" w:styleId="LiteralBlock">
@@ -404,7 +404,7 @@
       <w:shd w:val="clear" w:color="auto" w:fill="EEFFCC"/>
     </w:pPr>
     <w:rPr>
-      <w:rFonts w:ascii="Consolas" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
+      <w:rFonts w:ascii="Consolas" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi"/>
       <w:sz w:val="20"/>
       <w:szCs w:val="20"/>
       <w:noProof/>
@@ -750,7 +750,7 @@
     </w:tblPr>
     <w:tblStylePr w:type="band1Horz">
       <w:rPr>
-        <w:rFonts w:ascii="Consolas" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi"/>
+        <w:rFonts w:ascii="Consolas" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi"/>
       </w:rPr>
     </w:tblStylePr>
     <w:tblStylePr w:type="band2Horz">
