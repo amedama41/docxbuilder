@@ -402,6 +402,8 @@
         <w:between w:val="double" w:sz="4" w:space="2" w:color="76923C" w:themeColor="accent3" w:themeShade="BF"/>
       </w:pBdr>
       <w:shd w:val="clear" w:color="auto" w:fill="EEFFCC"/>
+      <w:autoSpaceDE w:val="0"/>
+      <w:autoSpaceDN w:val="0"/>
     </w:pPr>
     <w:rPr>
       <w:rFonts w:ascii="Consolas" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi"/>
