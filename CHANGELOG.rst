@@ -1,3 +1,13 @@
+Release 1.1.2 (2019-09-23)
+--------------------------
+
+Enhancement
+***********
+
+* Remove unnecessary table bottom margins.
+* Change Japanese default fonts.
+* Disable automatic layout coordination in default Literal Block style.
+
 Release 1.1.1 (2019-09-16)
 --------------------------
 
