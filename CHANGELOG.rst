@@ -1,3 +1,11 @@
+Release 1.1.3 (2019-09-24)
+--------------------------
+
+Bug fix
+*******
+
+* Fix an issue that unnecessary table bottom margins are unavailable to deleted.
+
 Release 1.1.2 (2019-09-23)
 --------------------------
 
