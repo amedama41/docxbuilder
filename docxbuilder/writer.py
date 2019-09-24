@@ -883,7 +883,7 @@ class DocxTranslator(nodes.NodeVisitor):
             list_info=None, preserve_space=False):
         if style is not None:
             style_id = self._docx.get_style_id(style)
-            if style_id == DocxTranslator.TABLE_BOTTOM_MARGIN_STYLE_NAME:
+            if style == DocxTranslator.TABLE_BOTTOM_MARGIN_STYLE_NAME:
                 style_kind = Paragraph.TABLE_BOTTOM_MARGIN_STYLE
             else:
                 style_kind = Paragraph.DOCXBUILDER_STYLE
