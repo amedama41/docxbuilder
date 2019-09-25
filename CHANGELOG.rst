@@ -1,3 +1,16 @@
+Release 1.1.4 (2019-09-25)
+--------------------------
+
+Enhancement
+***********
+
+* Extend top margin of description table cell in default style for appearance.
+
+Bug fix
+*******
+
+* Fix broken TOC by conflicts with bookmark IDs in cover page.
+
 Release 1.1.3 (2019-09-24)
 --------------------------
 
