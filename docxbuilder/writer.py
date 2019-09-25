@@ -823,7 +823,7 @@ class DocxTranslator(nodes.NodeVisitor):
             'html', builder.config.pygments_style, trim_doctest_flags)
         self._numsec_map = builder.make_numsec_map()
         self._numfig_map = builder.make_numfig_map()
-        self._bookmark_id = 0
+        self._bookmark_id = self._docx.get_max_bookmark_id()
         self._bookmark_id_map = {} # bookmark name => BookmarkStart id
         self._logger = logging.getLogger('docxbuilder')
 

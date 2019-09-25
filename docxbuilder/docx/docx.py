@@ -1388,6 +1388,11 @@ class DocxComposer: # pylint: disable=too-many-public-methods
                     rotate_orient(copy.deepcopy(result[ori2][0])))
         return first_orient, result
 
+    def get_max_bookmark_id(self):
+        return get_max_attribute(
+            get_elements(self.document, '//w:bookmarkStart'),
+            norm_name('w:id'))
+
     def get_style_info(self, style_name):
         style_info = self._style_info.get(style_name, None)
         if style_info is not None:
