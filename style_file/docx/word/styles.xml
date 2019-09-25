@@ -587,7 +587,7 @@
       <w:tblPr/>
       <w:tcPr>
         <w:tcMar>
-          <w:top w:w="0" w:type="dxa"/>
+          <w:top w:w="108" w:type="dxa"/>
           <w:left w:w="324" w:type="dxa"/>
           <w:bottom w:w="0" w:type="dxa"/>
           <w:right w:w="108" w:type="dxa"/>
