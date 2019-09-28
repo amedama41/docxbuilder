@@ -709,6 +709,24 @@ def make_inline_picture_run(
     ]
     return make_element_tree(run_tree)
 
+def make_omath_paragraph(equations):
+    math_paragraph_tree = [
+        ['m:oMathPara'],
+        [['m:oMathParaPr'], [['m:jc', {'m:val': 'center'}]]],
+    ]
+    if equations:
+        for equation in equations[:-1]:
+            math_paragraph_tree.append([
+                ['m:oMath'],
+                [['m:r'], [['m:t', equation]]],
+                [['m:r'], [['w:br']]],
+            ])
+        math_paragraph_tree.append(
+            [['m:oMath'], [['m:r'], [['m:t', equations[-1]]]]])
+    return make_element_tree(math_paragraph_tree)
+
+def make_omath_run(equation):
+    return make_element_tree([['m:oMath'], [['m:r'], [['m:t', equation]]]])
 
 # Tables
 

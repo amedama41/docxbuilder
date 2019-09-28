@@ -6,6 +6,11 @@ New features
 
 * Add docx_pagebreak_before_table_of_contents option.
 
+Enhancement
+***********
+
+* Use OMML tags for equations.
+
 Release 1.1.4 (2019-09-25)
 --------------------------
 

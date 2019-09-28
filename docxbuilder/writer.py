@@ -243,6 +243,9 @@ class Paragraph(ParagraphElement):
             docx.make_inline_picture_run(
                 rid, picid, filename, width, height, alt))
 
+    def add_math(self, equation):
+        self._contents_stack[-1].append(docx.make_omath_run(equation))
+
     def add_footnote_reference(self, footnote_id, style_id):
         self._contents_stack[-1].append(
             docx.make_footnote_reference(footnote_id, style_id))
@@ -720,6 +723,24 @@ class LiteralBlockTable(TableElement):
     def _is_keep_next(self, index):
         return (self._keep_next == 2 and index == 0) or (self._keep_next == 3)
 
+class MathBlock(ParagraphElement):
+    def __init__(self, equations, indent, right_indent, style_id):
+        self._equations = equations
+        self._indent = indent
+        self._right_indent = right_indent
+        self._style_id = style_id
+        self._keep_next = False
+
+    def keep_next(self):
+        self._keep_next = True
+
+    def to_xml(self):
+        para = docx.make_paragraph(
+            self._indent, self._right_indent, self._style_id, None,
+            False, self._keep_next, None)
+        para.append(docx.make_omath_paragraph(self._equations))
+        return para
+
 class ContentsList(object):
     def __init__(self):
         self._contents_list = []
@@ -1169,11 +1190,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_math_block_node(self, node, latex):
         self._append_bookmark_start(node.get('ids', []))
-        self._doc_stack.append(self._make_paragraph(
+        self._doc_stack[-1].append(MathBlock(
+            re.split(r'\n{2,}', latex),
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
-            'Math Block'))
-        self._doc_stack[-1].add_text(latex) # TODO
-        self._pop_and_append()
+            self._docx.get_style_id('Math Block')))
         self._append_bookmark_end(node.get('ids', []))
         raise nodes.SkipNode
 
@@ -1917,14 +1937,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_math(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        latex = node.get('latex')
-        if latex:
-            self._doc_stack[-1].add_text(latex)
-            raise nodes.SkipChildren
-        # TODO
-
-    def depart_math(self, node):
+        latex = node.get('latex', node.astext())
+        self._doc_stack[-1].add_math(latex)
         self._append_bookmark_end(node.get('ids', []))
+        raise nodes.SkipNode
 
     def visit_reference(self, node):
         self._append_bookmark_start(node.get('ids', []))
