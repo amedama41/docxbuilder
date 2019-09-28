@@ -2101,11 +2101,14 @@ class DocxTranslator(nodes.NodeVisitor):
                 'No docx_expanded_toctree_refid', location=node)
             return
         bookmark = make_bookmark_name(self._docname_stack[-1], refid)
+        config = self._builder.config
+        if (self._section_level <= config.docx_pagebreak_before_table_of_contents
+                and isinstance(self._doc_stack[-1], Document)):
+            self._doc_stack[-1].add_pagebreak()
         self._doc_stack[-1].append(TOC(
             caption, self._docx.get_style_id('TOC Heading'),
             maxlevel, bookmark, self._ctx_stack[-1].paragraph_width,
             self._collect_outlines(node, maxdepth)))
-        config = self._builder.config
         if (self._section_level <= config.docx_pagebreak_after_table_of_contents
                 and isinstance(self._doc_stack[-1], Document)):
             self._doc_stack[-1].add_pagebreak()
