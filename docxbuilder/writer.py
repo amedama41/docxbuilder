@@ -305,7 +305,7 @@ class Table(TableElement):
             keep_next, cant_split_row, set_table_header, rotation_header_height,
             fit_content):
         self._style = table_style
-        self._table_width = table_width
+        self._table_width = table_width # (max table width(dax), table width(%))
         self._colspec_list = []
         self._colsize_list = colsize_list
         self._indent = indent
@@ -402,7 +402,7 @@ class Table(TableElement):
     def to_xml(self):
         table = docx.make_table(
             self._style,
-            None if self._fit_content else self._table_width[1],
+            self._table_width[1],
             self._indent, self._align,
             (self._table_width[0] * col for col in self._colsize_list),
             self._head, self._stub > 0)
@@ -921,16 +921,21 @@ class DocxTranslator(nodes.NodeVisitor):
             self, table_style, table_width, colsize_list, is_indent, align=None,
             in_single_page=False, row_splittable=True,
             header_in_all_page=False, rotation_header_height=None,
-            fit_content=False):
+            fit_content=False, is_fixed_width=True):
         self._append_default_paragraph_style(None)
         table_style_id = self._docx.get_style_id(table_style)
         indent = self._ctx_stack[-1].indent if is_indent else 0
         if align == 'default':
             align = 'center'
         keep_next = 3 if in_single_page else 1
+        max_table_width = table_width
+        if is_fixed_width:
+            table_width = float(table_width) / self._ctx_stack[-1].width
+        else:
+            table_width = None
         tbl = Table(
             table_style_id,
-            (table_width, float(table_width) / self._ctx_stack[-1].width),
+            (max_table_width, table_width),
             colsize_list, indent, align,
             keep_next, not row_splittable, header_in_all_page,
             rotation_header_height, fit_content)
@@ -1473,9 +1478,17 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         align = node.parent.get('align')
         classes = node.parent.get('classes')
+        width = node.parent.get('width')
+        if width is not None:
+            table_width = convert_to_twip_size(
+                width, self._ctx_stack[-1].paragraph_width)
+            is_fixed_width = True
+        else:
+            table_width = self._ctx_stack[-1].paragraph_width
+            is_fixed_width = False
         self._append_table(
             'Table',
-            self._ctx_stack[-1].paragraph_width, [1.0], True, align,
+            table_width, [1.0], True, align, is_fixed_width=is_fixed_width,
             in_single_page=self._get_table_option(
                 classes, 'in-single-page', False),
             row_splittable=self._get_table_option(
@@ -1745,7 +1758,8 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         table_width = self._ctx_stack[-1].paragraph_width
         table = self._append_table(
-            'Field List', table_width, [0.25, 0.75], True, fit_content=True)
+            'Field List', table_width, [0.25, 0.75], True,
+            is_fixed_width=False, fit_content=True)
         table.add_stub()
 
     def depart_field_list(self, node):

@@ -10,6 +10,7 @@ Enhancement
 ***********
 
 * Use OMML tags for equations.
+* Support table width option.
 
 Release 1.1.4 (2019-09-25)
 --------------------------
