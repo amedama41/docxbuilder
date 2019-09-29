@@ -2334,7 +2334,8 @@ class DocxTranslator(nodes.NodeVisitor):
         numcols = len(node)
         colsize_list = [1.0 / numcols for _ in range(numcols)]
         tbl = self._append_table(
-            None, table_width, colsize_list, True, fit_content=False)
+            'Horizontal List',
+            table_width, colsize_list, True, fit_content=False)
         tbl.add_row()
 
     def depart_hlist(self, node):
@@ -2543,6 +2544,7 @@ class DocxTranslator(nodes.NodeVisitor):
             ('Based Admonition', default_table, False, True),
             ('Field List', 'List Table', False, False),
             ('Option List', 'List Table', False, False),
+            ('Horizontal List', 'List Table', False, False),
             ('Admonition', 'Based Admonition', False, False),
             ('Admonition Descriptions', 'Based Admonition', False, True),
             ('Admonition Versionmodified', 'Based Admonition', True, True),

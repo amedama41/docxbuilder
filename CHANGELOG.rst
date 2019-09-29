@@ -5,6 +5,7 @@ New features
 ************
 
 * Add docx_pagebreak_before_table_of_contents option.
+* Add Horizontal List style for hlist directive.
 
 Enhancement
 ***********
