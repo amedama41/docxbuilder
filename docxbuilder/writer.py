@@ -22,6 +22,7 @@
 
 import hashlib
 import os
+import posixpath
 import re
 import sys
 
@@ -2385,8 +2386,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _get_bookmark_name(self, refuri):
         # For such case that the target is in a different directory
-        refuri = os.path.normpath(
-            os.path.join(os.path.dirname(self._docname_stack[-1]), refuri))
+        refuri = posixpath.normpath(
+            posixpath.join(posixpath.dirname(self._docname_stack[-1]), refuri))
         if refuri in self._builder.env.all_docs:
             return make_bookmark_name(refuri, '')
         hashindex = refuri.rfind('#') # Use rfind because docname includes #.
@@ -2394,7 +2395,8 @@ class DocxTranslator(nodes.NodeVisitor):
             return make_bookmark_name(refuri[:hashindex], refuri[hashindex+1:])
         if hashindex == 0:
             return make_bookmark_name(self._docname_stack[-1], refuri[1:])
-        return None
+        self._logger.warning('Missing refuri :' + refuri)
+        return ''
 
     def _get_additional_list_indent(self, list_level):
         if list_level >= len(self._bullet_list_indents):
