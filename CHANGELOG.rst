@@ -1,3 +1,11 @@
+Unreleased
+----------
+
+Bug fix
+*******
+
+* Fix document broken by multiple references to a same footnote.
+
 Release 1.1.4 (2019-09-25)
 --------------------------
 

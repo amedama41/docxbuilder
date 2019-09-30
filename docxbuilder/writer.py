@@ -1584,13 +1584,10 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_footnote(self, node):
         self._append_bookmark_end(node.get('ids', []))
         footnote = self._doc_stack.pop()
-        prev_fid = None
+        contents = [c.to_xml() for c in footnote]
         for node_id in node.get('ids'):
-            fid = self._docx.set_default_footnote_id(
-                '%s#%s' % (self._docname_stack[-1], node_id), prev_fid)
-            if fid != prev_fid:
-                self._docx.append_footnote(fid, (c.to_xml() for c in footnote))
-                prev_fid = fid
+            self._docx.append_footnote(
+                '%s#%s' % (self._docname_stack[-1], node_id), contents)
         self._relationship_stack.pop()
 
     def visit_citation(self, node):
@@ -1961,7 +1958,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         refid = node.get('refid', None)
         if refid is not None:
-            fid = self._docx.set_default_footnote_id(
+            fid = self._docx.get_footnote_id(
                 '%s#%s' % (self._docname_stack[-1], refid))
             self._doc_stack[-1].add_footnote_reference(
                 fid, self._docx.get_style_id('Footnote Reference'))
