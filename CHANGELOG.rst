@@ -13,18 +13,27 @@ Enhancement
 * Use OMML tags for equations.
 * Support table width option.
 
-Release 1.1.4 (2019-09-25)
+Release 1.1.5 (2019-09-30)
 --------------------------
 
-Enhancement
-***********
+Bug fix
+*******
 
-* Extend top margin of description table cell in default style for appearance.
+* Fix document broken by multiple references to a same footnote.
+* Fix documentation build error by broken bookmark in Windows.
+
+Release 1.1.4 (2019-09-25)
+--------------------------
 
 Bug fix
 *******
 
 * Fix broken TOC by conflicts with bookmark IDs in cover page.
+
+Enhancement
+***********
+
+* Extend top margin of description table cell in default style for appearance.
 
 Release 1.1.3 (2019-09-24)
 --------------------------

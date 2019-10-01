@@ -22,6 +22,7 @@
 
 import hashlib
 import os
+import posixpath
 import re
 import sys
 
@@ -1617,13 +1618,10 @@ class DocxTranslator(nodes.NodeVisitor):
     def depart_footnote(self, node):
         self._append_bookmark_end(node.get('ids', []))
         footnote = self._doc_stack.pop()
-        prev_fid = None
+        contents = [c.to_xml() for c in footnote]
         for node_id in node.get('ids'):
-            fid = self._docx.set_default_footnote_id(
-                '%s#%s' % (self._docname_stack[-1], node_id), prev_fid)
-            if fid != prev_fid:
-                self._docx.append_footnote(fid, (c.to_xml() for c in footnote))
-                prev_fid = fid
+            self._docx.append_footnote(
+                '%s#%s' % (self._docname_stack[-1], node_id), contents)
         self._relationship_stack.pop()
 
     def visit_citation(self, node):
@@ -1991,7 +1989,7 @@ class DocxTranslator(nodes.NodeVisitor):
         self._append_bookmark_start(node.get('ids', []))
         refid = node.get('refid', None)
         if refid is not None:
-            fid = self._docx.set_default_footnote_id(
+            fid = self._docx.get_footnote_id(
                 '%s#%s' % (self._docname_stack[-1], refid))
             self._doc_stack[-1].add_footnote_reference(
                 fid, self._docx.get_style_id('Footnote Reference'))
@@ -2422,8 +2420,8 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def _get_bookmark_name(self, refuri):
         # For such case that the target is in a different directory
-        refuri = os.path.normpath(
-            os.path.join(os.path.dirname(self._docname_stack[-1]), refuri))
+        refuri = posixpath.normpath(
+            posixpath.join(posixpath.dirname(self._docname_stack[-1]), refuri))
         if refuri in self._builder.env.all_docs:
             return make_bookmark_name(refuri, '')
         hashindex = refuri.rfind('#') # Use rfind because docname includes #.
@@ -2431,7 +2429,8 @@ class DocxTranslator(nodes.NodeVisitor):
             return make_bookmark_name(refuri[:hashindex], refuri[hashindex+1:])
         if hashindex == 0:
             return make_bookmark_name(self._docname_stack[-1], refuri[1:])
-        return None
+        self._logger.warning('Missing refuri :' + refuri)
+        return ''
 
     def _get_additional_list_indent(self, list_level):
         if list_level >= len(self._bullet_list_indents):

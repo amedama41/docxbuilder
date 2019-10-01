@@ -1370,7 +1370,8 @@ class DocxComposer: # pylint: disable=too-many-public-methods
 
         self._footnotes = make_element_tree([['w:footnotes']])
         self._footnotes.extend(get_special_footnotes(self.style_docx.footnotes))
-        self._footnote_id_map = {} # docname#id => footnote id
+        self._footnote_map = {} # docname#id => footnote contents
+        self._footnote_id_map = {} # footnote_id => docname#id
         self._max_footnote_id = get_max_attribute(
             get_elements(self._footnotes, 'w:footnote'), norm_name('w:id'))
 
@@ -1510,7 +1511,8 @@ class DocxComposer: # pylint: disable=too-many-public-methods
         ]
 
         inherited_rel_attrs = self.collect_inherited_rel_attrs()
-        numbering = self.make_numbering(inherited_rel_attrs)
+        footnotes = self.make_footnotes()
+        numbering = self.make_numbering(inherited_rel_attrs, footnotes)
 
         document_rels = self.make_document_rels(inherited_rel_attrs)
         xml_files.append(('word/_rels/document.xml.rels', document_rels))
@@ -1525,7 +1527,7 @@ class DocxComposer: # pylint: disable=too-many-public-methods
         settings = self.make_settings(set_update_fields)
 
         xml_files.append(('word/document.xml', self.document))
-        xml_files.append(('word/footnotes.xml', self._footnotes))
+        xml_files.append(('word/footnotes.xml', footnotes))
         xml_files.append(('word/numbering.xml', numbering))
         xml_files.append(('word/styles.xml', self.style_docx.styles))
         xml_files.append(('word/settings.xml', settings))
@@ -1806,20 +1808,14 @@ class DocxComposer: # pylint: disable=too-many-public-methods
         self._image_info_map[imagepath] = (rid_map, picname)
         return rid
 
-    def set_default_footnote_id(self, key, default_fid=None):
-        fid = self._footnote_id_map.get(key)
-        if fid is not None:
-            return fid
-        if default_fid is None:
-            self._max_footnote_id += 1
-            default_fid = self._max_footnote_id
-        self._footnote_id_map[key] = default_fid
-        return default_fid
+    def get_footnote_id(self, key):
+        self._max_footnote_id += 1
+        fid = self._max_footnote_id
+        self._footnote_id_map[fid] = key
+        return fid
 
-    def append_footnote(self, fid, contents):
-        footnote = make_element_tree([['w:footnote', {'w:id': str(fid)}]])
-        footnote.extend(contents)
-        self._footnotes.append(footnote)
+    def append_footnote(self, key, contents):
+        self._footnote_map[key] = contents
 
     def collect_inherited_rel_attrs(self):
         """Collect relationships inherited from style file.
@@ -2005,7 +2001,17 @@ class DocxComposer: # pylint: disable=too-many-public-methods
             {'Id': 'rId%d' % rid, 'Type': rtype, 'Target': target}
             for rid, (rtype, target) in enumerate(rel_list, 1))
 
-    def make_numbering(self, inherited_rel_attrs):
+    def make_footnotes(self):
+        footnotes = make_element_tree([['w:footnotes']])
+        footnotes.extend(self._footnotes)
+        for fid, key in self._footnote_id_map.items():
+            footnote = make_element_tree([['w:footnote', {'w:id': str(fid)}]])
+            footnote.extend(
+                copy.deepcopy(self._footnote_map.get(key, lambda: [])))
+            footnotes.append(footnote)
+        return footnotes
+
+    def make_numbering(self, inherited_rel_attrs, footnotes):
         """Create numbering.xml from nums and abstract nums in use
         """
         used_num_ids = self.style_docx.collect_num_ids(inherited_rel_attrs)
@@ -2015,7 +2021,7 @@ class DocxComposer: # pylint: disable=too-many-public-methods
             used_num_ids.update((int(num_id.get(val_attr)) for num_id in elems))
         update_used_num_ids(self.style_docx.styles)
         update_used_num_ids(self.document)
-        update_used_num_ids(self._footnotes)
+        update_used_num_ids(footnotes)
 
         nums = [num for num_id, num in self._nums if num_id in used_num_ids]
         get_abst_num_id = lambda num: int(
