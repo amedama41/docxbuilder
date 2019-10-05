@@ -67,11 +67,9 @@ class DocxBuilder(Builder):
                 toctree.get('ids').extend(toctree.parent.get('ids'))
                 doc.append(toctree)
             tree = doc
-        tree = insert_all_toctrees(tree, self.env, [])
+        tree = insert_all_toctrees(tree, master, self.env, [])
         tree['docname'] = master
         self._logger.info('')
-        self._logger.info('resolving references...', nonl=True)
-        self.env.resolve_references(tree, master, self)
         # TODO: Support cross references
         return tree
 
@@ -110,7 +108,6 @@ class DocxBuilder(Builder):
             self._logger.info('processing %s... ' % docname, nonl=True)
             doctree = self.assemble_doctree(start_doc, toctree_only)
             self.doc_properties = props
-            self._logger.info('')
             self._logger.info('writing... ', nonl=True)
             self.write_doc(docname, doctree)
             self._logger.info('done')
@@ -124,8 +121,9 @@ class DocxBuilder(Builder):
     def finish(self):
         pass
 
-def insert_all_toctrees(tree, env, traversed):
+def insert_all_toctrees(tree, docname, env, traversed):
     tree = tree.deepcopy()
+    env.apply_post_transforms(tree, docname)
     for toctreenode in tree.traverse(addnodes.toctree):
         nodeid = 'docx_expanded_toctree%d' % id(toctreenode)
         newnodes = nodes.container(ids=[nodeid])
@@ -137,7 +135,7 @@ def insert_all_toctrees(tree, env, traversed):
             try:
                 traversed.append(includefile)
                 subtree = insert_all_toctrees(
-                    env.get_doctree(includefile), env, traversed)
+                    env.get_doctree(includefile), includefile, env, traversed)
             except Exception: # pylint: disable=broad-except
                 continue
             start_of_file = addnodes.start_of_file(docname=includefile)
