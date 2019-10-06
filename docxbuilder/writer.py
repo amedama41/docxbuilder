@@ -1081,7 +1081,7 @@ class DocxTranslator(nodes.NodeVisitor):
             self._doc_stack[-1].append(para)
 
     def depart_admonition_node(
-            self, node, style=None, align='center', margin=1000):
+            self, node, style=None, align='center', margin='10%'):
         """Insert a table of admonition represented by the node.
 
         This function shall be called from depart method for the node
@@ -1093,14 +1093,23 @@ class DocxTranslator(nodes.NodeVisitor):
         :param margin: A total margin between the table and page.
         """
         contents = self._doc_stack.pop()
-        table_width = self._ctx_stack[-1].width - margin
+        if align is not None:
+            base_width = self._ctx_stack[-1].width
+            is_indent = False
+        else:
+            base_width = self._ctx_stack[-1].paragraph_width
+            is_indent = True
+        if isinstance(margin, int):
+            table_width = base_width - margin
+        else:
+            table_width = max(
+                base_width - convert_to_twip_size(margin, base_width), 1)
         if style is None:
             style = next((
                 ' '.join(word.capitalize() for word in c.split('-'))
                 for c in node.get('classes') if c.startswith('admonition-')),
                          'Admonition %s' % node.tagname.capitalize())
             self._docx.create_style('table', style, 'Based Admonition', True)
-        is_indent = (align is None)
         tbl = self._append_table(
             style, table_width, [1.0], is_indent, align, fit_content=False)
         tbl.start_head()
@@ -1791,7 +1800,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_option_list(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        table_width = self._ctx_stack[-1].paragraph_width - 500
+        table_width = self._ctx_stack[-1].paragraph_width
         self._append_table(
             'Option List', table_width, [1.0], True, fit_content=False)
 
@@ -2184,7 +2193,7 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc(self, node):
         self._append_bookmark_start(node.get('ids', []))
-        table_width = self._ctx_stack[-1].paragraph_width - 500
+        table_width = self._ctx_stack[-1].paragraph_width
         style_name = '%s Descriptions' % node.get('desctype', '').capitalize()
         self._docx.create_style(
             'table', style_name, 'Admonition Descriptions', True)

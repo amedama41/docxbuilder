@@ -1,6 +1,11 @@
 Unreleased
 ----------
 
+Bug fix
+*******
+
+* Fix broken references.
+
 New features
 ************
 
@@ -12,6 +17,7 @@ Enhancement
 
 * Use OMML tags for equations.
 * Support table width option.
+* Change table margin.
 
 Release 1.1.5 (2019-09-30)
 --------------------------
