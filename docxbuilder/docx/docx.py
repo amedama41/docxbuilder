@@ -441,7 +441,10 @@ def set_page_number(section_prop, page_number=None):
                     [['w:pgNumType', {'w:start': str(page_number)}]]))
         return
     if page_number is None:
-        del page_number_type[-1].attrib[norm_name('w:start')]
+        try:
+            del page_number_type[-1].attrib[norm_name('w:start')]
+        except KeyError:
+            pass
     else:
         page_number_type[-1].attrib[norm_name('w:start')] = str(page_number)
 

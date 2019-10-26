@@ -6,6 +6,7 @@ Bug fix
 
 * Fix broken references.
 * #5: Fix error when List Bullet / List Number styles have no numbering style.
+* Fix error in operating section property without start number.
 
 New features
 ************
