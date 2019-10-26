@@ -1250,8 +1250,10 @@ class DocxDocument:
             name_elem = get_elements(style_elem, 'w:name')[0]
             name = name_elem.attrib[norm_name('w:val')]
             if name == style:
-                num_pr = get_elements(
-                    style_elem, 'w:pPr/w:numPr/w:numId')[0]
+                all_num_ids = get_elements(style_elem, 'w:pPr/w:numPr/w:numId')
+                if not all_num_ids:
+                    return None
+                num_pr = all_num_ids[-1]
                 value = num_pr.attrib[norm_name('w:val')]
                 return value
         return None

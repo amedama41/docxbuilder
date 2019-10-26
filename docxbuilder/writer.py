@@ -851,8 +851,16 @@ class DocxTranslator(nodes.NodeVisitor):
 
         self._create_docxbuilder_styles()
         self._bullet_list_id = self._docx.get_bullet_list_num_id('List Bullet')
-        self._bullet_list_indents = self._docx.get_numbering_left('List Bullet')
-        self._number_list_indent = self._docx.get_numbering_left('List Number')[0]
+        bullet_list_indents = self._docx.get_numbering_left('List Bullet')
+        if not bullet_list_indents:
+            self._logger.info('List Bullet style has no numbering style')
+        self._bullet_list_indents = bullet_list_indents
+        number_list_indents = self._docx.get_numbering_left('List Number')
+        if not number_list_indents:
+            self._logger.info('List Number style has no numbering style')
+            self._number_list_indent = 0
+        else:
+            self._number_list_indent = number_list_indents[0]
         self._default_paragraph_style_stack = []
         self._append_default_paragraph_style('Body Text')
 

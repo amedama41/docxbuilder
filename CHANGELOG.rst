@@ -5,6 +5,7 @@ Bug fix
 *******
 
 * Fix broken references.
+* #5: Fix error when List Bullet / List Number styles have no numbering style.
 
 New features
 ************
