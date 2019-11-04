@@ -20,6 +20,7 @@ Enhancement
 * Use OMML tags for equations.
 * Support table width option.
 * Change table margin.
+* #6: Use the first section / page as cover page when missing cover page object.
 
 Release 1.1.5 (2019-09-30)
 --------------------------

@@ -1060,7 +1060,7 @@ class StyleInfo(object):
         self._semihidden_elems = []
 
 
-class DocxDocument:
+class DocxDocument: # pylint: disable=too-many-public-methods
     def __init__(self, docxfile):
         '''
           Constructor
@@ -1089,6 +1089,20 @@ class DocxDocument:
         if target_path is None:
             return None
         return self.get_xmltree(target_path)
+
+    def _get_elements_until_target(self, target_elem_xpath):
+        body = get_elements(self.document, '/w:document/w:body')
+        if not body:
+            return []
+        target_elems = get_elements(body[0], target_elem_xpath)
+        if not target_elems:
+            return []
+        elements = []
+        for elem in body[0]:
+            elements.append(copy.deepcopy(elem))
+            if elem is target_elems[0]:
+                break
+        return elements
 
     def get_custom_xml_path(self, itemid):
         rels = get_elements(
@@ -1168,7 +1182,13 @@ class DocxDocument:
         coverpages = get_elements(
             self.document,
             '//w:sdt[w:sdtPr/w:docPartObj/w:docPartGallery[@w:val="Cover Pages"]]')
-        return coverpages[0] if coverpages else None
+        return copy.deepcopy(coverpages[0]) if coverpages else None
+
+    def get_first_section_elements(self):
+        return self._get_elements_until_target('./*[.//w:pPr/w:sectPr][1]')
+
+    def get_first_page_elements(self):
+        return self._get_elements_until_target('./*[.//w:br[@w:type="page"]][1]')
 
     def get_relationship_ids(self):
         rids = []
@@ -1386,9 +1406,20 @@ class DocxComposer: # pylint: disable=too-many-public-methods
         self.document = make_element_tree([['w:document'], [['w:body']]])
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
 
-        coverpage = self.style_docx.get_coverpage() if has_coverpage else None
+        if has_coverpage:
+            self.docbody.extend(self.get_coverpage_elements())
+
+    def get_coverpage_elements(self):
+        coverpage = self.style_docx.get_coverpage()
         if coverpage is not None:
-            self.docbody.append(coverpage)
+            return [coverpage]
+        first_section_elems = self.style_docx.get_first_section_elements()
+        if first_section_elems:
+            return first_section_elems
+        first_page_elems = self.style_docx.get_first_page_elements()
+        if first_page_elems:
+            return first_page_elems
+        return []
 
     def new_id(self):
         self._id += 1
