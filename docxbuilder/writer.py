@@ -36,12 +36,26 @@ from sphinx.util import logging
 from docxbuilder import docx
 from docxbuilder.highlight import DocxPygmentsBridge
 
-#
 # Is the PIL imaging library installed?
 try:
     from PIL import Image
 except ImportError as exp:
     Image = None
+
+# Is the math libraries installed?
+try:
+    import html.entities
+    import mathml2omml
+    import latex2mathml.converter
+
+    def latex2omml(latex):
+        mathml = latex2mathml.converter.convert(latex)
+        entities = {'dtdot': 0x22f1, 'midot': 0x00b7}
+        entities.update(html.entities.name2codepoint)
+        return docx.fromstring(mathml2omml.convert(mathml, entities))[0]
+except ImportError:
+    def latex2omml(latex):
+        return docx.make_omath_run(latex)
 
 # Utility functions
 
@@ -245,7 +259,11 @@ class Paragraph(ParagraphElement):
                 rid, picid, filename, width, height, alt))
 
     def add_math(self, equation):
-        self._contents_stack[-1].append(docx.make_omath_run(equation))
+        try:
+            self._contents_stack[-1].append(latex2omml(equation))
+        except:
+            self._contents_stack[-1].append(docx.make_omath_run(equation))
+            raise
 
     def add_footnote_reference(self, footnote_id, style_id):
         self._contents_stack[-1].append(
@@ -1070,6 +1088,14 @@ class DocxTranslator(nodes.NodeVisitor):
             except RuntimeError as e:
                 self._logger.warning(e, location=node)
 
+    def _convert_math(self, latex, node):
+        try:
+            return latex2omml(latex)
+        except Exception as e: # pylint: disable=broad-except
+            self._logger.warning(
+                'Failed to convert math %s: %s', latex, e, location=node)
+            return docx.make_omath_run(latex)
+
     def visit_admonition_node(self, node, add_title=False):
         """Insert a table of admonition represented by the node.
 
@@ -1213,8 +1239,10 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_math_block_node(self, node, latex):
         self._append_bookmark_start(node.get('ids', []))
+        equations = [
+            self._convert_math(eq, node) for eq in re.split(r'\n{2,}', latex)]
         self._doc_stack[-1].append(MathBlock(
-            re.split(r'\n{2,}', latex),
+            equations,
             self._ctx_stack[-1].indent, self._ctx_stack[-1].right_indent,
             self._docx.get_style_id('Math Block')))
         self._append_bookmark_end(node.get('ids', []))
@@ -1967,7 +1995,11 @@ class DocxTranslator(nodes.NodeVisitor):
     def visit_math(self, node):
         self._append_bookmark_start(node.get('ids', []))
         latex = node.get('latex', node.astext())
-        self._doc_stack[-1].add_math(latex)
+        try:
+            self._doc_stack[-1].add_math(latex)
+        except Exception as e: # pylint: disable=broad-except
+            self._logger.warning(
+                'Failed to convert math %s: %s', latex, e, location=node)
         self._append_bookmark_end(node.get('ids', []))
         raise nodes.SkipNode
 
