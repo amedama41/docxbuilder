@@ -518,6 +518,8 @@ def add_page_break_before_to_first_paragraph(xml):
         para.append(make_element_tree([['w:pPr', tree]]))
 
 def make_run_style_property(style_id):
+    if style_id is None:
+        return {}
     return {'w:rStyle': {'w:val': style_id}}
 
 def make_paragraph(
@@ -839,18 +841,22 @@ def make_table_width_attr(val):
 # Footnotes
 
 def make_footnote_reference(footnote_id, style_id):
-    return make_element_tree([
+    run_tree = [
         ['w:r'],
-        [['w:rPr'], [['w:rStyle', {'w:val': style_id}]]],
         [['w:footnoteReference', {'w:id': str(footnote_id)}]],
-    ])
+    ]
+    if style_id is not None:
+        run_tree.insert(1, [['w:rPr'], [['w:rStyle', {'w:val': style_id}]]])
+    return make_element_tree(run_tree)
 
 def make_footnote_ref(style_id):
-    return make_element_tree([
+    run_tree = [
         ['w:r'],
-        [['w:rPr'], [['w:rStyle', {'w:val': style_id}]]],
         [['w:footnoteRef']],
-    ])
+    ]
+    if style_id is not None:
+        run_tree.insert(1, [['w:rPr'], [['w:rStyle', {'w:val': style_id}]]])
+    return make_element_tree(run_tree)
 
 
 # Annotations
@@ -900,9 +906,11 @@ def make_table_of_contents(
     if toc_title is not None:
         sdt_content_tree.append([
             ['w:p'],
-            [['w:pPr'], [['w:pStyle', {'w:val': style_id}]]],
             [['w:r'], [['w:t', toc_title]]]
         ])
+        if style_id is not None:
+            sdt_content_tree.insert(
+                1, [['w:pPr'], [['w:pStyle', {'w:val': style_id}]]])
     if maxlevel is not None:
         instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (maxlevel, bookmark)
     else:
@@ -914,28 +922,24 @@ def make_table_of_contents(
     ]
     run_prop_tree = [['w:rPr'], [['w:b', {'w:val': '0'}]], [['w:noProof']]]
     if outlines:
+        prop_tree = [['w:pPr'], tabs_tree, run_prop_tree]
+        toc_style_id = outlines[0][1]
+        if toc_style_id is not None:
+            prop_tree.insert(1, [['w:pStyle', {'w:val': toc_style_id}]])
         sdt_content_tree.append([
             ['w:p'],
-            [['w:pPr'],
-             [['w:pStyle', {'w:val': outlines[0][1]}]],
-             tabs_tree,
-             run_prop_tree,
-            ],
+            prop_tree,
             [['w:r'], [['w:fldChar', {'w:fldCharType': 'begin'}]]],
             [['w:r'], [['w:instrText', instr, {'xml:space': 'preserve'}]]],
             [['w:r'], [['w:fldChar', {'w:fldCharType': 'separate'}]]],
             _make_toc_hyperlink(outlines[0][0], outlines[0][2]),
         ])
         for text, toc_style_id, anchor in outlines[1:]:
-            sdt_content_tree.append([
-                ['w:p'],
-                [['w:pPr'],
-                 [['w:pStyle', {'w:val': toc_style_id}]],
-                 tabs_tree,
-                 run_prop_tree,
-                ],
-                _make_toc_hyperlink(text, anchor),
-            ])
+            prop_tree = [['w:pPr'], tabs_tree, run_prop_tree]
+            if toc_style_id is not None:
+                prop_tree.insert(1, [['w:pStyle', {'w:val': toc_style_id}]])
+            sdt_content_tree.append(
+                [['w:p'], prop_tree, _make_toc_hyperlink(text, anchor)])
         sdt_content_tree.append([
             ['w:p'],
             [['w:r'], [['w:fldChar', {'w:fldCharType': 'end'}]]]
@@ -1464,12 +1468,14 @@ class DocxComposer: # pylint: disable=too-many-public-methods
                 return style_info
         return None
 
-    def get_style_id(self, style_name):
+    def get_style_id(self, style_name, style_type):
         if style_name is None:
             return None
         style_info = self.get_style_info(style_name)
         if style_info is None:
-            return style_name
+            return None
+        if style_info.style_type != style_type:
+            return None
         style_info.used()
         return style_info.style_id
 

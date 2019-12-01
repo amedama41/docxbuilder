@@ -36,4 +36,5 @@ def setup(app):
         'row_splittable': True,
         'header_in_all_page': False,
     }, 'env')
+    app.add_config_value('docx_style_names', {}, 'env')
     app.add_config_value('docx_nested_character_style', True, 'env')
