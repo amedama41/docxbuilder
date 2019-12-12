@@ -904,13 +904,14 @@ def make_table_of_contents(
     '''
     sdt_content_tree = [['w:sdtContent']]
     if toc_title is not None:
-        sdt_content_tree.append([
+        title_tree = [
             ['w:p'],
             [['w:r'], [['w:t', toc_title]]]
-        ])
+        ]
         if style_id is not None:
-            sdt_content_tree.insert(
+            title_tree.insert(
                 1, [['w:pPr'], [['w:pStyle', {'w:val': style_id}]]])
+        sdt_content_tree.append(title_tree)
     if maxlevel is not None:
         instr = r' TOC \o "1-%d" \b "%s" \h \z \u ' % (maxlevel, bookmark)
     else:
