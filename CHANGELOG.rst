@@ -24,6 +24,7 @@ Enhancement
 * Change table margin.
 * #6: Use the first section / page as cover page when missing cover page object.
 * Support math role and directive. This needs math extras_require.
+* Enable to use footnotes in cover page.
 
 Release 1.1.5 (2019-09-30)
 --------------------------

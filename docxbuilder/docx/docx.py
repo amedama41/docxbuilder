@@ -196,26 +196,6 @@ def get_attribute(xml, path, name):
         return None
     return elems[0].attrib[norm_name(name)]
 
-def get_special_footnotes(footnotes_xml):
-    if footnotes_xml is None:
-        def make_footnote(footnote_id, footnote_type):
-            return make_element_tree([
-                ['w:footnote', {
-                    'w:type': footnote_type, 'w:id': str(footnote_id),
-                }],
-                [['w:p'],
-                 [['w:pPr'], [['w:spacing', {'w:after': '0'}]]],
-                 [['w:r'], [['w:' + footnote_type]]],
-                ],
-            ])
-        return [
-            make_footnote(-1, 'separate'),
-            make_footnote(0, 'continuationSeparator')
-        ]
-    return get_elements(
-        footnotes_xml,
-        '/w:footnotes/w:footnote[@w:type and not(@w:type="normal")]')
-
 def get_max_attribute(elems, attribute, to_int=int):
     '''
        Get the maximum integer attribute among the specified elems
@@ -997,6 +977,17 @@ def get_relation_target(relationships, rel_type):
     return get_attribute(
         relationships, 'pr:Relationship[@Type="%s"]' % rel_type, 'Target')
 
+def get_relation_ids(relationships):
+    if relationships is None:
+        return []
+    rids = []
+    id_attr = norm_name('Id')
+    for rel in get_elements(relationships, 'pr:Relationship'):
+        match = re.match(r'rId(\d+)', rel.get(id_attr))
+        if match is not None:
+            rids.append(int(match.group(1)))
+    return rids
+
 def make_relationships(relationships):
     '''Generate a relationships
     '''
@@ -1080,6 +1071,7 @@ class DocxDocument: # pylint: disable=too-many-public-methods
         self.docpath = docpath
         self.document = self.get_xmltree(docpath)
         self.relationships = self.get_xmltree(create_rels_path(docpath))
+        self.footnotes = self._get_rel_target_xml(REL_TYPE_FOOTNOTES)
         self.numbering = self._get_rel_target_xml(REL_TYPE_NUMBERING)
         self.styles = self._get_rel_target_xml(REL_TYPE_STYLES)
 
@@ -1135,12 +1127,13 @@ class DocxDocument: # pylint: disable=too-many-public-methods
         return None
 
     @property
-    def footnotes(self):
-        return self._get_rel_target_xml(REL_TYPE_FOOTNOTES)
-
-    @property
     def settings(self):
         return self._get_rel_target_xml(REL_TYPE_SETTINGS)
+
+    @property
+    def footnotes_relationships(self):
+        return self.get_xmltree(
+            create_rels_path(self._get_rel_target_path(REL_TYPE_FOOTNOTES)))
 
     @property
     def numbering_relationships(self):
@@ -1195,16 +1188,6 @@ class DocxDocument: # pylint: disable=too-many-public-methods
 
     def get_first_page_elements(self):
         return self._get_elements_until_target('./*[.//w:br[@w:type="page"]][1]')
-
-    def get_relationship_ids(self):
-        rids = []
-        id_attr = norm_name('Id')
-        for rel in get_elements(self.relationships, 'pr:Relationship'):
-            match = re.match(r'rId(\d+)', rel.get(id_attr))
-            if match is not None:
-                rids.append(int(match.group(1)))
-        return rids
-
     def get_image_numbers(self):
         img_nums = []
         for path in self.docx.namelist():
@@ -1367,6 +1350,40 @@ def get_cover_page_prop_info(style_docx):
         return CoverPagePropertyInfo(True, id_pool.next_id())
     return CoverPagePropertyInfo(False, path)
 
+def collect_referenced_footnotes(footnotes, xml):
+    id_attr = norm_name('w:id')
+    ref_footnote_ids = set(
+        f.get(id_attr) for f in get_elements(xml, '//w:footnoteReference'))
+    footnote_map = {}
+    footnote_id_map = {}
+    footnote_type_set = set()
+    type_attr = norm_name('w:type')
+    for footnote in footnotes:
+        fid = footnote.get(id_attr)
+        ftype = footnote.get(type_attr, 'normal')
+        if fid in ref_footnote_ids or ftype != 'normal':
+            footnote_map[fid] = footnote
+            footnote_id_map[int(fid)] = fid
+            footnote_type_set.add(ftype)
+    footnote_id_pool = IdPool(int(fid) for fid in footnote_map)
+    def make_footnote(footnote_id, footnote_type):
+        return make_element_tree([
+            ['w:footnote', {
+                'w:type': footnote_type, 'w:id': footnote_id,
+            }],
+            [['w:p'],
+             [['w:pPr'], [['w:spacing', {'w:after': '0'}]]],
+             [['w:r'], [['w:' + footnote_type]]],
+            ],
+        ])
+    required_footnote_types = ['separate', 'continuationSeparator']
+    for ftype in required_footnote_types:
+        if ftype not in footnote_type_set:
+            fid = str(footnote_id_pool.next_id())
+            footnote_map[str(fid)] = make_footnote(fid, ftype)
+            footnote_id_map[int(fid)] = fid
+    return footnote_map, footnote_id_map, footnote_id_pool
+
 #
 # DocxComposer Class
 #
@@ -1390,8 +1407,10 @@ class DocxComposer: # pylint: disable=too-many-public-methods
 
         # document part -> (relationships, relationship id pool)
         self._relationships_map = {
-            'document': ([], IdPool(self.style_docx.get_relationship_ids())),
-            'footnotes': ([], IdPool([])),
+            'document': ([], IdPool(
+                get_relation_ids(self.style_docx.relationships))),
+            'footnotes': ([], IdPool(
+                get_relation_ids(self.style_docx.footnotes_relationships))),
         }
         self._cover_page_prop_info = get_cover_page_prop_info(self.style_docx)
         self._add_required_relationships(self._cover_page_prop_info)
@@ -1399,21 +1418,19 @@ class DocxComposer: # pylint: disable=too-many-public-methods
         self._image_info_map = {} # imagepath => (relationship id, imagename)
         self._img_num_pool = IdPool(self.style_docx.get_image_numbers())
 
-        self._footnotes = make_element_tree([['w:footnotes']])
-        self._footnotes.extend(get_special_footnotes(self.style_docx.footnotes))
-        self._footnote_map = {} # docname#id => footnote contents
-        self._footnote_id_map = {} # footnote_id => docname#id
-        self._max_footnote_id = get_max_attribute(
-            get_elements(self._footnotes, 'w:footnote'), norm_name('w:id'))
+        self.document = make_element_tree([['w:document'], [['w:body']]])
+        self.docbody = get_elements(self.document, '/w:document/w:body')[0]
+        if has_coverpage:
+            self.docbody.extend(self.get_coverpage_elements())
+
+        footnote_info = collect_referenced_footnotes(
+            self.style_docx.footnotes, self.docbody)
+        self._footnote_map = footnote_info[0] # docname#id => footnote contents
+        self._footnote_id_map = footnote_info[1] # footnote_id => docname#id
+        self._footnote_id_pool = footnote_info[2]
 
         self._run_style_property_cache = {}
         self._table_margin_cache = {}
-
-        self.document = make_element_tree([['w:document'], [['w:body']]])
-        self.docbody = get_elements(self.document, '/w:document/w:body')[0]
-
-        if has_coverpage:
-            self.docbody.extend(self.get_coverpage_elements())
 
     def get_coverpage_elements(self):
         coverpage = self.style_docx.get_coverpage()
@@ -1560,7 +1577,9 @@ class DocxComposer: # pylint: disable=too-many-public-methods
 
         document_rels = self.make_document_rels(inherited_rel_attrs)
         xml_files.append(('word/_rels/document.xml.rels', document_rels))
-        footnotes_rels = self.make_footnotes_rels()
+        footnotes_rel_attrs = collect_used_rel_attrs(
+            self.style_docx.footnotes_relationships, footnotes, set())
+        footnotes_rels = self.make_footnotes_rels(footnotes_rel_attrs)
         if footnotes_rels is not None:
             xml_files.append(('word/_rels/footnotes.xml.rels', footnotes_rels))
         numbering_rel_attrs = collect_used_rel_attrs(
@@ -1577,7 +1596,7 @@ class DocxComposer: # pylint: disable=too-many-public-methods
         xml_files.append(('word/settings.xml', settings))
 
         inherited_files = self.style_docx.collect_all_relation_files(
-            inherited_rel_attrs + numbering_rel_attrs)
+            inherited_rel_attrs + footnotes_rel_attrs + numbering_rel_attrs)
         content_types = self.make_content_types(inherited_files)
         xml_files.append(('[Content_Types].xml', content_types))
 
@@ -1853,13 +1872,14 @@ class DocxComposer: # pylint: disable=too-many-public-methods
         return rid
 
     def get_footnote_id(self, key):
-        self._max_footnote_id += 1
-        fid = self._max_footnote_id
+        fid = self._footnote_id_pool.next_id()
         self._footnote_id_map[fid] = key
         return fid
 
     def append_footnote(self, key, contents):
-        self._footnote_map[key] = contents
+        footnote = make_element_tree([['w:footnote']])
+        footnote.extend(contents)
+        self._footnote_map[key] = footnote
 
     def collect_inherited_rel_attrs(self):
         """Collect relationships inherited from style file.
@@ -2025,8 +2045,11 @@ class DocxComposer: # pylint: disable=too-many-public-methods
         rel_list.extend(stylerels)
         return make_relationships(rel_list)
 
-    def make_footnotes_rels(self):
-        rel_list, _ = self._relationships_map['footnotes']
+    def make_footnotes_rels(self, footnotes_rel_attrs):
+        rel_list = []
+        footnotes_rel_list, _ = self._relationships_map['footnotes']
+        rel_list.extend(footnotes_rel_list)
+        rel_list.extend(footnotes_rel_attrs)
         if not rel_list:
             return None
         return make_relationships(rel_list)
@@ -2047,11 +2070,10 @@ class DocxComposer: # pylint: disable=too-many-public-methods
 
     def make_footnotes(self):
         footnotes = make_element_tree([['w:footnotes']])
-        footnotes.extend(self._footnotes)
+        id_attr = norm_name('w:id')
         for fid, key in self._footnote_id_map.items():
-            footnote = make_element_tree([['w:footnote', {'w:id': str(fid)}]])
-            footnote.extend(
-                copy.deepcopy(self._footnote_map.get(key, lambda: [])))
+            footnote = copy.deepcopy(self._footnote_map[key])
+            footnote.set(id_attr, str(fid))
             footnotes.append(footnote)
         return footnotes
 
