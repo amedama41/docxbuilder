@@ -1207,7 +1207,7 @@ class DocxTranslator(nodes.NodeVisitor):
                 align = node.parent.get('align')
                 keep_next = has_caption(node)
             else:
-                style = None
+                style = 'Image'
                 align = None
                 keep_next = False
             self._doc_stack.append(self._make_paragraph(
@@ -2592,6 +2592,7 @@ class DocxTranslator(nodes.NodeVisitor):
             ('Definition', default_paragraph, True, False),
             ('Literal Block', default_paragraph, True, False),
             ('Math Block', default_paragraph, True, False),
+            ('Image', default_paragraph, True, False),
             ('Figure', default_paragraph, True, False),
             ('Legend', default_paragraph, True, False),
             ('Caption', default_paragraph, False, True),
