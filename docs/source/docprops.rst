@@ -77,4 +77,10 @@ The other keys are used as custom properties.
 The value of custom properties must be an integer, float, string, bool,
 or ``datetime`` object.
 
+.. rubric:: Citations
+
+.. [ECMA376] Standard ECMA-376,
+   https://www.ecma-international.org/publications/standards/Ecma-376.htm
+.. [MSOE376] [MS-OE376]: Office Implementation Information for ECMA-376 Standards Support,
+   https://docs.microsoft.com/en-us/openspecs/office_standards/ms-oe376/db9b9b72-b10b-4e7e-844c-09f88c972219
 

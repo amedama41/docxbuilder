@@ -25,6 +25,10 @@ Getting Started
 
      pip install docxbuilder
 
+   If you use the math directive in your document, you should install also extra packages::
+
+     pip install docxbuilder[math]
+
 #. Add 'docxbuilder' to ``extensions`` configuration of ``conf.py``::
 
      extensions = [
@@ -75,6 +79,9 @@ customize the docx document properties.
 **docx_pagebreak_before_file**
   The maximum section level, which a page break is inserted before the first
   contents of each file in section level less than or equal to.
+**docx_pagebreak_before_table_of_contents**
+  The maximum section level, which a page break is inserted before each table of contents in section level less than or equal to.
+  Default: ``-1`` (No page break is inserted).
 **docx_pagebreak_after_table_of_contents**
   The maximum section level, which a page break is inserted after each table of
   contents in section level less than or equal to.
@@ -105,6 +112,11 @@ customize the docx document properties.
     If true, table headers will be displayed on each page which the table is arranged in.
     If a table has no headers, this option is ignored.
     Default: ``False``.
+**docx_style_names**
+  A dictionary from a reStructuredText class name to a docx style name.
+  The styles will be applied to characters or tables with the corresponding class names.
+  The detail is described on :ref:`user_defined_styles_section`.
+  Default:: empty.
 
 These configurations can be added to ``conf.py``::
 
@@ -132,12 +144,4 @@ TODO
 
 * Support URL path for image path.
 * Support image vertical alignment options.
-* Math blocks.
-
-.. rubric:: Citations
-
-.. [ECMA376] Standard ECMA-376,
-   https://www.ecma-international.org/publications/standards/Ecma-376.htm
-.. [MSOE376] [MS-OE376]: Office Implementation Information for ECMA-376 Standards Support,
-   https://docs.microsoft.com/en-us/openspecs/office_standards/ms-oe376/db9b9b72-b10b-4e7e-844c-09f88c972219
 

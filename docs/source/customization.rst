@@ -37,6 +37,7 @@ and the table styles are described in :numref:`table_style_table`.
    :header-rows: 1
    :stub-columns: 1
    :widths: auto
+   :width: 100%
    :align: center
    :name: character_style_table
 
@@ -83,6 +84,7 @@ and the table styles are described in :numref:`table_style_table`.
    :header-rows: 1
    :stub-columns: 1
    :widths: auto
+   :width: 100%
    :align: center
    :name: paragraph_style_table
 
@@ -111,6 +113,8 @@ and the table styles are described in :numref:`table_style_table`.
      - .. math::
 
           (a + b)^2 = a^2 + 2ab + b^2
+   * - Image
+     - .. image:: images/sample.png
    * - | Figure
        | Image Caption
        | Legend
@@ -162,6 +166,7 @@ and the table styles are described in :numref:`table_style_table`.
    :header-rows: 1
    :stub-columns: 1
    :widths: auto
+   :width: 100%
    :align: center
    :name: table_style_table
 
@@ -177,6 +182,13 @@ and the table styles are described in :numref:`table_style_table`.
 
        --option1=arg    option description 1
        --option2, -o    option description 2
+   * - Horizontal List
+     - .. hlist::
+
+          * item1
+          * item2
+          * item3
+          * item4
    * - Admonition
      - .. admonition:: This is Admonition
 
@@ -304,16 +316,54 @@ represents which style is generated from which style.
     Then it is almost unnecessary to define this style.
 .. [#FootnoteExample] This is Footnote Text.
 
+.. _`user_defined_styles_section`:
+
+User defined styles
+^^^^^^^^^^^^^^^^^^^
+
+In addition to above styles, you can define your original styles.
+These styles are applied to elements with the corresponding class name
+The mapping from class name to original style are defined by `docx_style_names` configuration.
+
+.. code-block:: python
+
+   docx_style = 'path/to/custom-style.docx'
+   docx_style_names = {
+      'strike': 'Strike',
+      'custom-table': 'Custom Table',
+   }
+   # And define Strike and Custom Table styles in the style file specified docx_style
+
+The following reStructuredText show how to use the custom styles.
+
+.. code-block:: rst
+
+   .. Use role to specify character class name.
+   .. role:: strike
+
+   This :strike:`text` is striked.
+
+   .. list-table:: Custom style table
+      :class: custom-table
+
+      * - Row1: Col1
+        - Row1: Col2
+      * - Row2: Col1
+        - Row2: Col2
+
+.. warning:: Currently, only table elements and character elements are enable to be applied user defined styles.
+
 .. _`coverpage_section`:
 
 Cover page
 ^^^^^^^^^^
 
 If ``docx_coverpage`` is true, the cover page of the style file is inserted into the generated document.
-Docxbuilder treat the first structured document tag with "Cover Pages" docPartGallery [ECMA376]_ as the cover page,
-not the first page of the style file.
+Docxbuilder treat the first structured document tag with "Cover Pages" docPartGallery as the cover page.
+If no tag is found, the contents far to the first section break are used as the cover page.
+If no section break is found, the contents far to the first page break are used as the cover page.
 
-.. topic:: How to create your orignal cover page
+.. topic:: How to create structured document tag with "Cover Pages" docPartGallery
 
    It seems that Office Word can not create only structured document tag.
    Therefore, if you want to create your original cover page, you must insert
