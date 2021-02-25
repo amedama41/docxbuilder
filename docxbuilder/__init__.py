@@ -28,7 +28,7 @@ def setup(app):
     app.add_config_value('docx_pagebreak_before_file', 0, 'env')
     app.add_config_value('docx_pagebreak_before_table_of_contents', -1, 'env')
     app.add_config_value('docx_pagebreak_after_table_of_contents', 0, 'env')
-    app.add_config_value('docx_coverpage', True, 'env')
+    app.add_config_value('docx_coverpage', 1, 'env')
     app.add_config_value('docx_update_fields', False, 'env')
     app.add_config_value('docx_table_options', {
         'landscape_columns': 0,

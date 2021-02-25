@@ -15,7 +15,7 @@ with open(os.path.join(BASEDIR, 'README.rst'), 'r') as f:
 
 setup(
     name='docxbuilder',
-    version='1.2.0',
+    version='1.3.0',
     description='Sphinx docx builder extension',
     long_description=LONG_DESCRIPTION,
     url='https://github.com/amedama41/docxbuilder',

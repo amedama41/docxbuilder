@@ -839,7 +839,7 @@ class DocxTranslator(nodes.NodeVisitor):
             stylefile = os.path.join(
                 os.path.dirname(__file__), 'docx/style.docx')
         self._docx = docx.DocxComposer(
-            stylefile, builder.config['docx_coverpage'])
+            stylefile, int(builder.config['docx_coverpage']))
         default_orient, sect_props = self._docx.get_section_properties()
         self._doc_stack = []
         self._doc_stack.append(
