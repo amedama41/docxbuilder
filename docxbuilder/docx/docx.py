@@ -1183,11 +1183,12 @@ class DocxDocument: # pylint: disable=too-many-public-methods
             '//w:sdt[w:sdtPr/w:docPartObj/w:docPartGallery[@w:val="Cover Pages"]]')
         return copy.deepcopy(coverpages[0]) if coverpages else None
 
-    def get_first_section_elements(self):
-        return self._get_elements_until_target('./*[.//w:pPr/w:sectPr][1]')
+    def get_first_section_elements(self, n=1):
+        return self._get_elements_until_target('./*[.//w:pPr/w:sectPr][%d]' % n)
 
-    def get_first_page_elements(self):
-        return self._get_elements_until_target('./*[.//w:br[@w:type="page"]][1]')
+    def get_first_page_elements(self, n=1):
+        return self._get_elements_until_target('./*[.//w:br[@w:type="page"]][%d]' % n)
+
     def get_image_numbers(self):
         img_nums = []
         for path in self.docx.namelist():
@@ -1390,7 +1391,7 @@ def collect_referenced_footnotes(footnotes, xml):
 
 
 class DocxComposer: # pylint: disable=too-many-public-methods
-    def __init__(self, stylefile, has_coverpage):
+    def __init__(self, stylefile, cover_pages):
         '''
            Constructor
         '''
@@ -1420,8 +1421,8 @@ class DocxComposer: # pylint: disable=too-many-public-methods
 
         self.document = make_element_tree([['w:document'], [['w:body']]])
         self.docbody = get_elements(self.document, '/w:document/w:body')[0]
-        if has_coverpage:
-            self.docbody.extend(self.get_coverpage_elements())
+        if cover_pages:
+            self.docbody.extend(self.get_coverpage_elements(cover_pages))
 
         footnote_info = collect_referenced_footnotes(
             self.style_docx.footnotes, self.docbody)
@@ -1432,16 +1433,10 @@ class DocxComposer: # pylint: disable=too-many-public-methods
         self._run_style_property_cache = {}
         self._table_margin_cache = {}
 
-    def get_coverpage_elements(self):
-        coverpage = self.style_docx.get_coverpage()
-        if coverpage is not None:
-            return [coverpage]
-        first_section_elems = self.style_docx.get_first_section_elements()
-        if first_section_elems:
-            return first_section_elems
-        first_page_elems = self.style_docx.get_first_page_elements()
-        if first_page_elems:
-            return first_page_elems
+    def get_coverpage_elements(self, n=1):
+        cover_elems = self.style_docx.get_first_page_elements(n)
+        if cover_elems:
+            return cover_elems
         return []
 
     def new_id(self):

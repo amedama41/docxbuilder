@@ -25,6 +25,8 @@ import os
 import posixpath
 import re
 import sys
+import urllib.request
+import imghdr
 
 from docutils import nodes, writers
 from sphinx import addnodes, version_info
@@ -839,7 +841,7 @@ class DocxTranslator(nodes.NodeVisitor):
             stylefile = os.path.join(
                 os.path.dirname(__file__), 'docx/style.docx')
         self._docx = docx.DocxComposer(
-            stylefile, builder.config['docx_coverpage'])
+            stylefile, int(builder.config['docx_coverpage']))
         default_orient, sect_props = self._docx.get_section_properties()
         self._doc_stack = []
         self._doc_stack.append(
@@ -2163,15 +2165,42 @@ class DocxTranslator(nodes.NodeVisitor):
         def get_filepath(self, node):
             uri = node['uri']
             if uri.find('://') != -1:
-                raise RuntimeError('Not support remote image files yet')
-            filepath = os.path.join(self._builder.srcdir, uri)
-            if not os.path.exists(filepath):
-                # Some extensions output images in imagedir
-                filepath = os.path.join(
-                    self._builder.outdir, self._builder.imagedir, uri)
-            if not os.path.exists(filepath):
-                # Some extensions output images in outdir
-                filepath = os.path.join(self._builder.outdir, uri)
+                # The image will be downloaded into the _build/docx/_images folder
+                # As a filename we use a md5 hash of the URI
+                # This ensures filename safety (no special characters) and uniqueness
+                imghash = hashlib.md5(uri.encode('utf-8')).hexdigest()
+                imgdir = os.path.join(self._builder.outdir, '_images')
+
+                if not os.path.isdir(imgdir):
+                    os.mkdir(imgdir)
+
+                # Search for file
+                filepath = None
+                for file in os.listdir(imgdir):
+                    if os.path.splitext(file)[0] == imghash:
+                        # Image has been downloaded, use this file
+                        filepath = os.path.join(imgdir, file)
+
+                # Download image if nonexistant
+                if not filepath:
+                    self._logger.info('downloading image: ' + uri)
+                    path_tmp = os.path.join(imgdir, imghash)
+                    urllib.request.urlretrieve(uri, path_tmp)
+
+                    # Determine image file extension and rename the image
+                    # Word shows an error if there are images with the wrong type
+                    ext = imghdr.what(path_tmp)
+                    filepath = path_tmp + '.' + ext
+                    os.renames(path_tmp, filepath)
+            else:
+                filepath = os.path.join(self._builder.srcdir, uri)
+                if not os.path.exists(filepath):
+                    # Some extensions output images in imagedir
+                    filepath = os.path.join(
+                        self._builder.outdir, self._builder.imagedir, uri)
+                if not os.path.exists(filepath):
+                    # Some extensions output images in outdir
+                    filepath = os.path.join(self._builder.outdir, uri)
             return filepath
         self.visit_image_node(
             node, node.get('alt', node['uri']), get_filepath)
