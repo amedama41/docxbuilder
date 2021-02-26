@@ -2177,9 +2177,9 @@ class DocxTranslator(nodes.NodeVisitor):
                 # Search for file
                 filepath = None
                 for file in os.listdir(imgdir):
-                    if os.path.splitext(os.path.basename(file))[0] == imghash:
+                    if os.path.splitext(file)[0] == imghash:
                         # Image has been downloaded, use this file
-                        filepath = file
+                        filepath = os.path.join(imgdir, file)
 
                 # Download image if nonexistant
                 if not filepath:
