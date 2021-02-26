@@ -103,7 +103,6 @@ TODO
 
 - Support math role and directive.
 - Support tabular_col_spec directive.
-- Support URL path for images.
 
 *******
 Licence
