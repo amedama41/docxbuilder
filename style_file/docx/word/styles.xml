@@ -3,7 +3,7 @@
   <w:docDefaults>
     <w:rPrDefault>
       <w:rPr>
-        <w:rFonts w:asciiTheme="minorHAnsi" w:eastAsiaTheme="minorEastAsia" w:hAnsiTheme="minorHAnsi" w:cstheme="minorBidi"/>
+        <w:rFonts w:asciiTheme="minorHAnsi" w:eastAsiaTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi" w:cstheme="minorBidi"/>
         <w:kern w:val="2"/>
         <w:sz w:val="21"/>
         <w:szCs w:val="21"/>
@@ -317,7 +317,7 @@
     <w:name w:val="Literal"/>
     <w:basedOn w:val="DefaultParagraphFont"/>
     <w:rPr>
-      <w:rFonts w:ascii="Consolas" w:eastAsia="ＭＳ ゴシック" w:hansitheme="majorhansi"/>
+      <w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/>
       <w:color w:val="E74C3C"/>
       <w:sz w:val="20"/>
       <w:szCs w:val="20"/>
@@ -386,7 +386,7 @@
     <w:name w:val="Desc Name"/>
     <w:basedOn w:val="Strong"/>
     <w:rPr>
-      <w:rFonts w:ascii="Consolas" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi"/>
+      <w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/>
     </w:rPr>
   </w:style>
   <w:style w:type="paragraph" w:customStyle="1" w:styleId="LiteralBlock">
@@ -406,7 +406,7 @@
       <w:autoSpaceDN w:val="0"/>
     </w:pPr>
     <w:rPr>
-      <w:rFonts w:ascii="Consolas" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi"/>
+      <w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/>
       <w:sz w:val="20"/>
       <w:szCs w:val="20"/>
       <w:noProof/>
@@ -752,7 +752,7 @@
     </w:tblPr>
     <w:tblStylePr w:type="band1Horz">
       <w:rPr>
-        <w:rFonts w:ascii="Consolas" w:eastAsia="ＭＳ ゴシック" w:hAnsiTheme="majorHAnsi"/>
+        <w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/>
       </w:rPr>
     </w:tblStylePr>
     <w:tblStylePr w:type="band2Horz">
