@@ -955,6 +955,13 @@ class DocxTranslator(nodes.NodeVisitor):
             style_kind = Paragraph.DEFAULT_STYLE
         if align == 'default':
             align = 'center'
+        # If we have a non-zero left indent for this paragraph style, make sure
+        # to offset the paragraph indent with it. Otherwise, this paragraph left
+        # indent will override the left indent of the paragraph style.
+        if indent is not None:
+            style_indent = self._docx.style_docx.get_indent(style_id)
+            if style_indent is not None:
+                indent += int(style_indent)
         return Paragraph(
             indent, right_indent, style_id, style_kind, align,
             keep_lines, keep_next, list_info, preserve_space)
