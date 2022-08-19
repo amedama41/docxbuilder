@@ -31,6 +31,7 @@ def setup(app):
     app.add_config_value('docx_coverpage', True, 'env')
     app.add_config_value('docx_update_fields', False, 'env')
     app.add_config_value('docx_hide_section_numbers', False, 'env')
+    app.add_config_value('docx_hide_subtoctrees', False, 'env')
     app.add_config_value('docx_table_options', {
         'landscape_columns': 0,
         'in_single_page': False,

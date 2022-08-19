@@ -2194,6 +2194,9 @@ class DocxTranslator(nodes.NodeVisitor):
         raise nodes.SkipNode
 
     def visit_toctree(self, node):
+        is_root_doc = (self.builder.config.root_doc == self.builder.app.project.path2doc(node.source))
+        if not is_root_doc and self.builder.config.docx_hide_subtoctrees:
+            return
         if node.get('hidden', False):
             return
         caption = node.get('caption')

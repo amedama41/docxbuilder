@@ -97,6 +97,10 @@ customize the docx document properties.
   is numbered. When this is setting is not set to true, headers would have
   double section numbers.
   Default: ``False``.
+**docx_hide_subtoctrees**
+  If true, any TOC tree that is not in the root document will be hidden from
+  the Word output.
+  Default: ``False``.
 **docx_table_options**
   A dictionary with table layout options.
   The following options are supported.
