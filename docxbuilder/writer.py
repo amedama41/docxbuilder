@@ -1323,7 +1323,7 @@ class DocxTranslator(nodes.NodeVisitor):
             align = None
         self._doc_stack.append(self._make_paragraph(
             indent, right_indent, style, align, keep_next=True))
-        if title_num is not None:
+        if title_num is not None and not self.builder.config.docx_hide_section_numbers:
             self._doc_stack[-1].add_text(title_num)
 
     def depart_title(self, node):
