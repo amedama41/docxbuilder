@@ -1449,6 +1449,11 @@ class DocxTranslator(nodes.NodeVisitor):
             linenos=linenos, opts=opts, location=node, **highlight_args)
         style_id = self._docx.get_style_id('Literal Block', 'paragraph')
         ctx = self._ctx_stack[-1]
+        indent = ctx.indent
+        if indent is not None:
+            style_indent = self._docx.style_docx.get_indent(style_id)
+            if style_indent is not None:
+                indent += int(style_indent)
         if linenos:
             table_width = ctx.paragraph_width
             border_info = self._docx.get_border_info(style_id, 'top')
@@ -1461,11 +1466,11 @@ class DocxTranslator(nodes.NodeVisitor):
             block = LiteralBlockTable(
                 highlighted, top_space, style_id,
                 (table_width, float(table_width) / ctx.width),
-                ctx.indent, keep_lines)
+                indent, keep_lines)
         else:
             block = LiteralBlock(
                 highlighted, style_id,
-                ctx.indent, ctx.right_indent, keep_lines)
+                indent, ctx.right_indent, keep_lines)
         self._doc_stack.append(block)
         raise nodes.SkipChildren
 
