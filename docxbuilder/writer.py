@@ -1304,7 +1304,10 @@ class DocxTranslator(nodes.NodeVisitor):
         elif isinstance(node.parent, nodes.section):
             style = 'Heading %d' % self._section_level
             self._docx.create_style('paragraph', style, 'Heading', False)
-            title_num = self._get_numsec(node.parent['ids'])
+            if self.builder.config.docx_hide_section_numbers:
+                title_num = None
+            else:
+                title_num = self._get_numsec(node.parent['ids'])
             indent = None
             right_indent = None
             align = None
@@ -1323,7 +1326,7 @@ class DocxTranslator(nodes.NodeVisitor):
             align = None
         self._doc_stack.append(self._make_paragraph(
             indent, right_indent, style, align, keep_next=True))
-        if title_num is not None and not self.builder.config.docx_hide_section_numbers:
+        if title_num is not None:
             self._doc_stack[-1].add_text(title_num)
 
     def depart_title(self, node):
