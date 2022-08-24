@@ -91,6 +91,16 @@ customize the docx document properties.
   If true, Office Word will ask to update fields in generated documents when the document is opened.
   This is useful when generated documents references some document properties.
   Default: ``False``.
+**docx_hide_section_numbers**
+  If true, section numbers will be removed from section titles.
+  This is useful when Word header styles are auto-numbered, and the Sphinx toctree
+  is numbered. When this is setting is not set to true, headers would have
+  double section numbers.
+  Default: ``False``.
+**docx_hide_subtoctrees**
+  If true, any TOC tree that is not in the root document will be hidden from
+  the Word output.
+  Default: ``False``.
 **docx_table_options**
   A dictionary with table layout options.
   The following options are supported.

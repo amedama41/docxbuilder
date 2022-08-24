@@ -1304,7 +1304,10 @@ class DocxTranslator(nodes.NodeVisitor):
         elif isinstance(node.parent, nodes.section):
             style = 'Heading %d' % self._section_level
             self._docx.create_style('paragraph', style, 'Heading', False)
-            title_num = self._get_numsec(node.parent['ids'])
+            if self.builder.config.docx_hide_section_numbers:
+                title_num = None
+            else:
+                title_num = self._get_numsec(node.parent['ids'])
             indent = None
             right_indent = None
             align = None
@@ -2194,6 +2197,9 @@ class DocxTranslator(nodes.NodeVisitor):
         raise nodes.SkipNode
 
     def visit_toctree(self, node):
+        is_root_doc = (self.builder.config.root_doc == self.builder.app.project.path2doc(node.source))
+        if not is_root_doc and self.builder.config.docx_hide_subtoctrees:
+            return
         if node.get('hidden', False):
             return
         caption = node.get('caption')
