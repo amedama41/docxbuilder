@@ -4,10 +4,10 @@ Introduction
 .. image:: images/screenshot.png
 
 Docxbuilder is a builder extension for `Sphinx`_.
-This builder enables to generate a Office OpenXML (OOXML) document with "docx" file extension.
-The generation does not needs Office World.
+This builder enables generation of an Office OpenXML (OOXML) document with "docx" file extension.
+The generation does not need Office World.
 
-Python versions this extension supprots are 2.7 and, 3.5 or later.
+Python versions this extension supports are 2.7 and, 3.5 or later.
 Sphinx versions are 1.7.6 or later.
 
 .. note::
